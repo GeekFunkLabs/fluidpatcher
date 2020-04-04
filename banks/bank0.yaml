@@ -1,0 +1,49 @@
+title: example bank file # not required, does nothing
+comment1: "Comments can look like this or be preceded by #"
+author: Bill Peterson # non-functional keywords are ignored
+
+router_rules: # these router rules apply to all patches
+
+- {type: note, chan: 1-16*1+0, par1: 0-127*1+0, par2: 0-127*1+0} # 1-1 routing for notes
+- {type: cc} # a router rule with no parameters defaults to 1-1 routing
+- {type: cc, chan: 1-1>2-16, par1: 7-7*1+0} # CC 7 is volume - route it to all used channels so it's global
+- {type: pbend}
+- {type: kpress}
+- {type: cpress}
+
+comment2: full list at http://www.fluidsynth.org/api/fluidsettings.xml
+fluidsettings:
+  synth.reverb.level: 0.9
+  synth.reverb.room-size: 0.8
+  synth.reverb.width: 0.5
+  synth.gain: 0.6
+
+patches:
+  Simple EP:
+    1: FM Piano.sf2:000:000 # <MIDI Channel>: <soundfont>:<bank>:<program>
+  Multi Channel:
+    1: VintageDreams.sf2:000:058
+    2: VintageDreams.sf2:000:013
+    10: VintageDreams.sf2:128:002
+  Split Keys: # split keyboard with routing
+    cc: [3/91=127, 3/93=127] # turn up reverb, chorus on channel 3
+    3: FM Piano.sf2:000:000
+    4: VintageDreams.sf2:000:028
+    router_rules:
+    - {type: note, chan: 1-1>3-3, par1: C5-G9*1+0} # note names can be used
+    - {type: note, chan: 1-1>4-4, par1: C0-B4*1-12}
+  Weird Keys:
+    5: VintageDreams.sf2:000:014
+    router_rules:
+    - {type: note, chan: 1-16>5-5, par1: Eb5-G9*1+0}
+    - {type: note, chan: 1-16>5-5, par1: D#5-G9*1+5} # 5ths
+    - {type: note, chan: 1-16>5-5, par1: C0-D5*-1+A7} # reverse??
+    - {type: pbend, chan: 1-16>5-5}
+  Saw Lead:
+    1: ModWaves.sf2:000:000
+    router_rules:
+    - clear # clears all previous router rules
+    - {type: note, par1: 0-127*1+0, par2: 0-127*0+127} # no velocity like retro synth
+    - {type: cc, par1: 1-1*0+74, par2: 0-127*-1+127} # CC 1 (modulation) to filter cutoff frequency
+    - {type: cc}
+    - {type: pbend}

@@ -1,0 +1,11 @@
+soundfontdir: sf2
+bankdir: banks
+currentbank: bank0.yaml
+fluidsettings: # http://www.fluidsynth.org/api/fluidsettings.xml
+  midi.autoconnect: 1
+  synth.midi-channels: 16
+# uncomment line below on Linux
+#  audio.driver: alsa
+# uncomment/adjust these if latency problems
+#  audio.period-size: 64
+#  audio.periods: 3
