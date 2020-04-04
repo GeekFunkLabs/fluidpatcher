@@ -19,7 +19,7 @@ sudo apt-get install fluidsynth
 Download the repository and unpack the files where you want to use them. On Windows, `ctypes` seems to have trouble finding the FluidSynth libraries, so you may need to unpack into your QSynth/FluidSynth folder, or copy the relevant *.dll* files into the same directory as FluidPatcher.
 
 ## Usage
-If on Linux, you'll want to uncomment the first line in *bankeditconf.yaml*, and perhaps the others as well:
+If on Linux, you'll want to uncomment the first line below in *bankeditconf.yaml*, and perhaps the others as well:
 ```
 #  audio.driver: alsa
 # uncomment/adjust these if latency problems
