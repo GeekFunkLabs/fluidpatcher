@@ -35,7 +35,7 @@ def load_bank_menu():
     if i < 0: return False
     SB.lcd_message("loading patches ",1)
     try:
-        pxr.load_bank(bpaths[i])
+        pxr.load_bank(banks[i])
     except patcher.PatcherError:
         SB.lcd_message("bank load error!",1)
         SB.waitforrelease(2)
@@ -46,16 +46,14 @@ def load_bank_menu():
 
 
 
-script_path = os.path.dirname(os.path.abspath(__file__))
-
 SB.lcd_clear()
-SB.lcd_message("Squishbox v0.3", 0)
+SB.lcd_message("Squishbox v3.0", 0)
 
 # start the patcher
 if len(sys.argv) > 1:
     cfgfile = sys.argv[1]
 else:
-    cfgfile = os.path.join(script_path, 'squishboxconf.yaml')
+    cfgfile = '/home/pi/SquishBox/squishboxconf.yaml'
 try:
     pxr = patcher.Patcher(cfgfile)
 except patcher.PatcherError:
@@ -66,7 +64,7 @@ except patcher.PatcherError:
 # load bank
 SB.lcd_message("loading patches ", 1)
 try:
-    pxr.load_bank(os.path.join(pxr.bankdir, pxr.cfg['currentbank']))
+    pxr.load_bank(pxr.cfg['currentbank'])
 except patcher.PatcherError:
     while True:
         SB.lcd_message("bank load error!",1)
@@ -117,15 +115,15 @@ while True:
             if pxr.sfpresets:
                 newname = SB.char_input(pxr.sfpresets[pno][0])
                 if newname == '': continue
-                newpatch = pxr.add_patch(newname)
-                pxr.update_patch(newpatch)
+                pxr.add_patch(newname)
+                pxr.update_patch(newname)
             else:
                 newname = SB.char_input(patch_name)
                 if newname == '': continue
                 patch = pxr.bank['patches'][patch_name]
                 if newname != patch_name:
-                    patch = pxr.add_patch(newname, addlike=patch)
-                pxr.update_patch(patch)
+                    pxr.add_patch(newname, addlike=patch)
+                pxr.update_patch(newname)
             pno = list(pxr.bank['patches']).index(newname)
             pxr.select_patch(pno)
             
@@ -146,8 +144,13 @@ while True:
             pxr.select_patch(pno)
             
         elif k == 3: # save bank, prompt for name
+            if pxr.sfpresets:
+                SB.lcd_message("cannot save     ",1)
+                SB.waitforrelease(1)
+                continue
             SB.lcd_message("Save bank:       ", 0)
-            bankfile = SB.char_input(os.path.relpath(pxr.cfg['currentbank'], start=pxr.bankdir))
+            bankfile = SB.char_input(pxr.cfg['currentbank'])
+            if bankfile == '': continue
             try:
                 pxr.save_bank(bankfile)
             except patcher.PatcherError:
@@ -220,16 +223,16 @@ while True:
 # left button menu - system-related tasks
     if SB.l_state==SB.STATE_HOLD:
         SB.lcd_message("Options:       ", 0)
-        k = SB.choose_opt(['MIDI Reconnect', 'Power Down', 'Wifi Settings', 'Add From USB'], 1)
+        k = SB.choose_opt(['Power Down', 'MIDI Reconnect', 'Wifi Settings', 'Add From USB'], 1)
         
-        if k == 0: # reconnect midi devices
+        if k == 0: # power down
+            SB.lcd_message("Shutting down...Wait 30s, unplug", 0)
+            call('sudo shutdown -h now'.split())
+            
+        elif k == 1: # reconnect midi devices
             SB.lcd_message("reconnecting..  ", 1)
             alsamidi_reconnect()
             SB.waitforrelease(1)
-            
-        elif k == 1: # power down
-            SB.lcd_message("Shutting down...Wait 30s, unplug", 0)
-            call('sudo shutdown -h now'.split())
             
         elif k == 2: # wifi settings
             ssid=check_output(['iwgetid', 'wlan0', '--raw']).strip().decode('ascii')

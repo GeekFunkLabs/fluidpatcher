@@ -119,8 +119,8 @@ class Synth:
         FL.fluid_synth_get_program(self.synth, chan, byref(id), byref(bank), byref(prog))
         if id.value not in self.sfid.values():
             return None
-        sfont = {v: k for k, v in self.sfid.items()}[id]
-        return sfont
+        sfont = {v: k for k, v in self.sfid.items()}[id.value]
+        return sfont, bank.value, prog.value
 
     def router_clear(self):
         FL.fluid_midi_router_clear_rules(self.router)

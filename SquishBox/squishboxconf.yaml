@@ -1,6 +1,6 @@
-soundfontdir: /home/pi/sf2
-bankdir: /home/pi/banks
-currentbank: /home/pi/banks/wtbank.yaml
+soundfontdir: /home/pi/SquishBox/sf2
+bankdir: /home/pi/SquishBox/banks
+currentbank: bank0.yaml
 fluidsettings: # http://www.fluidsynth.org/api/fluidsettings.xml
   midi.autoconnect: 1
   synth.midi-channels: 16

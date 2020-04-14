@@ -5,7 +5,7 @@ Description: a performance-oriented patch interface for fluidsynth
 """
 import re, oyaml, mido
 from copy import deepcopy
-from os.path import join as joinpath
+from os.path import relpath, join as joinpath
 import fluidwrap
 
 MAX_BANK = 129
@@ -220,7 +220,7 @@ class Patcher:
             raise PatcherError("Error writing configuration")
         f.close()
 
-    def load_bank(self, bank):
+    def load_bank(self, bank=''):
     # load patches, settings from :bank yaml string or filename
         if '\n' in bank:
             try:
@@ -229,6 +229,8 @@ class Patcher:
                 raise PatcherError("Unable to parse bank data")
             self.cfg['currentbank'] = ''
         else:
+            if bank == '':
+                bank = self.cfg['currentbank']
             f = open(joinpath(self.bankdir, bank))
             try:
                 b = read_yaml(f)
@@ -375,21 +377,23 @@ class Patcher:
 
     def add_patch(self, name, addlike=None):
     # new empty patch name :name, copying settings from :addlike
-        newpatch = {}
-        self.bank['patches'][name] = newpatch
+        self.bank['patches'][name] = {}
         if addlike:
             addlike = self._resolve_patch(addlike)
             if 'router_rules' in addlike:
-                newpatch['router_rules']=deepcopy(addlike['router_rules'])
+                self.bank['patches'][name]['router_rules'] = deepcopy(addlike['router_rules'])
             if 'cc' in addlike:
-                newpatch['cc']=deepcopy(addlike['cc'])
+                self.bank['patches'][name]['cc'] = deepcopy(addlike['cc'])
             if 'sysex' in addlike:
-                newpatch['sysex']=deepcopy(addlike['sysex'])
-        return(newpatch)
+                self.bank['patches'][name]['sysex'] = deepcopy(addlike['sysex'])
+        return(self.bank['patches'][name])
 
     def delete_patch(self, patch):
-        patch = self._resolve_patch(patch)
-        del patch
+        if isinstance(patch, int):
+            name = list(self.bank['patches'])[patch]
+        else:
+            name = patch
+        del self.bank['patches'][name]
         self._reload_bankfonts()
 
     def update_patch(self, patch):
@@ -402,7 +406,7 @@ class Patcher:
                     del patch[channel]
                 continue
             sfont, bank, prog = info
-            patch[channel] = SFPreset(sfont, bank, prog)
+            patch[channel] = SFPreset(relpath(sfont, start=self.sfdir), bank, prog)
             cc_messages = []
             for first, last, default in CC_DEFAULTS:
                 for cc in range(first, last + 1):

@@ -234,14 +234,15 @@ def char_input(t=' ', row=1, timeout=MENU_TIMEOUT):
     timeout returns empty string
     """
     i=len(t)
-    c=len(CHARVALS)-1
+    c=len(INPCHARS)-1
     LCD.cursor_mode = 'blink'
     while True:
         if i<len(t):
-            c=CHARVALS.index(ord(t[i]))
+            c=INPCHARS.find(t[i])
         x=max(i-15,0)
         lcd_message("%-16s" % t[x:x+16],row)
-        lcd_message(chr(CHARVALS[c]),row,min(i,15))
+        if c>-1:
+            lcd_message(INPCHARS[c],row,min(i,15))
         LCD.cursor_pos = (row,min(i,15))
         e=time.time()+timeout
         while time.time()<e:
@@ -252,19 +253,19 @@ def char_input(t=' ', row=1, timeout=MENU_TIMEOUT):
             elif r_state==STATE_TAP or l_state==STATE_TAP:
                 if i==len(t):
                     if r_state==STATE_TAP:
-                        c=(c+1)%len(CHARVALS)
+                        c=(c+1)%len(INPCHARS)
                     else:
-                        c=(c-1)%len(CHARVALS)
+                        c=(c-1)%len(INPCHARS)
                 else:
                     if r_state==STATE_TAP:
-                        c=(c+1)%(len(CHARVALS)-2)
+                        c=(c+1)%(len(INPCHARS)-2)
                     else:
-                        c=(c-1)%(len(CHARVALS)-2)
-                if c<len(CHARVALS)-2:
-                    t=t[0:i]+chr(CHARVALS[c])+t[i+1:]
+                        c=(c-1)%(len(INPCHARS)-2)
+                if c<len(INPCHARS)-2:
+                    t=t[0:i]+INPCHARS[c]+t[i+1:]
                 break
             elif r_state==STATE_HOLD or r_state==STATE_LONG:
-                if CHARVALS[c]==CHR_NEW and r_state==STATE_HOLD:
+                if ord(INPCHARS[c])==CHR_ENT and r_state==STATE_HOLD:
                     LCD.cursor_mode = 'hide'
                     for j in range(4):
                         lcd_message([' '*16,"%-16s" % t.strip()[0:16]][j%2],row)
@@ -272,10 +273,10 @@ def char_input(t=' ', row=1, timeout=MENU_TIMEOUT):
                     return t.strip()
                 i=min(i+1,len(t))
                 if i==len(t):
-                    c=len(CHARVALS)-1
+                    c=len(INPCHARS)-1
                 break
             elif l_state==STATE_HOLD or l_state==STATE_LONG:
-                if CHARVALS[c]==CHR_BSP:
+                if ord(INPCHARS[c])==CHR_BSP:
                     t=t[0:max(0,i-1)]+t[i:]
                 i=max(i-1,0)
                 break
@@ -309,11 +310,7 @@ LCD = RPLCD.CharLCD(pin_rs=LCD_RS,
                     compat_mode=True)
 
 CHR_BSP=0
-CHR_NEW=1
+CHR_ENT=1
 LCD.create_char(CHR_BSP,[0,3,5,9,5,3,0,0])
-LCD.create_char(CHR_NEW,[0,16,20,18,31,2,4,0])
-
-CHARVALS=[]
-for c in " abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.":
-    CHARVALS.append(ord(c))
-CHARVALS+=[CHR_BSP,CHR_NEW]
+LCD.create_char(CHR_ENT,[0,1,5,9,31,8,4,0])
+INPCHARS=" abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.\/"+chr(CHR_BSP)+chr(CHR_ENT)
