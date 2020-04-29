@@ -5,7 +5,7 @@ Description: a performance-oriented patch interface for fluidsynth
 """
 import re, oyaml, mido
 from copy import deepcopy
-from os.path import relpath, join as joinpath
+from os.path import join as joinpath
 import fluidwrap
 
 MAX_BANK = 129
@@ -203,9 +203,10 @@ class Patcher:
         self.sfdir = self.cfg.get('soundfontdir', 'sf2')
         self.bankdir = self.cfg.get('bankdir', 'banks')
         fluidsettings = self.cfg.get('fluidsettings', {})
+
         self.fluid = fluidwrap.Synth(**fluidsettings)
         self.max_channels = fluidsettings.get('synth.midi-channels', 16)
-        
+
         self.bank = None
         self.soundfonts = set()
         self.sfpresets = []
@@ -406,7 +407,7 @@ class Patcher:
                     del patch[channel]
                 continue
             sfont, bank, prog = info
-            patch[channel] = SFPreset(relpath(sfont, start=self.sfdir), bank, prog)
+            patch[channel] = SFPreset(sfont, bank, prog)
             cc_messages = []
             for first, last, default in CC_DEFAULTS:
                 for cc in range(first, last + 1):

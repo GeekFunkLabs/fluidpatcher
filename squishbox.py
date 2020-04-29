@@ -120,9 +120,8 @@ while True:
             else:
                 newname = SB.char_input(patch_name)
                 if newname == '': continue
-                patch = pxr.bank['patches'][patch_name]
                 if newname != patch_name:
-                    pxr.add_patch(newname, addlike=patch)
+                    pxr.add_patch(newname, addlike=pxr.bank['patches'][patch_name])
                 pxr.update_patch(newname)
             pno = list(pxr.bank['patches']).index(newname)
             pxr.select_patch(pno)

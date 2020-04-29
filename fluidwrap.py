@@ -1,15 +1,94 @@
 from ctypes import *
 from ctypes.util import find_library
+import os
+
+if hasattr(os, 'add_dll_directory'):
+    os.add_dll_directory(os.getcwd())
 
 lib = find_library('fluidsynth') or \
     find_library('libfluidsynth') or \
-    find_library('libfluidsynth-1')
+    find_library('libfluidsynth-1') or \
+    find_library('libfluidsynth-2')
 if lib is None:
     raise ImportError("Couldn't find the FluidSynth library.")
+
 FL = CDLL(lib)
+
+FL.new_fluid_settings.argtypes = []
+FL.new_fluid_settings.restype = c_void_p
+
+FL.new_fluid_synth.argtypes = [c_void_p]
+FL.new_fluid_synth.restype = c_void_p
+
+FL.new_fluid_audio_driver.argtypes = [c_void_p, c_void_p]
+FL.new_fluid_audio_driver.restype = c_void_p
+
+fl_callback = CFUNCTYPE(c_void_p, c_void_p, c_void_p)
+FL.new_fluid_midi_router.argtypes = [c_void_p, fl_callback, c_void_p]
+FL.new_fluid_midi_router.restype = c_void_p
+
+FL.new_fluid_midi_driver.argtypes = [c_void_p, fl_callback, c_void_p]
+FL.new_fluid_midi_driver.restype = c_void_p
+
+FL.new_fluid_midi_router_rule.argtypes = []
+FL.new_fluid_midi_router_rule.restype = c_void_p
+
+FL.fluid_settings_setint.argtypes = [c_void_p, c_char_p, c_int]
+FL.fluid_settings_setint.restype = c_int
+FL.fluid_settings_setnum.argtypes = [c_void_p, c_char_p, c_double]
+FL.fluid_settings_setnum.restype = c_int
+FL.fluid_settings_setstr.argtypes = [c_void_p, c_char_p, c_char_p]
+FL.fluid_settings_setstr.restype = c_int
+FL.fluid_settings_getint.argtypes = [c_void_p, c_char_p, POINTER(c_int)]
+FL.fluid_settings_getint.restype = c_int
+FL.fluid_settings_getnum.argtypes = [c_void_p, c_char_p, POINTER(c_double)]
+FL.fluid_settings_getnum.restype = c_double
+FL.fluid_settings_copystr.argtypes = [c_void_p, c_char_p, c_char_p, c_int]
+FL.fluid_settings_copystr.restype = c_int
+
+FL.fluid_synth_handle_midi_event.argtypes = [c_void_p, c_void_p]
+FL.fluid_synth_handle_midi_event.restype = c_int
+FL.fluid_synth_sfload.argtypes = [c_void_p, c_char_p, c_int]
+FL.fluid_synth_sfload.restype = c_int
+FL.fluid_synth_sfunload.argtypes = [c_void_p, c_int, c_int]
+FL.fluid_synth_sfunload.restype = c_int
+FL.fluid_synth_program_select.argtypes = [c_void_p, c_int, c_int, c_int, c_int]
+FL.fluid_synth_program_select.restype = c_int
+FL.fluid_synth_unset_program.argtypes = [c_void_p, c_int]
+FL.fluid_synth_unset_program.restype = c_int
+FL.fluid_synth_get_program.argtypes = [c_void_p, c_int, POINTER(c_int), POINTER(c_int), POINTER(c_int)]
+FL.fluid_synth_get_program.restype = c_int
+FL.fluid_synth_cc.argtypes = [c_void_p, c_int, c_int, c_int]
+FL.fluid_synth_cc.restype = c_int
+FL.fluid_synth_get_cc.argtypes = [c_void_p, c_int, c_int, POINTER(c_int)]
+FL.fluid_synth_get_cc.restype = c_int
+FL.fluid_synth_noteon.argtypes = [c_void_p, c_int, c_int, c_int]
+FL.fluid_synth_noteon.restype = c_int
+FL.fluid_synth_noteoff.argtypes = [c_void_p, c_int, c_int]
+FL.fluid_synth_noteoff.restype = c_int
+
+FL.fluid_midi_router_handle_midi_event.argtypes = [c_void_p, c_void_p]
+FL.fluid_midi_router_handle_midi_event.restype = c_int
+FL.fluid_midi_router_clear_rules.argtypes = [c_void_p]
+FL.fluid_midi_router_clear_rules.restype = c_int
+FL.fluid_midi_router_set_default_rules.argtypes = [c_void_p]
+FL.fluid_midi_router_set_default_rules.restype = c_int
+FL.fluid_midi_router_rule_set_chan.argtypes = [c_void_p, c_int, c_int, c_float, c_int]
+FL.fluid_midi_router_rule_set_chan.restype = None
+FL.fluid_midi_router_rule_set_param1.argtypes = [c_void_p, c_int, c_int, c_float, c_int]
+FL.fluid_midi_router_rule_set_param1.restype = None
+FL.fluid_midi_router_rule_set_param2.argtypes = [c_void_p, c_int, c_int, c_float, c_int]
+FL.fluid_midi_router_rule_set_param2.restype = None
+FL.fluid_midi_router_add_rule.argtypes = [c_void_p, c_void_p, c_int]
+FL.fluid_midi_router_add_rule.restype = c_int
 
 # handle FluidSynth 1.x/2.x differences
 if hasattr(FL, 'fluid_preset_get_name'):
+    FL.fluid_synth_get_sfont_by_id.argtypes = [c_void_p, c_int]
+    FL.fluid_synth_get_sfont_by_id.restype = c_void_p
+    FL.fluid_sfont_get_preset.argtypes = [c_void_p, c_int, c_int]
+    FL.fluid_sfont_get_preset.restype = c_void_p
+    FL.fluid_preset_get_name.argtypes = [c_void_p]
     FL.fluid_preset_get_name.restype = c_char_p
 else:
     class fluid_synth_channel_info_t(Structure):
@@ -20,20 +99,8 @@ else:
             ('program', c_int),
             ('name', c_char*32),
             ('reserved', c_char*32)]
-
-class fluid_midi_router_t(Structure):
-    _fields_ = [
-        ('synth', c_void_p),
-        ('rules_mutex', c_void_p),
-        ('rules', c_void_p*6),
-        ('free_rules', c_void_p),
-        ('event_handler', c_void_p),
-        ('event_handler_data', c_void_p),
-        ('nr_midi_channels', c_int),
-        ('cmd_rule', c_void_p),
-        ('cmd_rule_type', POINTER(c_int))]
-
-FL.new_fluid_midi_router.restype = POINTER(fluid_midi_router_t)
+    FL.fluid_synth_get_channel_info.argtypes = [c_void_p, c_int, POINTER(fluid_synth_channel_info_t)]
+    FL.fluid_synth_get_channel_info.restype = c_int
 
 FLUID_OK = 0
 FLUID_FAILED = -1
@@ -45,12 +112,13 @@ class Synth:
         self.st = FL.new_fluid_settings()
         for opt, val in settings.items():
             self.setting(opt, val)
+
         self.synth = FL.new_fluid_synth(self.st)
         FL.new_fluid_audio_driver(self.st, self.synth)
-
-        self.router = FL.new_fluid_midi_router(self.st, FL.fluid_synth_handle_midi_event, self.synth)
-        FL.new_fluid_cmd_handler(self.synth, self.router)
-        FL.new_fluid_midi_driver(self.st, FL.fluid_midi_router_handle_midi_event, self.router)
+        self.synth_eventhandle = fl_callback(FL.fluid_synth_handle_midi_event)
+        self.router = FL.new_fluid_midi_router(self.st, self.synth_eventhandle, self.synth)
+        self.driver_eventhandle = fl_callback(FL.fluid_midi_router_handle_midi_event)
+        FL.new_fluid_midi_driver(self.st, self.driver_eventhandle, self.router)
 
         self.sfid = {}
 
@@ -129,22 +197,15 @@ class Synth:
         FL.fluid_midi_router_set_default_rules(self.router)
 
     def router_addrule(self, type, chan, par1, par2):
-        self.router.cmd_rule = FL.new_fluid_midi_router_rule()
-        ruletypes = ['note', 'cc', 'prog', 'pbend', 'cpress', 'kpress']
-        self.router.cmd_rule_type = ruletypes.index(type)
+        rule = FL.new_fluid_midi_router_rule()
+        ntype = ['note', 'cc', 'prog', 'pbend', 'cpress', 'kpress'].index(type)
         if chan:
-            FL.fluid_midi_router_rule_set_chan(
-                self.router.cmd_rule, chan[0], chan[1], c_float(chan[2]), chan[3]
-            )
+            FL.fluid_midi_router_rule_set_chan(rule, chan[0], chan[1], c_float(chan[2]), chan[3])
         if par1:
-            FL.fluid_midi_router_rule_set_param1(
-                self.router.cmd_rule, par1[0], par1[1], c_float(par1[2]), par1[3]
-            )
+            FL.fluid_midi_router_rule_set_param1(rule, par1[0], par1[1], c_float(par1[2]), par1[3])
         if par2:
-            FL.fluid_midi_router_rule_set_param2(
-                self.router.cmd_rule, par2[0], par2[1], c_float(par2[2]), par2[3]
-            )
-        FL.fluid_midi_router_add_rule(self.router, self.router.cmd_rule, self.router.cmd_rule_type)
+            FL.fluid_midi_router_rule_set_param2(rule, par2[0], par2[1], c_float(par2[2]), par2[3])
+        FL.fluid_midi_router_add_rule(self.router, rule, ntype)
 
     def send_cc(self, chan, ctrl, val):
         FL.fluid_synth_cc(self.synth, chan, ctrl, val)

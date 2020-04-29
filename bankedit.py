@@ -211,7 +211,7 @@ def main(screen):
             elif k == curses.KEY_F6: # save editor contents as bank
                 rawbank = '\n'.join([pad.instr(i, 0).decode().rstrip() for i in range(plines)])
                 try:
-                    patcher.read_yaml(rawbank)
+                    pxr.read_yaml(rawbank)
                 except Exception as e:
                     errormsg = str(e).replace('\n', ' ')
                     continue
@@ -305,7 +305,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         cfgfile = sys.argv[1]
     else:
-        cfgfile = 'bankeditconf.yaml'
+        cfgfile = 'patcherconf.yaml'
 
     pxr = patcher.Patcher(cfgfile)
 
