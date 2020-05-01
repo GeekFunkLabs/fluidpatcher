@@ -121,7 +121,7 @@ class MainWindow(wx.Frame):
 
         self.Bind(wx.EVT_CLOSE, self.onExit)
         self.Bind(wx.EVT_CHAR_HOOK, self.onKeyPress)
-        _icon = wx.Icon('images/gfl_icon.ico', wx.BITMAP_TYPE_ICO)
+        _icon = wx.Icon('images/gfl_logo.ico', wx.BITMAP_TYPE_ICO)
         self.SetIcon(_icon)
         self.SetSize(size=wx.Size(DEFAULT_WIDTH, DEFAULT_HEIGHT))
 

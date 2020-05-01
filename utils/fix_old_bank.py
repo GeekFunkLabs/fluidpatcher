@@ -3,6 +3,7 @@
 Copyright (c) 2020 Bill Peterson
 
 Description: tries to convert old-style bank files to new ones
+             results may vary
 """
 import sys
 from oyaml import safe_load
