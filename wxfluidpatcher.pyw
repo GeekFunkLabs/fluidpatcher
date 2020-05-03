@@ -70,7 +70,7 @@ class MainWindow(wx.Frame):
         item.SetBitmap(wx.ArtProvider.GetBitmap(wx.ART_FILE_OPEN))
         self.Bind(wx.EVT_MENU, self.onOpen, item)
         
-        item = fileMenu.Append(wx.ID_SAVEAS, '&Save Bank\tCtrl+S', 'Save current bank')
+        item = fileMenu.Append(wx.ID_SAVE, '&Save Bank\tCtrl+S', 'Save current bank')
         item.SetBitmap(wx.ArtProvider.GetBitmap(wx.ART_FILE_SAVE))
         self.Bind(wx.EVT_MENU, self.onSave, item)
         
@@ -117,10 +117,11 @@ class MainWindow(wx.Frame):
                                             wx.TE_NOHIDESEL|wx.HSCROLL)
         fwf = wx.Font(wx.FontInfo().Family(wx.FONTFAMILY_TELETYPE))
         self.btxt.SetDefaultStyle(wx.TextAttr(wx.NullColour, font=fwf))
-        self.CreateStatusBar()
+#        self.CreateStatusBar()
 
-        self.Bind(wx.EVT_CLOSE, self.onExit)
+        self.Bind(wx.EVT_TEXT, self.onMod)
         self.Bind(wx.EVT_CHAR_HOOK, self.onKeyPress)
+        self.Bind(wx.EVT_CLOSE, self.onExit)
         _icon = wx.Icon('images/gfl_logo.ico', wx.BITMAP_TYPE_ICO)
         self.SetIcon(_icon)
         self.SetSize(size=wx.Size(DEFAULT_WIDTH, DEFAULT_HEIGHT))
@@ -131,15 +132,17 @@ class MainWindow(wx.Frame):
         try:
             pxr.load_bank(file)
         except Exception as e:
-            self.SetStatusText(str(e).replace('\n', ' '))
+            dlg = wx.MessageDialog(self, str(e), "Error", wx.OK)
+            dlg.ShowModal()
+            dlg.Destroy()
             return
-        self.SetTitle(APP_NAME + ' - ' + pxr.cfg['currentbank'])
         f = open(os.path.join(pxr.bankdir, pxr.cfg['currentbank']))
         rawbank = f.read()
         f.close()
         self.btxt.Clear()
         self.btxt.AppendText(rawbank)
         self.btxt.SetInsertionPoint(0)
+        self.SetTitle(APP_NAME + ' - ' + pxr.cfg['currentbank'])
         for p in pxr.bank['patches']:
             self.patchlist.Append(p)
         self.patch_select(val=0)
@@ -156,8 +159,6 @@ class MainWindow(wx.Frame):
             if n == wx.NOT_FOUND: return
             self.pno = n
         warn = pxr.select_patch(self.pno)
-        if warn:
-            self.SetStatusText(warn)
         
     def onOpen(self, event):
         dialog = wx.FileDialog(None, "Load Bank", pxr.bankdir,
@@ -178,7 +179,9 @@ class MainWindow(wx.Frame):
         try:
             patcher.read_yaml(rawbank)
         except Exception as e:
-            self.SetStatusText(str(e).replace('\n', ' '))
+            dlg = wx.MessageDialog(self, str(e), "Error", wx.OK)
+            dlg.ShowModal()
+            dlg.Destroy()
             return
         if bfile == '':
             dialog = wx.FileDialog(None, "Save Bank", pxr.bankdir, pxr.cfg['currentbank'],
@@ -192,9 +195,14 @@ class MainWindow(wx.Frame):
         try:
             pxr.save_bank(bfile, rawbank)
         except Exception as e:
-            self.SetStatusText(str(e).replace('\n', ' '))
-        self.SetStatusText('Saved ' + bfile)
+            dlg = wx.MessageDialog(self, str(e), "Error", wx.OK)
+            dlg.ShowModal()
+            dlg.Destroy()
+            return
         self.SetTitle(APP_NAME + ' - ' + pxr.cfg['currentbank'])
+
+    def onMod(self, event):
+        self.SetTitle(APP_NAME + ' - ' + pxr.cfg['currentbank'] + '*')
                 
     def onOpenSoundfont(self, event):
         dialog = wx.FileDialog(None, "Open Soundfont", pxr.sfdir,
@@ -238,7 +246,9 @@ class MainWindow(wx.Frame):
         try:
             pxr.load_bank(rawbank)
         except Exception as e:
-            self.SetStatusText(str(e).replace('\n', ' '))
+            dlg = wx.MessageDialog(self, str(e), "Error", wx.OK)
+            dlg.ShowModal()
+            dlg.Destroy()
             return
         self.btxt.Clear()
         self.btxt.AppendText(rawbank)

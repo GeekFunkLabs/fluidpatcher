@@ -30,11 +30,6 @@ python bankedit.py
 ```
 In default Python installations, *.pyw* files will be run as GUI applications as long as the correct Python interpreter is in your path, so double-clicking *wxfluidpatcher.pyw* should work as well.
 
-The *patcherconf.yaml* [config file](https://github.com/albedozero/fluidpatcher/wiki/Config-Files) contains system-wide settings for FluidPatcher. Most flavors of Linux use ALSA as the default sound system as opposed to JACK, which is FluidSynth's default, so you'll want to uncomment the first line below, and perhaps the last two as well:
-```
-#  audio.driver: alsa
-# uncomment/adjust these if latency problems
-#  audio.period-size: 64
-#  audio.periods: 3
-```
+The *patcherconf.yaml* [config file](https://github.com/albedozero/fluidpatcher/wiki/Config-Files) contains system-wide settings for FluidPatcher. Uncomment the section corresponding to your platform for best results.
+
 Bank files are stored in the *SquishBox/banks* directory. The example bank file includes comments to help explain the format and highlight some of the capabilities of patches. Soundfonts are stored in *SquishBox/sf2*. A few sample fonts are provided, and many more can be found on the internet or created/edited/tweaked with software - such as the excellent [Polyphone](https://www.polyphone-soundfonts.com/). The included *ModWaves.sf2* soundfont demonstrates using modulators in a soundfont to expose FluidSynth's performance capabilities. In this case, control changes (CC) 70 and 74 are mapped to the filter's cutoff and resonance, allowing these to be controlled dynamically with FluidPatcher.
