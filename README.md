@@ -33,3 +33,22 @@ In default Python installations, *.pyw* files will be run as GUI applications as
 The *patcherconf.yaml* [config file](https://github.com/albedozero/fluidpatcher/wiki/Config-Files) contains system-wide settings for FluidPatcher. Uncomment the section corresponding to your platform for best results.
 
 Bank files are stored in the *SquishBox/banks* directory. The example bank file includes comments to help explain the format and highlight some of the capabilities of patches. Soundfonts are stored in *SquishBox/sf2*. A few sample fonts are provided, and many more can be found on the internet or created/edited/tweaked with software - such as the excellent [Polyphone](https://www.polyphone-soundfonts.com/). The included *ModWaves.sf2* soundfont demonstrates using modulators in a soundfont to expose FluidSynth's performance capabilities. In this case, control changes (CC) 70 and 74 are mapped to the filter's cutoff and resonance, allowing these to be controlled dynamically with FluidPatcher.
+
+
+## Example
+You can write your own python programs that will use your bank files and patches - the public API is described in the [wiki](https://github.com/albedozero/fluidpatcher/wiki). Here is a simple example:
+
+```python
+import patcher
+
+cfgfile = 'patcherconf.yaml'
+p = patcher.Patcher(cfgfile)
+p.load_bank()
+
+n = 0
+while True:
+    p.select_patch(n)
+    print("Patch %d/%d: %s" % (n + 1, p.patches_count(), p.patch_name(n)))
+    n = int(input("select patch: ")) - 1
+```
+First, FluidPatcher is started by creating a Patcher instance with a [config file](Config-Files) as its argument, describing where [bank files](Bank-Files) and soundfonts are stored, the name of the first bank file to load, and what settings to pass to FluidSynth on startup. This starts FluidSynth in a separate thread. When `load_bank` is called with no arguments, it loads the last bank used. The function `select_patch` will accept a number or the patch name. Most recent versions of FluidSynth will automatically connect to any attached MIDI input devices, so playing notes on an attached controller will make sounds according to the selected patch from the loaded bank file.

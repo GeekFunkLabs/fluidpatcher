@@ -318,12 +318,29 @@ class Patcher:
 
     def _resolve_patch(self, patch):
         if isinstance(patch, int):
+            if patch < 0 or patch >= len(self.bank['patches']):
+                raise PatcherError("Patch index out of range")
             name = list(self.bank['patches'])[patch]
             patch = self.bank['patches'][name]
         elif isinstance(patch, str):
             name = patch
+            if name not in self.bank['patches']:
+                raise PatcherError("Patch not found: %s" % name)
             patch = self.bank['patches'][name]
         return patch
+        
+    def patch_name(self, patch_index):
+        if patch_index < 0 or patch_index >= len(self.bank['patches']):
+            raise PatcherError("Patch index out of range")
+        return list(self.bank['patches'])[patch_index]
+        
+    def patches_index(self, patch_name):
+        if patch_name not in self.bank['patches']:
+            raise PatcherError("Patch not found: %s" % patch_name)
+        return list(self.bank['patches']).index(newname)
+
+    def patches_count(self):
+        return len(self.bank['patches'])
 
     def select_patch(self, patch):
     # select :patch by index, name, or passing dict object
@@ -362,7 +379,7 @@ class Patcher:
         self.fluid.router_clear()
         if 'router_rules' in self.bank:
             for rule in self.bank['router_rules']:
-                self.midi_route(**rule.dict())
+                self._midi_route(**rule.dict())
         if 'router_rules' in patch:
             for rule in patch['router_rules']:
                 if rule == 'default':
@@ -370,7 +387,7 @@ class Patcher:
                 elif rule == 'clear':
                     self.fluid.router_clear()
                 else:
-                    self.midi_route(**rule.dict())
+                    self._midi_route(**rule.dict())
         if 'rule' not in locals():
             self.fluid.router_default()
         if warnings:
@@ -418,7 +435,7 @@ class Patcher:
             patch['cc'] = cc_messages
         self._reload_bankfonts()
 
-    def midi_route(self, type, chan=None, par1=None, par2=None, **kwargs):
+    def _midi_route(self, type, chan=None, par1=None, par2=None, **kwargs):
     # send midi message routing rules to fluidsynth (or perhaps mido in future)
     # convert scientific note names in :par1 to midi note numbers
         par1_list = None

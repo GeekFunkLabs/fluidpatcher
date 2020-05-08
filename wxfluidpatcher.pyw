@@ -39,7 +39,7 @@ class SoundfontBrowser(wx.Dialog):
             self.presetlist.SetItemState(0, wx.LIST_STATE_SELECTED, wx.LIST_STATE_SELECTED)
             return
         elif val == 1 or val == -1:
-            self.pno = (self.pno + val) % len(pxr.bank['patches'])
+            self.pno = (self.pno + val) % len(pxr.sfpresets)
             self.presetlist.SetItemState(self.pno, wx.LIST_STATE_SELECTED, wx.LIST_STATE_SELECTED)
             return
         else:
@@ -143,8 +143,8 @@ class MainWindow(wx.Frame):
         self.btxt.AppendText(rawbank)
         self.btxt.SetInsertionPoint(0)
         self.SetTitle(APP_NAME + ' - ' + pxr.cfg['currentbank'])
-        for p in pxr.bank['patches']:
-            self.patchlist.Append(p)
+        for p in range(pxr.patches_count()):
+            self.patchlist.Append(pxr.patch_name(p))
         self.patch_select(val=0)
             
     def patch_select(self, event=None, val=''):
@@ -152,7 +152,7 @@ class MainWindow(wx.Frame):
             self.pno = 0
             self.patchlist.SetSelection(0)
         elif val == 1 or val == -1:
-            self.pno = (self.pno + val) % len(pxr.bank['patches'])
+            self.pno = (self.pno + val) % pxr.patches_count()
             self.patchlist.SetSelection(self.pno)
         else:
             n = self.patchlist.GetSelection()
@@ -253,8 +253,8 @@ class MainWindow(wx.Frame):
         self.btxt.Clear()
         self.btxt.AppendText(rawbank)
         self.btxt.SetInsertionPoint(0)
-        for p in pxr.bank['patches']:
-            self.patchlist.Append(p)
+        for p in range(pxr.patches_count()):
+            self.patchlist.Append(pxr.patch_name(p))
         self.patch_select(val=0)
         self.SetTitle(APP_NAME)
         

@@ -85,9 +85,9 @@ while True:
         SB.lcd_scroll(pxr.sfpresets[pno][0], 0)
         SB.lcd_message("%16s" % ("preset %03d:%03d" % pxr.sfpresets[pno][1:3]), 1)
     else:
-        ptot = len(pxr.bank['patches'])
-        patch_name = list(pxr.bank['patches'])[pno]
-        SB.lcd_scroll(patch_name, 0)
+        ptot = pxr.patches_count()
+        patchname = pxr.patch_name(pno)
+        SB.lcd_scroll(patchname, 0)
         SB.lcd_message("%16s" % ("patch: %d/%d" % (pno + 1, ptot)), 1)
         
     # patch/preset switching
@@ -118,12 +118,12 @@ while True:
                 pxr.add_patch(newname)
                 pxr.update_patch(newname)
             else:
-                newname = SB.char_input(patch_name)
+                newname = SB.char_input(patchname)
                 if newname == '': continue
-                if newname != patch_name:
-                    pxr.add_patch(newname, addlike=pxr.bank['patches'][patch_name])
+                if newname != patchname:
+                    pxr.add_patch(newname, addlike=patchname)
                 pxr.update_patch(newname)
-            pno = list(pxr.bank['patches']).index(newname)
+            pno = pxr.patch_index(newname)
             pxr.select_patch(pno)
             
         elif k == 1: # delete patch if it's not last one or a preset; ask confirm
@@ -133,7 +133,7 @@ while True:
                 continue
             j = SB.choose_opt(['confirm delete?', 'cancel'], row=1)
             if j == 0:
-                pxr.delete_patch(patch_name)
+                pxr.delete_patch(patchname)
                 pno = min(pno, (ptot - 2))
                 pxr.select_patch(pno)
                 

@@ -147,7 +147,7 @@ def main(screen):
         pad.resize(plines, pwidth)
         pad.addstr(0, 0, rawbank)
         pno = 0
-        ptot = len(pxr.bank['patches'])
+        ptot = pxr.patches_count()
 
         warn = pxr.select_patch(pno)
         if warn:
@@ -163,8 +163,7 @@ def main(screen):
         while True:
             height, width = screen.getmaxyx()
 
-            patchname = list(pxr.bank['patches'])[pno]
-            statmsg = padline("Bank: %s  Patch: %s" % (pxr.cfg['currentbank'], patchname), width)
+            statmsg = padline("Bank: %s  Patch: %s" % (pxr.cfg['currentbank'], pxr.patch_name(pno)), width)
             if errormsg:
                 statmsg = padline(errormsg, width)
                 errormsg = ''
