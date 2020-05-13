@@ -242,8 +242,9 @@ def main(screen):
                 sfont = choosefile_menu(screen, sf, "Load Soundfont: ")
                 if not sfont: continue
                 soundfont_browser(screen, sfont)
-                if pxr.cfg['currentbank']:
-                    pxr.load_bank(pxr.cfg['currentbank'])
+                warn = pxr.select_patch(pno)
+                if warn:
+                    errormsg = ', '.join(warn)
                 break
             elif k == 24: # ctrl-X
                 return

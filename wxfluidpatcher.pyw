@@ -143,6 +143,7 @@ class MainWindow(wx.Frame):
         self.btxt.AppendText(rawbank)
         self.btxt.SetInsertionPoint(0)
         self.SetTitle(APP_NAME + ' - ' + pxr.cfg['currentbank'])
+        self.patchlist.Clear()
         for p in range(pxr.patches_count()):
             self.patchlist.Append(pxr.patch_name(p))
         self.patch_select(val=0)
@@ -219,7 +220,7 @@ class MainWindow(wx.Frame):
                     dlg.ShowModal()
                     dlg.Destroy()
             sfbrowser.Destroy()
-            self.onRefresh()
+            self.patch_select()
         else:
             dialog.Destroy()
             return
@@ -253,6 +254,7 @@ class MainWindow(wx.Frame):
         self.btxt.Clear()
         self.btxt.AppendText(rawbank)
         self.btxt.SetInsertionPoint(0)
+        self.patchlist.Clear()
         for p in range(pxr.patches_count()):
             self.patchlist.Append(pxr.patch_name(p))
         self.patch_select(val=0)

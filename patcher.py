@@ -241,14 +241,12 @@ class Patcher:
             self.cfg['currentbank'] = bank
             
         self.bank = b
-        self._reload_bankfonts()
 
         if 'fluidsettings' in self.bank:
             for opt, val in self.bank['fluidsettings'].items():
                 self.fluid.setting(opt, val)
 
     def _reload_bankfonts(self):
-        self.sfpresets = []
         sfneeded = set()
         for patch in self.bank['patches'].values():
             for channel in patch:
@@ -280,42 +278,6 @@ class Patcher:
         f.close()
         self.cfg['currentbank'] = bankfile
 
-    def load_soundfont(self, soundfont):
-    # load a single :soundfont and scan all its presets
-        for sfont in self.soundfonts - {soundfont}:
-            self.fluid.unload_soundfont(joinpath(self.sfdir, sfont))
-        if {soundfont} - self.soundfonts:
-            if not self.fluid.load_soundfont(joinpath(self.sfdir, soundfont)):
-                self.soundfonts = set()
-                self.sfpresets = [('No Presets'), 0, 0]
-                return False
-        self.soundfonts = {soundfont}
-
-        self.sfpresets = []
-        for bank in range(MAX_BANK):
-            for preset in range(MAX_PRESET):
-                name = self.fluid.get_preset_name(joinpath(self.sfdir, soundfont), bank, preset)
-                if not name:
-                    continue
-                self.sfpresets.append((name, bank, preset))
-        if not self.sfpresets:
-            self.sfpresets = [('No Presets'), 0, 0]
-            return False
-        return True
-
-    def select_sfpreset(self, presetnum):
-        name, bank, prog = self.sfpresets[presetnum]
-        if not self.soundfonts:
-            return False
-        soundfont = list(self.soundfonts)[0]
-        if not self.fluid.program_select(0, joinpath(self.sfdir, soundfont), bank, prog):
-            return False
-        for channel in range(1, self.max_channels + 1):
-            self.fluid.program_unset(channel)
-        self.fluid.router_clear()
-        self.fluid.router_default()
-        return True
-
     def _resolve_patch(self, patch):
         if isinstance(patch, int):
             if patch < 0 or patch >= len(self.bank['patches']):
@@ -345,9 +307,12 @@ class Patcher:
     def select_patch(self, patch):
     # select :patch by index, name, or passing dict object
         warnings = []
+        self.sfpresets = []
         patch = self._resolve_patch(patch)
         for channel in range(1, self.max_channels + 1):
             if channel in patch:
+                if patch[channel].sfont not in self.soundfonts:
+                    self._reload_bankfonts()
                 if not self.fluid.program_select(channel - 1,
                                                  joinpath(self.sfdir, patch[channel].sfont),
                                                  patch[channel].bank,
@@ -433,7 +398,42 @@ class Patcher:
                         cc_messages.append(CCMsg(channel, cc, val))
         if cc_messages:
             patch['cc'] = cc_messages
-        self._reload_bankfonts()
+
+    def load_soundfont(self, soundfont):
+    # load a single :soundfont and scan all its presets
+        for sfont in self.soundfonts - {soundfont}:
+            self.fluid.unload_soundfont(joinpath(self.sfdir, sfont))
+        if {soundfont} - self.soundfonts:
+            if not self.fluid.load_soundfont(joinpath(self.sfdir, soundfont)):
+                self.soundfonts = set()
+                self.sfpresets = [('No Presets'), 0, 0]
+                return False
+        self.soundfonts = {soundfont}
+
+        self.sfpresets = []
+        for bank in range(MAX_BANK):
+            for preset in range(MAX_PRESET):
+                name = self.fluid.get_preset_name(joinpath(self.sfdir, soundfont), bank, preset)
+                if not name:
+                    continue
+                self.sfpresets.append((name, bank, preset))
+        if not self.sfpresets:
+            self.sfpresets = [('No Presets'), 0, 0]
+            return False
+        return True
+        
+    def select_sfpreset(self, presetnum):
+        name, bank, prog = self.sfpresets[presetnum]
+        if not self.soundfonts:
+            return False
+        soundfont = list(self.soundfonts)[0]
+        if not self.fluid.program_select(0, joinpath(self.sfdir, soundfont), bank, prog):
+            return False
+        for channel in range(1, self.max_channels + 1):
+            self.fluid.program_unset(channel)
+        self.fluid.router_clear()
+        self.fluid.router_default()
+        return True
 
     def _midi_route(self, type, chan=None, par1=None, par2=None, **kwargs):
     # send midi message routing rules to fluidsynth (or perhaps mido in future)
