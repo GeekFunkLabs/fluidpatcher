@@ -169,7 +169,7 @@ def main(screen):
                 errormsg = ''
             statusbar.addstr(0, 0, statmsg, curses.color_pair(1))
             statusbar.mvwin(0, 0)
-            optstr = padline("PgUp/Dn:patch  F5:refresh  F6:save  F7:load  F8:soundfont  Ctrl-X:quit", width)
+            optstr = padline("F2:load F3:save F4:soundfont F5:refresh F7/F8:patch  Ctrl-X:quit", width)
             optbar.addstr(0, 0, optstr, curses.color_pair(1))
             optbar.mvwin(height - 1, 0)
             screen.move(cursor_y, cursor_x)
@@ -189,25 +189,29 @@ def main(screen):
                 cursor_x = cursor_x + 1
             elif k == curses.KEY_LEFT:
                 cursor_x = cursor_x - 1
-            elif k == curses.KEY_PPAGE:
+            elif k == curses.KEY_F7:
                 pno = (pno - 1) % ptot
                 warn = pxr.select_patch(pno)
                 if warn:
                     errormsg = ', '.join(warn)
-            elif k == curses.KEY_NPAGE:
+            elif k == curses.KEY_F8:
                 pno = (pno + 1) % ptot
                 warn = pxr.select_patch(pno)
                 if warn:
                     errormsg = ', '.join(warn)
-            elif k == curses.KEY_F5: # refresh the bank with what's on screen
-                rawbank = '\n'.join([pad.instr(i, 0).decode().rstrip() for i in range(plines)])
+            elif k == curses.KEY_F2: # load a new bank into editor
+                bpaths = glob.glob(os.path.join(pxr.bankdir, '**', '*.yaml'), recursive=True)
+                brel = [os.path.relpath(x, start=pxr.bankdir) for x in bpaths]
+                bfile = choosefile_menu(screen, brel, "Load: ")
+                if not bfile: continue
                 try:
-                    pxr.load_bank(rawbank)
+                    pxr.load_bank(bfile)
                 except Exception as e:
                     errormsg = str(e).replace('\n', ' ')
                     continue
+                rawbank = ''
                 break
-            elif k == curses.KEY_F6: # save editor contents as bank
+            elif k == curses.KEY_F3: # save editor contents as bank
                 rawbank = '\n'.join([pad.instr(i, 0).decode().rstrip() for i in range(plines)])
                 try:
                     pxr.read_yaml(rawbank)
@@ -224,19 +228,7 @@ def main(screen):
                     errormsg = str(e).replace('\n', ' ')
                     continue
                 break
-            elif k == curses.KEY_F7: # load a new bank into editor
-                bpaths = glob.glob(os.path.join(pxr.bankdir, '**', '*.yaml'), recursive=True)
-                brel = [os.path.relpath(x, start=pxr.bankdir) for x in bpaths]
-                bfile = choosefile_menu(screen, brel, "Load: ")
-                if not bfile: continue
-                try:
-                    pxr.load_bank(bfile)
-                except Exception as e:
-                    errormsg = str(e).replace('\n', ' ')
-                    continue
-                rawbank = ''
-                break
-            elif k == curses.KEY_F8: # play presets from a soundfont
+            elif k == curses.KEY_F4: # play presets from a soundfont
                 sfpaths = glob.glob(os.path.join(pxr.sfdir, '**', '*.sf2'), recursive=True)
                 sf = [os.path.relpath(x, start=pxr.sfdir) for x in sfpaths]
                 sfont = choosefile_menu(screen, sf, "Load Soundfont: ")
@@ -246,6 +238,22 @@ def main(screen):
                 if warn:
                     errormsg = ', '.join(warn)
                 break
+            elif k == curses.KEY_F5: # refresh the bank with what's on screen
+                lastpatch = pxr.patch_name(pno)
+                rawbank = '\n'.join([pad.instr(i, 0).decode().rstrip() for i in range(plines)])
+                try:
+                    pxr.load_bank(rawbank)
+                except Exception as e:
+                    errormsg = str(e).replace('\n', ' ')
+                    continue
+                ptot = pxr.patches_count()
+                try:
+                    pno = pxr.patch_index(lastpatch)
+                except patcher.PatcherError:
+                    if pno >= ptot:
+                        pno = 0
+                pxr.select_patch(pno)
+                continue
             elif k == 24: # ctrl-X
                 return
             else: # typing

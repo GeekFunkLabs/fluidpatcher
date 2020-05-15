@@ -92,7 +92,7 @@ while True:
         
     # patch/preset switching
     SB.poll_stompswitches()
-    if SB.r_state+SB.l_state==SB.STATE_NONE:
+    if SB.r_state + SB.l_state == SB.STATE_NONE:
         continue
     if SB.r_state == SB.STATE_TAP or SB.l_state == SB.STATE_TAP:
         if SB.r_state == SB.STATE_TAP:

@@ -296,10 +296,10 @@ class Patcher:
             raise PatcherError("Patch index out of range")
         return list(self.bank['patches'])[patch_index]
         
-    def patches_index(self, patch_name):
+    def patch_index(self, patch_name):
         if patch_name not in self.bank['patches']:
             raise PatcherError("Patch not found: %s" % patch_name)
-        return list(self.bank['patches']).index(newname)
+        return list(self.bank['patches']).index(patch_name)
 
     def patches_count(self):
         return len(self.bank['patches'])
