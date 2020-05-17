@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 
-import os, sys, wx
-from subprocess import call, check_output
+import wx
+from os.path import relpath, join as joinpath
+from sys import argv
 import patcher
 
-##### User-configurable stuff
-DEFAULT_WIDTH  = 700        # app default width
-DEFAULT_HEIGHT = 600        # app default height
+DEFAULT_WIDTH  = 700
+DEFAULT_HEIGHT = 600
 APP_NAME = 'FluidPatcher'
 
 class SoundfontBrowser(wx.Dialog):
@@ -63,31 +63,26 @@ class MainWindow(wx.Frame):
     def __init__(self):
         super(MainWindow, self).__init__(None, size=(700,600), title=APP_NAME)
                 
-### Create Menus
+# create menus
         fileMenu = wx.Menu()
         
         item = fileMenu.Append(wx.ID_OPEN, 'L&oad Bank...\tCtrl+O', 'Load bank file')
-        item.SetBitmap(wx.ArtProvider.GetBitmap(wx.ART_FILE_OPEN))
         self.Bind(wx.EVT_MENU, self.onOpen, item)
         
         item = fileMenu.Append(wx.ID_SAVE, '&Save Bank\tCtrl+S', 'Save current bank')
-        item.SetBitmap(wx.ArtProvider.GetBitmap(wx.ART_FILE_SAVE))
         self.Bind(wx.EVT_MENU, self.onSave, item)
         
         item = fileMenu.Append(wx.ID_SAVEAS, 'Save Bank &As...\tCtrl+Shift+S', 'Save bank file')
-        item.SetBitmap(wx.ArtProvider.GetBitmap(wx.ART_FILE_SAVE_AS))
         self.Bind(wx.EVT_MENU, self.onSaveAs, item)
         
         item = fileMenu.Append(wx.ID_ANY, 'Browse Sound&Font...', 'Open a soundfont and browse presets')
         self.Bind(wx.EVT_MENU, self.onOpenSoundfont, item)
         fileMenu.AppendSeparator()
         item = fileMenu.Append(wx.ID_EXIT, 'E&xit\tCtrl+Q', 'Terminate the program')
-        item.SetBitmap(wx.ArtProvider.GetBitmap(wx.ART_QUIT))
         self.Bind(wx.EVT_MENU, self.onExit, item)
 
         helpMenu = wx.Menu()
         item = helpMenu.Append(wx.ID_ABOUT, '&About', 'Information about this program')
-        item.SetBitmap(wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, size=(16,16)))
         self.Bind(wx.EVT_MENU, self.onAbout, item)
 
         menuBar = wx.MenuBar()
@@ -95,24 +90,24 @@ class MainWindow(wx.Frame):
         menuBar.Append(helpMenu, '&Help')
         self.SetMenuBar(menuBar)
 
-### Toolbar
+# toolbar
         patchTool = self.CreateToolBar()
         tool = patchTool.AddTool(wx.ID_REFRESH, 'Prev', wx.ArtProvider.GetBitmap(wx.ART_REDO), 'Refresh patches (F5)')
         tool.SetLongHelp('Refresh patches from editor text')
         self.Bind(wx.EVT_TOOL, self.onRefresh, tool)
         tool = patchTool.AddTool(wx.ID_ANY, 'Prev', wx.ArtProvider.GetBitmap(wx.ART_MINUS), 'Select previous patch (F7)')
         tool.SetLongHelp('Select previous patch')
-        self.Bind(wx.EVT_TOOL, lambda x: self.patch_select(x, -1), tool)
+        self.Bind(wx.EVT_TOOL, lambda x: self.choose_patch(x, -1), tool)
         tool = patchTool.AddTool(wx.ID_ANY, 'Next', wx.ArtProvider.GetBitmap(wx.ART_PLUS), 'Select next patch (F8)')
         tool.SetLongHelp('Select next patch')
-        self.Bind(wx.EVT_TOOL, lambda x: self.patch_select(x, 1), tool)
+        self.Bind(wx.EVT_TOOL, lambda x: self.choose_patch(x, 1), tool)
         self.patchlist = wx.Choice(patchTool)
         tool = patchTool.AddControl(self.patchlist, 'Patches')
-        self.Bind(wx.EVT_CHOICE, self.patch_select, self.patchlist)
+        self.Bind(wx.EVT_CHOICE, self.choose_patch, self.patchlist)
 
         patchTool.Realize()        
 
-### create window elements
+# create window elements
         self.btxt = wx.TextCtrl(self, style=wx.TE_MULTILINE|wx.TE_RICH|
                                             wx.TE_NOHIDESEL|wx.HSCROLL)
         fwf = wx.Font(wx.FontInfo().Family(wx.FONTFAMILY_TELETYPE))
@@ -136,7 +131,7 @@ class MainWindow(wx.Frame):
             dlg.ShowModal()
             dlg.Destroy()
             return
-        f = open(os.path.join(pxr.bankdir, pxr.cfg['currentbank']))
+        f = open(joinpath(pxr.bankdir, pxr.cfg['currentbank']))
         rawbank = f.read()
         f.close()
         self.btxt.Clear()
@@ -146,9 +141,9 @@ class MainWindow(wx.Frame):
         self.patchlist.Clear()
         for p in range(pxr.patches_count()):
             self.patchlist.Append(pxr.patch_name(p))
-        self.patch_select(val=0)
+        self.choose_patch(val=0)
             
-    def patch_select(self, event=None, val=''):
+    def choose_patch(self, event=None, val=''):
         if val == 0:
             self.pno = 0
             self.patchlist.SetSelection(0)
@@ -166,7 +161,7 @@ class MainWindow(wx.Frame):
                                 wildcard="Bank files (*.yaml,*.yml)|*.yaml;*.yml",
                                 style=wx.FD_OPEN)
         if dialog.ShowModal() == wx.ID_OK:
-            bfile = os.path.relpath(dialog.GetPath(), start=pxr.bankdir)
+            bfile = relpath(dialog.GetPath(), start=pxr.bankdir)
             dialog.Destroy()
             self.load_bankfile(bfile)
         else:
@@ -176,19 +171,12 @@ class MainWindow(wx.Frame):
         self.onSaveAs(bfile=pxr.cfg['currentbank'])
         
     def onSaveAs(self, event=None, bfile=''):
-        rawbank = self.btxt.GetValue()
-        try:
-            patcher.read_yaml(rawbank)
-        except Exception as e:
-            dlg = wx.MessageDialog(self, str(e), "Error", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
-            return
+        self.onRefresh()
         if bfile == '':
             dialog = wx.FileDialog(None, "Save Bank", pxr.bankdir, pxr.cfg['currentbank'],
                 wildcard="Bank files (*.yaml,*.yml)|*.yaml;*.yml", style=wx.FD_SAVE)
             if dialog.ShowModal() == wx.ID_OK:
-                bfile = os.path.relpath(dialog.GetPath(), start=pxr.bankdir)
+                bfile = relpath(dialog.GetPath(), start=pxr.bankdir)
                 dialog.Destroy()
             else:
                 dialog.Destroy()
@@ -200,16 +188,16 @@ class MainWindow(wx.Frame):
             dlg.ShowModal()
             dlg.Destroy()
             return
-        self.SetTitle(APP_NAME + ' - ' + pxr.cfg['currentbank'])
+        self.SetTitle(APP_NAME + ' - ' + bfile)
 
     def onMod(self, event):
-        self.SetTitle(APP_NAME + ' - ' + pxr.cfg['currentbank'] + '*')
+        self.SetTitle(self.GetTitle().rstrip('*') + '*')
                 
     def onOpenSoundfont(self, event):
         dialog = wx.FileDialog(None, "Open Soundfont", pxr.sfdir,
             wildcard="Soundfont (*.sf2)|*.sf2", style=wx.FD_OPEN)
         if dialog.ShowModal() == wx.ID_OK:
-            sfont = os.path.relpath(dialog.GetPath(), start=pxr.sfdir)
+            sfont = relpath(dialog.GetPath(), start=pxr.sfdir)
             dialog.Destroy()
             sfbrowser = SoundfontBrowser(sfont)
             if sfbrowser.ShowModal() == wx.ID_OK:
@@ -220,7 +208,7 @@ class MainWindow(wx.Frame):
                     dlg.ShowModal()
                     dlg.Destroy()
             sfbrowser.Destroy()
-            self.patch_select()
+            self.choose_patch()
         else:
             dialog.Destroy()
             return
@@ -243,6 +231,7 @@ class MainWindow(wx.Frame):
         dlg.Destroy()
 
     def onRefresh(self, event=None):
+        lastpatch = pxr.patch_name(self.pno)
         rawbank = self.btxt.GetValue()
         try:
             pxr.load_bank(rawbank)
@@ -257,8 +246,15 @@ class MainWindow(wx.Frame):
         self.patchlist.Clear()
         for p in range(pxr.patches_count()):
             self.patchlist.Append(pxr.patch_name(p))
-        self.patch_select(val=0)
-        self.SetTitle(APP_NAME)
+        try:
+            self.pno = pxr.patch_index(lastpatch)
+            print(lastpatch)
+        except patcher.PatcherError:
+            if self.pno >= pxr.patches_count():
+                self.pno = 0
+        print(self.pno)
+        self.patchlist.SetSelection(self.pno)
+        pxr.select_patch(self.pno)
         
     def onKeyPress(self, event):
         if event.GetModifiers()<=0:
@@ -266,16 +262,16 @@ class MainWindow(wx.Frame):
                 self.onRefresh()
                 return
             if event.GetKeyCode() == wx.WXK_F7:
-                self.patch_select(val=-1)
+                self.choose_patch(val=-1)
                 return
             if event.GetKeyCode() == wx.WXK_F8:
-                self.patch_select(val=1)
+                self.choose_patch(val=1)
                 return
         event.Skip()
         
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        cfgfile = sys.argv[1]
+    if len(argv) > 1:
+        cfgfile = argv[1]
     else:
         cfgfile = 'patcherconf.yaml'
     pxr = patcher.Patcher(cfgfile)
