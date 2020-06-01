@@ -2,9 +2,10 @@
  A performance-oriented patch interface for [FluidSynth](http://www.fluidsynth.org). Fluidsynth is an open source software synthesizer that uses [soundfonts](https://en.wikipedia.org/wiki/SoundFont) - a [freely-available](https://duckduckgo.com/?q=free+soundfonts) and [well-documented](http://www.synthfont.com/sfspec24.pdf) sound format. A *patch* is a collection of settings such as soundfont presets for each MIDI channel, control-change/sysex messages to send when the patch is selected, and midi router or effects settings. Groups of patches are stored in banks, which are saved as human-readable and -editable [YAML](https://yaml.org/) files. This allows a musician to easily create complex combinations of synthesizer settings ahead of time and switch between them on the fly during a performance.
 
 FluidPatcher should work on any operating system on which FluidSynth and Python can be installed. *fluidwrap.py* provides a Python interface to FluidSynth's C functions, and *patcher.py* provides the library functions to handle patches and banks, load soundfonts, change FluidSynth settings, etc. This repository includes the following implementations of *patcher.py*:
-- *wxfluidpatcher.pyw* - a wxpython-based GUI that allows live editing of bank files, playing of patches, and browsing/playing soundfont presets.
-- *bankedit.py* - a curses-(i.e. text-) based bank editor and patch player.
-- *squishbox.py* - a front-end designed to work on a Raspberry Pi with a 16x2 character LCD and two buttons, like the [SquishBox](https://www.tindie.com/products/albedozero/squishbox) designed by [Geek Funk Labs](https://geekfunklabs.com/hardware/).
+- *wxfluidpatcher.pyw* - a wxpython-based GUI that allows live editing of bank files, playing of patches, and browsing/playing soundfont presets
+- *bankedit.py* - a curses-(i.e. text-) based bank editor and patch player
+- *headlesspi.py* - a bare-bones implementation made to run on a Raspberry Pi
+- *squishbox.py* - a front-end designed to work on a Raspberry Pi with a 16x2 character LCD and two buttons, like the [SquishBox](https://www.tindie.com/products/albedozero/squishbox) designed by [Geek Funk Labs](https://geekfunklabs.com/hardware/)
 
 Check the [wiki](https://github.com/albedozero/fluidpatcher/wiki) for more information about using the scripts, bank/config file formats, the API, etc.
 
