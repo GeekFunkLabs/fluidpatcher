@@ -4,27 +4,28 @@ Copyright (c) 2020 Bill Peterson
 
 Description: a curses-based implementation of patcher.py for live editing/playing of bank files
 """
-import os, sys, glob, re, curses
-from subprocess import call, check_output
+import sys, os, glob, re, subprocess
+import curses
 import patcher
 
-def padline(msg, width):
-    if width > len(msg): msg += " " * (width - len(msg) - 1)
-    return msg[0:width - 1]
-
 def alsamidi_reconnect():
-    x = re.search(b"client (\d+:) 'FLUID Synth", check_output(['aconnect', '-o']))
+    # hack needed for old versions of fluidsynth
+    x = re.search(b"client (\d+:) 'FLUID Synth", subprocess.check_output(['aconnect', '-o']))
     if not x:
         raise patcher.PatcherError("Fluid MIDI port not found")
     fluid_port = x.group(1).decode() + '0'
-    for client in check_output(['aconnect', '-i']).split(b'client'):
+    for client in subprocess.check_output(['aconnect', '-i']).split(b'client'):
         x = re.match(b" (\d+:) '([ \w]*)'", client)
         if not x: continue
         if x.group(2) == b'System': continue
         if x.group(2) == b'Midi Through': continue
         for n in re.findall(b"\n +(\d+) '", client):
             client_port = x.group(1) + n
-            call(['aconnect', client_port, fluid_port]) 
+            subprocess.run(['aconnect', client_port, fluid_port]) 
+
+def padline(msg, width):
+    if width > len(msg): msg += " " * (width - len(msg) - 1)
+    return msg[0:width - 1]
 
 def choosefile_menu(screen, files, title="File: ", name=""):
 
@@ -178,7 +179,7 @@ def main(screen):
             statusbar.noutrefresh()
             optbar.noutrefresh()
             curses.doupdate()
-            
+
             k = screen.getch()
 
             if k == curses.KEY_DOWN:
@@ -207,16 +208,16 @@ def main(screen):
                 try:
                     pxr.load_bank(bfile)
                 except Exception as e:
-                    errormsg = str(e).replace('\n', ' ')
+                    errormsg = ' '.join(str(e).splitlines())
                     continue
                 rawbank = ''
                 break
             elif k == curses.KEY_F3: # save editor contents as bank
                 rawbank = '\n'.join([pad.instr(i, 0).decode().rstrip() for i in range(plines)])
                 try:
-                    pxr.read_yaml(rawbank)
+                    patcher.read_yaml(rawbank)
                 except Exception as e:
-                    errormsg = str(e).replace('\n', ' ')
+                    errormsg = ' '.join(str(e).splitlines())
                     continue
                 bpaths = glob.glob(os.path.join(pxr.bankdir, '**', '*.yaml'), recursive=True)
                 brel = [os.path.relpath(x, start=pxr.bankdir) for x in bpaths]
@@ -225,7 +226,7 @@ def main(screen):
                 try:
                     pxr.save_bank(bfile, rawbank)
                 except Exception as e:
-                    errormsg = str(e).replace('\n', ' ')
+                    errormsg = ' '.join(str(e).splitlines())
                     continue
                 break
             elif k == curses.KEY_F4: # play presets from a soundfont
@@ -244,7 +245,7 @@ def main(screen):
                 try:
                     pxr.load_bank(rawbank)
                 except Exception as e:
-                    errormsg = str(e).replace('\n', ' ')
+                    errormsg = ' '.join(str(e).splitlines())
                     continue
                 ptot = pxr.patches_count()
                 try:

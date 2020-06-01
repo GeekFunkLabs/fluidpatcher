@@ -13,8 +13,8 @@ MAX_PRESET = 128
 
 CC_DEFAULTS = [(7, 7, 100), (11, 11, 127), (12, 31, 0), (33, 42, 0),
                (43, 43, 127), (44, 63, 0), (65, 65, 0), (70, 79, 64),
-               (80, 83, 0), (84, 84, 255), (85, 95, 0), (102, 119, 0)]            
-
+               (80, 83, 0), (84, 84, 255), (85, 95, 0), (102, 119, 0)]
+               
 class SFPreset(oyaml.YAMLObject):
 
     yaml_tag = '!sfpreset'
@@ -393,7 +393,7 @@ class Patcher:
             cc_messages = []
             for first, last, default in CC_DEFAULTS:
                 for cc in range(first, last + 1):
-                    val = self.fluid.get_cc(channel, cc)
+                    val = self.fluid.get_cc(channel - 1, cc)
                     if val != default:
                         cc_messages.append(CCMsg(channel, cc, val))
         if cc_messages:
@@ -434,7 +434,7 @@ class Patcher:
         self.fluid.router_clear()
         self.fluid.router_default()
         return True
-
+        
     def _midi_route(self, type, chan=None, par1=None, par2=None, **kwargs):
     # send midi message routing rules to fluidsynth (or perhaps mido in future)
     # convert scientific note names in :par1 to midi note numbers

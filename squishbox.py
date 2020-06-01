@@ -4,24 +4,24 @@ Copyright (c) 2020 Bill Peterson
 
 Description: an implementation of patcher.py for a Raspberry Pi in a stompbox
 """
-import time, sys, os, re, glob
-from subprocess import call, check_output
+import time, sys, os, re, glob, subprocess
 import patcher
 import stompboxpi as SB
 
 def alsamidi_reconnect():
-    x = re.search(b"client (\d+:) 'FLUID Synth", check_output(['aconnect', '-o']))
+    # hack needed for old versions of fluidsynth
+    x = re.search(b"client (\d+:) 'FLUID Synth", subprocess.check_output(['aconnect', '-o']))
     if not x:
         raise patcher.PatcherError("Fluid MIDI port not found")
     fluid_port = x.group(1).decode() + '0'
-    for client in check_output(['aconnect', '-i']).split(b'client'):
+    for client in subprocess.check_output(['aconnect', '-i']).split(b'client'):
         x = re.match(b" (\d+:) '([ \w]*)'", client)
         if not x: continue
         if x.group(2) == b'System': continue
         if x.group(2) == b'Midi Through': continue
         for n in re.findall(b"\n +(\d+) '", client):
             client_port = x.group(1) + n
-            call(['aconnect', client_port, fluid_port]) 
+            subprocess.run(['aconnect', client_port, fluid_port]) 
 
 def load_bank_menu():
     SB.lcd_message("Load Bank:      ", row=0)
@@ -226,7 +226,7 @@ while True:
         
         if k == 0: # power down
             SB.lcd_message("Shutting down...Wait 30s, unplug", 0)
-            call('sudo shutdown -h now'.split())
+            subprocess.run('sudo shutdown -h now'.split())
             
         elif k == 1: # reconnect midi devices
             SB.lcd_message("reconnecting..  ", 1)
@@ -234,32 +234,32 @@ while True:
             SB.waitforrelease(1)
             
         elif k == 2: # wifi settings
-            ssid=check_output(['iwgetid', 'wlan0', '--raw']).strip().decode('ascii')
-            ip=re.sub(b'\s.*', b'', check_output(['hostname', '-I'])).decode('ascii')
-            if ssid=="":
+            ssid = subprocess.check_output(['iwgetid', 'wlan0', '--raw']).strip().decode('ascii')
+            ip = re.sub(b'\s.*', b'', subprocess.check_output(['hostname', '-I'])).decode('ascii')
+            if ssid == "":
                 statusmsg="Not connected   " + ' ' * 16
             else:
                 statusmsg="%16s%-16s" % (ssid,ip)
-            j=SB.choose_opt([statusmsg, "Add Network..   " + ' ' * 16])
-            if j!=1: continue
+            j = SB.choose_opt([statusmsg, "Add Network..   " + ' ' * 16])
+            if j != 1: continue
             SB.lcd_message("Network (SSID):")
-            newssid=SB.char_input()
+            newssid = SB.char_input()
             if not newssid: continue
             SB.lcd_message("Password:")
-            newpsk=SB.char_input()
+            newpsk = SB.char_input()
             if not newpsk: continue
             SB.lcd_message("adding network.." + ' ' * 16)
-            f=open('/etc/wpa_supplicant/wpa_supplicant.conf', 'a')
+            f = open('/etc/wpa_supplicant/wpa_supplicant.conf', 'a')
             f.write('network={\n  ssid="%s"\n  psk="%s"\n}\n' % (newssid,newpsk))
             f.close()
-            call('sudo service networking restart'.split())
+            subprocess.run('sudo service networking restart'.split())
             SB.waitforrelease(1)
             
         elif k == 3: # add soundfonts from a flash drive
             SB.lcd_clear()
             SB.lcd_message("looking for USB ", row=0)
-            b=check_output('sudo blkid'.split())
-            x=re.findall('/dev/sd[a-z]\d*', b.decode('ascii'))
+            b = subprocess.check_output('sudo blkid'.split())
+            x = re.findall('/dev/sd[a-z]\d*', b.decode('ascii'))
             if not x:
                 SB.lcd_message("USB not found!  ", row=1)
                 SB.waitforrelease(1)
@@ -269,14 +269,14 @@ while True:
                 if not os.path.exists('/mnt/usbdrv/'):
                     os.mkdir('/mnt/usbdrv')
                 for usb in x:
-                    call(['sudo', 'mount', usb, '/mnt/usbdrv/'])
+                    subprocess.run(['sudo', 'mount', usb, '/mnt/usbdrv/'])
                     for sf in glob.glob(os.path.join('/mnt/usbdrv', '**', '*.sf2'), recursive=True):
                         sfrel = os.path.relpath(sf, start='/mnt/usbdrv')
                         dest = os.path.join(pxr.sfdir, sfrel)
                         if not os.path.exists(os.path.dirname(dest)):
                             os.makedirs(os.path.dirname(dest))
-                        call(['sudo', 'cp', '-f', sf, dest])
-                    call(['sudo', 'umount', usb])
+                        subprocess.run(['sudo', 'cp', '-f', sf, dest])
+                    subprocess.run(['sudo', 'umount', usb])
             except Exception as e:
                 SB.lcd_message("halted - errors:", 0)
                 SB.reset_scroll()

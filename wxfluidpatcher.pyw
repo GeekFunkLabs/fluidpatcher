@@ -1,8 +1,13 @@
 #!/usr/bin/env python
+"""
+Copyright (c) 2020 Bill Peterson
 
-import wx
+Description: a wxpython-based implementation of patcher.py for live editing/playing of bank files
+"""
+
 from os.path import relpath, join as joinpath
 from sys import argv
+import wx
 import patcher
 
 DEFAULT_WIDTH  = 700
@@ -171,7 +176,14 @@ class MainWindow(wx.Frame):
         self.onSaveAs(bfile=pxr.cfg['currentbank'])
         
     def onSaveAs(self, event=None, bfile=''):
-        self.onRefresh()
+        rawbank = self.btxt.GetValue()
+        try:
+            pxr.load_bank(rawbank)
+        except Exception as e:
+            dlg = wx.MessageDialog(self, str(e), "Error", wx.OK)
+            dlg.ShowModal()
+            dlg.Destroy()
+            return
         if bfile == '':
             dialog = wx.FileDialog(None, "Save Bank", pxr.bankdir, pxr.cfg['currentbank'],
                 wildcard="Bank files (*.yaml,*.yml)|*.yaml;*.yml", style=wx.FD_SAVE)
@@ -240,19 +252,14 @@ class MainWindow(wx.Frame):
             dlg.ShowModal()
             dlg.Destroy()
             return
-        self.btxt.Clear()
-        self.btxt.AppendText(rawbank)
-        self.btxt.SetInsertionPoint(0)
         self.patchlist.Clear()
         for p in range(pxr.patches_count()):
             self.patchlist.Append(pxr.patch_name(p))
         try:
             self.pno = pxr.patch_index(lastpatch)
-            print(lastpatch)
         except patcher.PatcherError:
             if self.pno >= pxr.patches_count():
                 self.pno = 0
-        print(self.pno)
         self.patchlist.SetSelection(self.pno)
         pxr.select_patch(self.pno)
         

@@ -1,5 +1,7 @@
 soundfontdir: SquishBox/sf2
 bankdir: SquishBox/banks
+currentbank: bank0.yaml
+patch_cc: 
 fluidsettings: # http://www.fluidsynth.org/api/fluidsettings.xml
   midi.autoconnect: 1
 # Linux --
@@ -12,4 +14,3 @@ fluidsettings: # http://www.fluidsynth.org/api/fluidsettings.xml
 # Windows --
   audio.period-size: 256
   audio.periods: 4
-currentbank: bank0.yaml
