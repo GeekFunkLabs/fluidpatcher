@@ -8,6 +8,7 @@ Description: a wxpython-based implementation of patcher.py for live editing/play
 import wx
 from os.path import relpath, join as joinpath
 from sys import argv
+from webbrowser import open as webopen
 import patcher
 
 DEFAULT_WIDTH  = 700
@@ -87,6 +88,8 @@ class MainWindow(wx.Frame):
         self.Bind(wx.EVT_MENU, self.onExit, item)
 
         helpMenu = wx.Menu()
+        item = helpMenu.Append(wx.ID_ANY, '&Online Help', 'Open online help in a web browser')
+        self.Bind(wx.EVT_MENU, lambda x: webopen('https://github.com/albedozero/fluidpatcher/wiki'), item)
         item = helpMenu.Append(wx.ID_ABOUT, '&About', 'Information about this program')
         self.Bind(wx.EVT_MENU, self.onAbout, item)
 
@@ -117,7 +120,6 @@ class MainWindow(wx.Frame):
                                             wx.TE_NOHIDESEL|wx.HSCROLL)
         fwf = wx.Font(wx.FontInfo().Family(wx.FONTFAMILY_TELETYPE))
         self.btxt.SetDefaultStyle(wx.TextAttr(wx.NullColour, font=fwf))
-#        self.CreateStatusBar()  ## not sure what to show here
 
         self.Bind(wx.EVT_TEXT, self.onMod)
         self.Bind(wx.EVT_CHAR_HOOK, self.onKeyPress)
