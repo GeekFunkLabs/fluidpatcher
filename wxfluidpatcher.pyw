@@ -1,13 +1,13 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 Copyright (c) 2020 Bill Peterson
 
 Description: a wxpython-based implementation of patcher.py for live editing/playing of bank files
 """
 
+import wx
 from os.path import relpath, join as joinpath
 from sys import argv
-import wx
 import patcher
 
 DEFAULT_WIDTH  = 700
@@ -117,7 +117,7 @@ class MainWindow(wx.Frame):
                                             wx.TE_NOHIDESEL|wx.HSCROLL)
         fwf = wx.Font(wx.FontInfo().Family(wx.FONTFAMILY_TELETYPE))
         self.btxt.SetDefaultStyle(wx.TextAttr(wx.NullColour, font=fwf))
-#        self.CreateStatusBar()
+#        self.CreateStatusBar()  ## not sure what to show here
 
         self.Bind(wx.EVT_TEXT, self.onMod)
         self.Bind(wx.EVT_CHAR_HOOK, self.onKeyPress)
@@ -136,13 +136,14 @@ class MainWindow(wx.Frame):
             dlg.ShowModal()
             dlg.Destroy()
             return
-        f = open(joinpath(pxr.bankdir, pxr.cfg['currentbank']))
+        self.currentfile = file
+        f = open(joinpath(pxr.bankdir, self.currentfile))
         rawbank = f.read()
         f.close()
         self.btxt.Clear()
         self.btxt.AppendText(rawbank)
         self.btxt.SetInsertionPoint(0)
-        self.SetTitle(APP_NAME + ' - ' + pxr.cfg['currentbank'])
+        self.SetTitle(APP_NAME + ' - ' + self.currentfile)
         self.patchlist.Clear()
         for p in range(pxr.patches_count()):
             self.patchlist.Append(pxr.patch_name(p))
@@ -163,7 +164,7 @@ class MainWindow(wx.Frame):
         
     def onOpen(self, event):
         dialog = wx.FileDialog(None, "Load Bank", pxr.bankdir,
-                                wildcard="Bank files (*.yaml,*.yml)|*.yaml;*.yml",
+                                wildcard="Bank files (*.yaml)|*.yaml",
                                 style=wx.FD_OPEN)
         if dialog.ShowModal() == wx.ID_OK:
             bfile = relpath(dialog.GetPath(), start=pxr.bankdir)
@@ -173,7 +174,7 @@ class MainWindow(wx.Frame):
             dialog.Destroy()
         
     def onSave(self, event):
-        self.onSaveAs(bfile=pxr.cfg['currentbank'])
+        self.onSaveAs(bfile=self.currentfile)
         
     def onSaveAs(self, event=None, bfile=''):
         rawbank = self.btxt.GetValue()
@@ -185,8 +186,8 @@ class MainWindow(wx.Frame):
             dlg.Destroy()
             return
         if bfile == '':
-            dialog = wx.FileDialog(None, "Save Bank", pxr.bankdir, pxr.cfg['currentbank'],
-                wildcard="Bank files (*.yaml,*.yml)|*.yaml;*.yml", style=wx.FD_SAVE)
+            dialog = wx.FileDialog(None, "Save Bank", pxr.bankdir, self.currentfile,
+                wildcard="Bank files (*.yaml)|*.yaml", style=wx.FD_SAVE)
             if dialog.ShowModal() == wx.ID_OK:
                 bfile = relpath(dialog.GetPath(), start=pxr.bankdir)
                 dialog.Destroy()
@@ -200,7 +201,8 @@ class MainWindow(wx.Frame):
             dlg.ShowModal()
             dlg.Destroy()
             return
-        self.SetTitle(APP_NAME + ' - ' + bfile)
+        self.currentfile = bfile
+        self.SetTitle(APP_NAME + ' - ' + self.currentfile)
 
     def onMod(self, event):
         self.SetTitle(self.GetTitle().rstrip('*') + '*')
@@ -225,7 +227,7 @@ class MainWindow(wx.Frame):
             dialog.Destroy()
             return
 
-    def onExit(self, event):
+    def onExit(self, event=None):
         self.Destroy()
         
     def onAbout(self, event):
