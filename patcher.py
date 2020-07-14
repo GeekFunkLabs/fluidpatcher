@@ -304,6 +304,23 @@ class Patcher:
     def patches_count(self):
         return len(self.bank['patches'])
 
+    def _parse_sysex(self, messages):
+        ports = {}
+        try:
+            for msg in messages:
+                if msg[0] not in ports:
+                    ports[msg[0]] = mido.open_output(msg[0])
+                if isinstance(msg[1], int):
+                    messages = [msg[1:]]
+                else:
+                    messages = mido.read_syx_file(msg[1])
+                for msgdata in messages:
+                    ports[msg[0]].send(mido.Message('sysex', data = msgdata))
+            for x in ports.keys():
+                ports[x].close()
+        except:
+            return "Failed to parse or send SYSEX"
+
     def select_patch(self, patch):
     # select :patch by index, name, or passing dict object
         warnings = []
@@ -321,25 +338,19 @@ class Patcher:
                     warnings.append('Unable to set channel %d' % channel)
             else:
                 self.fluid.program_unset(channel - 1)
+
+        if 'cc' in self.bank:
+            for msg in self.bank['cc']:
+                self.fluid.send_cc(msg.chan - 1, msg.cc, msg.val)
         if 'cc' in patch:
             for msg in patch['cc']:
                 self.fluid.send_cc(msg.chan - 1, msg.cc, msg.val)
-        if 'sysex' in patch:
-            ports = {}
-            try:
-                for msg in patch['sysex']:
-                    if msg[0] not in ports:
-                        ports[msg[0]] = mido.open_output(msg[0])
-                    if isinstance(msg[1], int):
-                        messages = [msg[1:]]
-                    else:
-                        messages = mido.read_syx_file(msg[1])
-                    for msgdata in messages:
-                        ports[msg[0]].send(mido.Message('sysex', data = msgdata))
-                for x in ports.keys():
-                    ports[x].close()
-            except:
-                warnings.append("Failed to parse or send SYSEX")
+
+        syx = self.bank.get('sysex', []) + patch.get('sysex', [])
+        if syx:
+            warn = self._parse_sysex(syx)
+            if warn:
+                warnings.append(warn)
 
         self.fluid.router_clear()
         if 'router_rules' in self.bank:
@@ -475,13 +486,13 @@ class Patcher:
             self.fluid.setting('synth.reverb.room-size', roomsize)
         if damp:
             self.bank['fluidsettings']['synth.reverb.damp'] = damp
-            self.fluid.setting('synth.reverb.room-size', damp)
+            self.fluid.setting('synth.reverb.damp', damp)
         if width:
             self.bank['fluidsettings']['synth.reverb.width'] = width
-            self.fluid.setting('synth.reverb.room-size', width)
+            self.fluid.setting('synth.reverb.width', width)
         if level:
             self.bank['fluidsettings']['synth.reverb.level'] = level
-            self.fluid.setting('synth.reverb.room-size', level)
+            self.fluid.setting('synth.reverb.level', level)
 
     def get_reverb(self, roomsize=None, damp=None, width=None, level=None):
         params = ()
@@ -503,13 +514,13 @@ class Patcher:
             self.fluid.setting('synth.chorus.nr', nr)
         if level:
             self.bank['fluidsettings']['synth.chorus.level'] = level
-            self.fluid.setting('synth.chorus.nr', level)
+            self.fluid.setting('synth.chorus.level', level)
         if speed:
             self.bank['fluidsettings']['synth.chorus.speed'] = speed
-            self.fluid.setting('synth.chorus.nr', speed)
+            self.fluid.setting('synth.chorus.speed', speed)
         if depth:
             self.bank['fluidsettings']['synth.chorus.depth'] = depth
-            self.fluid.setting('synth.chorus.nr', depth)
+            self.fluid.setting('synth.chorus.depth', depth)
 
     def get_chorus(self, nr=None, level=None, speed=None, depth=None):
         params = ()
