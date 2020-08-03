@@ -21,32 +21,9 @@ THE SOFTWARE.
 """
 
 """
-Description: This file includes helpful functions for creating other applications
-for your stompbox-encased Raspberry Pi (in addition to the Squishbox)
+Description: python interface for a raspberry pi with two gpio buttons and a 16x2 character LCD
 """
 
-# Model-dependent wiring
-
-# model 0000
-BTN_R=6
-BTN_L=5
-LCD_RS=24
-LCD_EN=25
-LCD_D4=8
-LCD_D5=7
-LCD_D6=12
-LCD_D7=16
-"""
-# models 0001-0099
-BTN_R=22
-BTN_L=27
-LCD_RS=15
-LCD_EN=23
-LCD_D4=24
-LCD_D5=25
-LCD_D6=8
-LCD_D7=7
-"""
 
 # adjust timings below as needed/desired
 POLL_TIME = 0.01
@@ -57,10 +34,14 @@ BLINK_TIME = 0.1
 SCROLL_TIME = 0.4
 
 
-
 import time
 import RPLCD, RPi.GPIO as GPIO
+from .hw_overlay import *
 
+if ACTIVE_HIGH:
+    ACTIVE = GPIO.HIGH
+else:
+    ACTIVE = GPIO.LOW
 STATE_NONE = 0
 STATE_DOWN = 1
 STATE_TAP = 2
@@ -102,7 +83,8 @@ class StompBox():
 
         t = time.time()
         for button in (BTN_L, BTN_R):
-            if GPIO.input(button) == GPIO.LOW:
+            if GPIO.input(button) != ACTIVE:
+                self.timer[button] = t
                 if self.state[button] == STATE_DOWN:
                     self.state[button] = STATE_TAP
                 else:
@@ -110,7 +92,7 @@ class StompBox():
             else:
                 if self.state[button] == STATE_NONE:
                     self.state[button] = STATE_DOWN
-                    self.timer[button] = time.time()
+                    self.timer[button] = t
                 elif self.state[button] == STATE_DOWN:
                     if (t - self.timer[button]) >= HOLD_TIME:
                         self.state[button] = STATE_HOLD
@@ -123,17 +105,10 @@ class StompBox():
                     self.state[button] = STATE_LONGER
 
         if self.scrollmsg:
-            if (t - self.lastscroll) < SCROLL_TIME: return
-            self.lastscroll = t
-            self.scrollpos += 1
-            if self.scrollpos < 0:
-                self.lcd_write("%-16s" % self.scrollmsg[:16], self.scrollrow)
-            elif self.scrollpos < (len(self.scrollmsg) - 16):
-                self.lcd_write("%-16s" % self.scrollmsg[self.scrollpos:self.scrollpos+16], self.scrollrow)
-            elif self.scrollpos < (len(self.scrollmsg) - 14):
-                self.lcd_write("%-16s" % self.scrollmsg[-16:], self.scrollrow)
-            else:
-                self.scrollpos = -4
+            if (t - self.lastscroll) >= SCROLL_TIME:
+                self.lastscroll = t
+                self.scrollpos += 1
+                self.lcd_write(self.scrollmsg, self.scrollrow)
 
     def waitforrelease(self, tmin=0):
         # wait for all buttons to be released and at least :tmin seconds
@@ -158,19 +133,30 @@ class StompBox():
         self.LCD.clear()
         self.scrollmsg = ''
             
-    def lcd_write(self, text, row=0, col=0, scroll=False):
-        if scroll:
-            self.LCD.cursor_pos = (row, 0)
-            self.LCD.write_string("%-16s" % text[:16])
-            self.scrollmsg = text
-            self.scrollrow = row
-            self.scrollpos = -4
-            self.lastscroll = time.time()
+    def lcd_write(self, text, row=0, col=0):
+        if len(text) > 16:
+            if self.scrollmsg:
+                self.LCD.cursor_pos = (row, 0)
+                if self.scrollpos < 0:
+                    self.LCD.write_string("%-16s" % self.scrollmsg[:16])
+                elif self.scrollpos < (len(self.scrollmsg) - 16):
+                    self.LCD.write_string("%-16s" % self.scrollmsg[self.scrollpos:self.scrollpos+16])                    
+                elif self.scrollpos < (len(self.scrollmsg) - 14):
+                    self.LCD.write_string("%-16s" % self.scrollmsg[-16:])
+                else:
+                    self.scrollpos = -4            
+            else:
+                self.scrollmsg = text
+                self.scrollrow = row
+                self.scrollpos = -4
+                self.lastscroll = time.time()
+                self.LCD.cursor_pos = (row, 0)
+                self.LCD.write_string("%-16s" % text[:16])
         else:
-            self.LCD.cursor_pos = (row, col)
-            self.LCD.write_string(text)
             if self.scrollmsg and row == self.scrollrow:
                 self.scrollmsg = ''
+            self.LCD.cursor_pos = (row, col)
+            self.LCD.write_string(text)
                 
             
     def lcd_blink(self, text, row=0, n=3):
@@ -181,20 +167,21 @@ class StompBox():
             time.sleep(BLINK_TIME)
             n -= 1
             
-    def choose_opt(self, opts, row=0, scroll=False, passlong=False):
+    def choose_opt(self, opts, row=0, timeout=MENU_TIMEOUT, passlong=False):
         """
         has the user choose from a list of choices in :opts
         returns the index of the choice
         or -1 if the user backed out or time expired
         scroll: scroll long menu items and don't time out
-        long: pass STATE_LONG through to calling loop
+        passlong: pass STATE_LONG through to calling loop
         """
         i=0
         while True:
-            self.lcd_write("%-16s" % opts[i], row, scroll=scroll)
-            tstop = time.time() + MENU_TIMEOUT
+            self.lcd_write(' '*16, row)
+            self.lcd_write(opts[i], row)
+            tstop = time.time() + timeout
             while True:
-                if not scroll and time.time() > tstop:
+                if timeout and time.time() > tstop:
                     self.lcd_write(' '*16, row)
                     return -1
                 self.update()
@@ -283,9 +270,11 @@ class StompBox():
                 elif self.state[BTN_R] >= STATE_HOLD:
                     if self.state[BTN_R] == STATE_HELD: continue
                     if char == (len(INPCHARS) - 1):
+                        if self.state[BTN_R] != STATE_HOLD: continue
                         self.LCD.cursor_mode = 'hide'
                         self.lcd_blink(text.strip()[0:16], row)
                         return text.strip()
+                    if self.state[BTN_R] > STATE_HELD: time.sleep(BLINK_TIME)
                     i = min(i + 1, len(text))
                     if i == len(text):
                         char = len(INPCHARS) - 1
@@ -294,6 +283,7 @@ class StompBox():
                     if self.state[BTN_L] == STATE_HELD: continue
                     if char == (len(INPCHARS) - 2):
                         text = text[0:max(0, i - 1)] + text[i:]
+                    if self.state[BTN_L] > STATE_HELD: time.sleep(BLINK_TIME)
                     i = max(i - 1, 0)
                     break
             else:

@@ -1,8 +1,7 @@
-title: example bank file # not required, does nothing
-comment1: "Comments can look like this or be preceded by #"
-author: Bill Peterson # non-functional keywords are ignored
+# example bank file that demonstrates many of the features of fluidpatcher
+# view the wiki at https://github.com/albedozero/fluidpatcher/wiki for detailed info
 
-router_rules: # these router rules apply to all patches
+router_rules: # router rules at this indent level apply to all patches
 - {type: note, chan: 1-16*1+0, par1: 0-127*1+0, par2: 0-127*1+0} # 1-1 routing for notes
 - {type: cc} # a router rule with no parameters defaults to 1-1 routing
 - {type: cc, chan: 1-1>2-16, par1: 7-7*1+0} # CC 7 is volume - route it to all used channels so it's global
@@ -10,28 +9,35 @@ router_rules: # these router rules apply to all patches
 - {type: kpress}
 - {type: cpress}
 
-comment2: full list at http://www.fluidsynth.org/api/fluidsettings.xml
+# settings to pass to fluidsynth
+# full list at http://www.fluidsynth.org/api/fluidsettings.xml
 fluidsettings:
   synth.reverb.level: 0.9
   synth.reverb.room-size: 0.8
   synth.reverb.width: 0.5
   synth.gain: 0.6
 
-patches:
-  Simple EP:
+cclinks: # use CC messages to control fluidsynth parameters, for example effects
+- {target: synth.gain, link: 1/17, type: fluidsetting, xfrm: 0-127*0.08+0}
+- {target: synth.reverb.room-size, link: 1/18, type: fluidsetting, xfrm: 0-127*0.008+0}
+
+patches: # indented list of patches
+  Simple EP: # simplest form of patch - assign a voice to a MIDI channel
     1: FM Piano.sf2:000:000 # <MIDI Channel>: <soundfont>:<bank>:<program>
-  Multi Channel:
+  Multi Channel: # can have a different voice on each MIDI channel
+                 # useful if your controller can split/play to different channels
     1: VintageDreamsWaves-v2.sf2:000:058
     2: VintageDreamsWaves-v2.sf2:000:013
     10: VintageDreamsWaves-v2.sf2:128:002
-  Split Keys: # split keyboard with routing
-    cc: [3/91=127, 3/93=127] # turn up reverb, chorus on channel 3
+  Split Keys: # you can also split the keyboard any way you want using MIDI routing
     3: FM Piano.sf2:000:000
     4: VintageDreamsWaves-v2.sf2:000:028
-    router_rules:
+    router_rules: # this sends notes on the upper half of the keyboard to channel 3, lower half to channel 4
     - {type: note, chan: 1-1>3-3, par1: C5-G9*1+0} # note names can be used
     - {type: note, chan: 1-1>4-4, par1: C0-B4*1-12}
-  Weird Keys:
+    cc: [3/91=127, 3/93=127] # sends control change messages when the patch is selected
+                             # this will set the reverb and chorus level to max on channel 3
+  Weird Keys: # you can get some interesting effects with MIDI routing
     5: VintageDreamsWaves-v2.sf2:000:014
     router_rules:
     - {type: note, chan: 1-16>5-5, par1: Eb5-G9*1+0}
@@ -42,6 +48,14 @@ patches:
     1: ModSynth.sf2:000:000
     router_rules:
     - clear # clears all previous router rules
-    - {type: note, par1: 0-127*1+0, par2: 0-127*0+127} # no note velocity like a retro synth
+    - {type: note, par1: 0-127*1+0, par2: 0-127*0+127} # all notes max volume like a retro synth
     - {type: cc}
     - {type: pbend}
+    effects: # recent versions of fluidsynth support LADSPA effects
+      - lib: /usr/lib/ladspa/tap_echo.so
+        controls:
+        - {port: L Delay, val: 300, link: 1/15, xfrm: 0-127*6.3+0}
+        - {port: R/Haas Delay, val: 300, link: 1/15, xfrm: 0-127*6.3+0}
+        - {port: L Feedback, val: 50, link: 1/16, xfrm: 0-127*0.7+0}
+        - {port: R/Haas Feedback, val: 50, link: 1/16, xfrm: 0-127*0.7+0}
+

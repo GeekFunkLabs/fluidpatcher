@@ -1,15 +1,9 @@
 soundfontdir: SquishBox/sf2
 bankdir: SquishBox/banks
 currentbank: bank0.yaml
-fluidsettings: # http://www.fluidsynth.org/api/fluidsettings.xml
+fluidsettings:
   midi.autoconnect: 1
-# Linux --
-#  audio.driver: alsa
-#  audio.period-size: 64
-#  audio.periods: 3
-# Mac OS X --
-#  audio.period-size: 64
-#  audio.periods: 3
-# Windows --
   audio.period-size: 256
   audio.periods: 4
+remotelink_host: 192.168.0.28
+remotelink_port: 8675

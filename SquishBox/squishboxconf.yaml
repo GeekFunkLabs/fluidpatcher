@@ -7,3 +7,5 @@ fluidsettings: # http://www.fluidsynth.org/api/fluidsettings.xml
   audio.driver: alsa
   audio.period-size: 64
   audio.periods: 3
+  synth.ladspa.active: 1
+

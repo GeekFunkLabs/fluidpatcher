@@ -1,3 +1,8 @@
+"""
+Copyright (c) 2020 Bill Peterson
+
+Description: ctypes bindings for fluidsynth 1.x
+"""
 from ctypes import *
 from ctypes.util import find_library
 import os
@@ -82,29 +87,20 @@ FL.fluid_midi_router_rule_set_param2.restype = None
 FL.fluid_midi_router_add_rule.argtypes = [c_void_p, c_void_p, c_int]
 FL.fluid_midi_router_add_rule.restype = c_int
 
-# handle FluidSynth 1.x/2.x differences
-if hasattr(FL, 'fluid_preset_get_name'):
-    FL.fluid_synth_get_sfont_by_id.argtypes = [c_void_p, c_int]
-    FL.fluid_synth_get_sfont_by_id.restype = c_void_p
-    FL.fluid_sfont_get_preset.argtypes = [c_void_p, c_int, c_int]
-    FL.fluid_sfont_get_preset.restype = c_void_p
-    FL.fluid_preset_get_name.argtypes = [c_void_p]
-    FL.fluid_preset_get_name.restype = c_char_p
-else:
-    class fluid_synth_channel_info_t(Structure):
-        _fields_ = [
-            ('assigned', c_int),
-            ('sfont_id', c_int),
-            ('bank', c_int),
-            ('program', c_int),
-            ('name', c_char*32),
-            ('reserved', c_char*32)]
-    FL.fluid_synth_get_channel_info.argtypes = [c_void_p, c_int, POINTER(fluid_synth_channel_info_t)]
-    FL.fluid_synth_get_channel_info.restype = c_int
+# fluidsynth 1.x
+class fluid_synth_channel_info_t(Structure):
+    _fields_ = [
+        ('assigned', c_int),
+        ('sfont_id', c_int),
+        ('bank', c_int),
+        ('program', c_int),
+        ('name', c_char*32),
+        ('reserved', c_char*32)]
+FL.fluid_synth_get_channel_info.argtypes = [c_void_p, c_int, POINTER(fluid_synth_channel_info_t)]
+FL.fluid_synth_get_channel_info.restype = c_int
 
 FLUID_OK = 0
 FLUID_FAILED = -1
-FLUID_CHORUS_MOD_SINE = 0
 
 class Synth:
 
@@ -156,18 +152,11 @@ class Synth:
         return True
 
     def get_preset_name(self, sfont, bank, prog):
-        if hasattr(FL, 'fluid_sfont_get_preset'):
-            sfont_obj = FL.fluid_synth_get_sfont_by_id(self.synth, self.sfid[sfont])
-            preset_obj = FL.fluid_sfont_get_preset(sfont_obj, bank, prog)
-            if not preset_obj:
-                return None
-            return FL.fluid_preset_get_name(preset_obj).decode('ascii')
-        else:
-            if not self.program_select(0, sfont, bank, prog):
-                return None
-            info = fluid_synth_channel_info_t()
-            FL.fluid_synth_get_channel_info(self.synth, 0, byref(info))
-            return info.name.decode('ascii')
+        if not self.program_select(0, sfont, bank, prog):
+            return None
+        info = fluid_synth_channel_info_t()
+        FL.fluid_synth_get_channel_info(self.synth, 0, byref(info))
+        return info.name.decode('ascii')
 
     def program_select(self, chan, sfont, bank, prog):
         if sfont not in self.sfid:
@@ -190,6 +179,20 @@ class Synth:
         sfont = {v: k for k, v in self.sfid.items()}[id.value]
         return sfont, bank.value, prog.value
 
+    def noteon(self, chan, key, vel):
+        FL.fluid_synth_noteon(self.synth, chan, key, vel)
+
+    def noteoff(self, chan, key):
+        FL.fluid_synth_noteoff(self.synth, chan, key)
+
+    def send_cc(self, chan, ctrl, val):
+        FL.fluid_synth_cc(self.synth, chan, ctrl, val)
+
+    def get_cc(self, chan, num):
+        i=c_int()
+        FL.fluid_synth_get_cc(self.synth, chan, num, byref(i))
+        return i.value
+
     def router_clear(self):
         FL.fluid_midi_router_clear_rules(self.router)
 
@@ -207,16 +210,18 @@ class Synth:
             FL.fluid_midi_router_rule_set_param2(rule, par2[0], par2[1], c_float(par2[2]), par2[3])
         FL.fluid_midi_router_add_rule(self.router, rule, ntype)
 
-    def send_cc(self, chan, ctrl, val):
-        FL.fluid_synth_cc(self.synth, chan, ctrl, val)
+    def fxchain_clear(self):
+        pass
+        
+    def fxchain_add(self, label, lib, plugin):
+        return True
 
-    def get_cc(self, chan, num):
-        i=c_int()
-        FL.fluid_synth_get_cc(self.synth, chan, num, byref(i))
-        return i.value
-
-    def noteon(self, chan, key, vel):
-        FL.fluid_synth_noteon(self.synth, chan, key, vel)
-
-    def noteoff(self, chan, key):
-        FL.fluid_synth_noteoff(self.synth, chan, key)
+    def fxchain_link(self, label, fromport, toport):
+        pass
+        
+    def fxchain_activate(self):
+        pass
+        
+    def fx_setcontrol(self, label, port, val):
+        pass
+        

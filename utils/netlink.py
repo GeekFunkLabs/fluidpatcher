@@ -1,0 +1,163 @@
+"""
+Copyright (c) 2020 Bill Peterson
+
+Description: tools for controlling patcher over a network
+"""
+import socket, select
+from time import time_ns
+
+DEFAULT_PORT = 8675
+DEFAULT_PASSKEY = 'a9b8d3'
+BUFSIZE = 1024
+
+# reply codes
+REQ_ERROR = -1  # can't do for some reason
+MSG_INVALID = 0 # badly formed request
+REQ_OK = 1
+
+# request types
+SEND_STATE = 11
+RECV_BANK = 12
+LIST_BANKS = 13
+LOAD_BANK = 14
+SAVE_BANK = 15
+SELECT_PATCH = 16
+LIST_SOUNDFONTS = 17
+LOAD_SOUNDFONT = 18
+SELECT_SFPRESET = 19
+LIST_PLUGINS = 20
+LIST_PORTS = 21
+# to be implemented(?):
+# SOFTWARE_VERSION
+# SOFTWARE_UPDATE
+
+def get_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(('10.255.255.255', 1))
+        IP = s.getsockname()[0]
+    except Exception:
+        IP = '127.0.0.1'
+    finally:
+        s.close()
+    return IP
+    
+    
+class Server:
+
+    def __init__(self, port=DEFAULT_PORT, passkey=DEFAULT_PASSKEY):
+        self.passkey = passkey
+
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, BUFSIZE)      
+        self.socket.bind((get_ip(), port))
+        self.socket.setblocking(0)
+        self.socket.listen(5)
+
+        self.inputs = [self.socket]
+        self.requests = []
+                
+    def pending(self):
+        while True:
+            readable, writable, errored = select.select(self.inputs, [], [], 0)
+            if not readable: break
+            for sock in readable:
+                if sock == self.socket:
+                    conn, address = self.socket.accept()
+                    self.inputs.append(conn)
+                    continue
+                req = Message(sock)
+                if req.type == MSG_INVALID or req.passkey != self.passkey:
+                    sock.close()
+                    self.inputs.remove(sock)
+                    continue
+                self.requests.append(req)
+        return self.requests
+        
+    def reply(self, req, response='', type=REQ_OK):
+        msg = Message(type=type, passkey=self.passkey, body=response, id=req.id)
+        try:
+            req.origin.send(msg.content)
+        except:
+            pass
+        
+class Client:
+    
+    def __init__(self, server='', port=DEFAULT_PORT, passkey=DEFAULT_PASSKEY, timeout=20):
+        self.passkey = passkey
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, BUFSIZE)      
+        self.pending = []
+
+        if server:
+            self.socket.connect((server, port))
+        else:
+            self.socket.connect((socket.gethostname(), port))
+        
+    def request(self, type, body='', blocking=1):
+        req = Message(type=type, passkey=self.passkey, body=str(body))
+        try:
+            self.socket.send(req.content)
+        except:
+            self.socket.close()
+            return None
+        if blocking:
+            reply = Message(self.socket)
+            if reply.type == MSG_INVALID:
+                return None
+            return reply
+        self.pending.append(req)
+
+    def check(self):
+    # only need this if non-blocking
+        if self.pending == []:
+            return False
+        readable, writable, errored = select.select([self.socket], [], [], 0)
+        if self.socket in readable:
+            msg = Message(self.socket)
+            if msg.type == MSG_INVALID:
+                return False
+            for req in self.pending:
+                if req.id == msg.id:
+                    self.pending.remove(req)
+                    return msg
+                    break
+        return False
+        
+    def isconnected(self):
+        try:
+            self.socket.getpeername()
+        except OSError:
+            return False
+        return True
+        
+    def close(self):
+        self.socket.close()
+        
+class Message:
+
+    def __init__(self, origin=None, type=None, passkey='', body='', id=0):
+        self.origin = origin
+        
+        if origin:
+            hdr = self.origin.recv(40)
+            if len(hdr) < 40:
+                self.type = MSG_INVALID
+                return
+            self.type, self.passkey, msglen, self.id = int(hdr[0:2]), hdr[3:9].decode(), int(hdr[9:19]), int(hdr[19:40])
+            msg = b''
+            while len(msg) < msglen:
+                msg += self.origin.recv(min(BUFSIZE, msglen - len(msg)))
+            self.body = msg.decode()
+            self.content = hdr + msg
+        else:
+            self.type = type
+            self.passkey = passkey
+            self.body = body
+            if id > 0:
+                self.id = id
+            else:
+                self.id = time_ns()
+            hdr = '%2s%7s%10s%21s' % (type, passkey, len(body), self.id)
+            self.content = hdr.encode() + body.encode()
+        
