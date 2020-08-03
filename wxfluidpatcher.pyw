@@ -387,7 +387,7 @@ class MainWindow(wx.Frame):
 
     def onAbout(self, event):
         msg = """
-               Fluid Patcher v0.3
+               Fluid Patcher v0.2
                
         Allows in-place editing and playing
            of FluidPatcher bank files.
