@@ -5,5 +5,3 @@ fluidsettings:
   midi.autoconnect: 1
   audio.period-size: 256
   audio.periods: 4
-remotelink_host: 192.168.0.28
-remotelink_port: 8675
