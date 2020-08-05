@@ -6,7 +6,6 @@ FluidPatcher should work on any operating system on which FluidSynth and Python 
 - *headlesspi.py* - a simple implementation that can run at startup on a bare-bones Raspberry Pi with no screen or keyboard
 - *wxfluidpatcher.pyw* - a cross-platform wxpython-based GUI that allows live editing of bank files, playing of patches, and browsing/playing soundfont presets; can also connect to an instance of *squishbox.py* or *headlesspi.py* to control it and edit/test banks.
 
-
 Check the [wiki](https://github.com/albedozero/fluidpatcher/wiki) for more information about using the scripts, bank/config file formats, the API, etc.
 
 ## Installation
@@ -15,7 +14,7 @@ Download and install [Python 3](https://python.org). FluidPatcher is not designe
 ### Quick Install by System
 
 #### Windows
-Run the setup program in the release of FluidPatcher. Install Python 3 - *pip* is included with most distributions. Enter the following on a command line to install Python modules:
+Run the setup program in the [release](https://github.com/albedozero/fluidpatcher/releases) of FluidPatcher. Install Python 3 - *pip* is included with most distributions. Enter the following on a command line to install Python modules:
 ```
 pip install oyaml wxpython mido python-rtmidi
 ```
