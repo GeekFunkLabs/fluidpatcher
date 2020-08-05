@@ -2,32 +2,31 @@
  A performance-oriented patch interface for [FluidSynth](http://www.fluidsynth.org). Fluidsynth is an open source software synthesizer that uses [soundfonts](https://en.wikipedia.org/wiki/SoundFont) - a [freely-available](https://duckduckgo.com/?q=free+soundfonts) and [well-documented](http://www.synthfont.com/sfspec24.pdf) sound format. A *patch* is a collection of settings such as soundfont presets for each MIDI channel, control-change/sysex messages to send when the patch is selected, and midi router or effects settings. Groups of patches are stored in banks, which are saved as human-readable and -editable [YAML](https://yaml.org/) files. This allows a musician to easily create complex combinations of synthesizer settings ahead of time and switch between them on the fly during a performance.
 
 FluidPatcher should work on any operating system on which FluidSynth and Python can be installed. *fluidwrap.py* provides a Python interface to FluidSynth's C functions, and *patcher.py* provides the library functions to handle patches and banks, load soundfonts, change FluidSynth settings, etc. This repository includes the following implementations of *patcher.py*:
-- *wxfluidpatcher.pyw* - a wxpython-based GUI that allows live editing of bank files, playing of patches, and browsing/playing soundfont presets
-- *bankedit.py* - a curses-(i.e. text-) based bank editor and patch player
-- *headlesspi.py* - a bare-bones implementation made to run on a Raspberry Pi
 - *squishbox.py* - a front-end designed to work on a Raspberry Pi with a 16x2 character LCD and two buttons, like the [SquishBox](https://www.tindie.com/products/albedozero/squishbox) designed by [Geek Funk Labs](https://geekfunklabs.com/hardware/)
+- *headlesspi.py* - a simple implementation that can run at startup on a bare-bones Raspberry Pi with no screen or keyboard
+- *wxfluidpatcher.pyw* - a wxpython-based GUI that allows live editing of bank files, playing of patches, and browsing/playing soundfont presets
+
 
 Check the [wiki](https://github.com/albedozero/fluidpatcher/wiki) for more information about using the scripts, bank/config file formats, the API, etc.
 
 ## Installation
-Download and install [Python 3](https://python.org). FluidPatcher is not designed to be backwards-compatible with Python 2 (although it will probably work with minor tweaks). If you have Python 2/3 installed side-by-side (e.g. as in most Raspbian distributions), you may have to modify some commands below (e.g. `python` -> `python3` and `pip` -> `pip3`).
+Download and install [Python 3](https://python.org). FluidPatcher is not designed to be backwards-compatible with Python 2 (although it will probably work with minor tweaks). If you have Python 2/3 installed side-by-side (e.g. as in most Raspberry Pi OS distributions), you may have to modify some commands below (e.g. `python` -> `python3` and `pip` -> `pip3`).
 
 Use [pip](http://packaging.python.org/key_projects/#pip) to install dependencies (run as root on Linux/OS X):
 ```
 pip install oyaml wxpython mido python-rtmidi
 ```
-On Windows, add `windows-curses` above for *bankedit.py*.
 
 On a Raspberry Pi, add `RPLCD` and `RPi.GPIO` to use *squishbox.py*.
 
-Install FluidSynth on your system. You can [download packages](https://github.com/FluidSynth/fluidsynth/wiki/Download) for most systems. Precompiled binaries for some platforms are included in the [Releases](https://github.com/albedozero/fluidpatcher/releases) section. Fluidsynth can also be [compiled from source code](https://github.com/FluidSynth/fluidsynth/wiki/BuildingWithCMake).
+Install FluidSynth on your system. You can [download packages](https://github.com/FluidSynth/fluidsynth/wiki/Download) for most systems. On Windows you can download FluidPatcher bundled with a precompiled binary of FluidSynth from [SourceForge](https://sourceforge.net/projects/fluidpatcher/). If you want the latest and greatest Fluidsynth, it's also fairly easy to [compile from source code](https://github.com/FluidSynth/fluidsynth/wiki/BuildingWithCMake).
 
-Download the repository and unpack the files where you want to use them. On Windows, the FluidSynth *.dll* files must be in the same directory as FluidPatcher, or their location must be in your *%PATH%* environment variable.
+Download the fluidpatcher repository and unpack the files where you want to use them. FluidSynth must be in the same directory or in your path variable.
 
 ## Usage
 The scripts can be run from a command prompt (*Win+R* and `cmd` on Windows). For example
 ```
-python bankedit.py
+python headlesspi.py
 ```
 In default Python installations, *.pyw* files will be run as GUI applications as long as the correct Python interpreter is in your path, so double-clicking *wxfluidpatcher.pyw* should work as well.
 
