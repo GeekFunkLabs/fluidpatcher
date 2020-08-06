@@ -4,7 +4,7 @@ Copyright (c) 2020 Bill Peterson
 Description: extensions to YAML classes for patcher
 """
 import re, oyaml
-
+from oyaml import safe_load, safe_load_all, safe_dump, safe_dump_all, YAMLError
           
 class SFPreset(oyaml.YAMLObject):
 
@@ -212,13 +212,3 @@ oyaml.add_path_resolver('!flowmap',
                          (oyaml.MappingNode, 'cclinks'),
                          (oyaml.SequenceNode, None)],
                         kind=dict, Loader=oyaml.SafeLoader, Dumper=oyaml.SafeDumper)
-
-def read_yaml(text):
-    if '---' in text:
-        return oyaml.safe_load_all(text)
-    return oyaml.safe_load(text)
-
-def write_yaml(*args):
-    if len(args) > 1:
-        return oyaml.safe_dump_all(args)
-    return oyaml.safe_dump(args[0])

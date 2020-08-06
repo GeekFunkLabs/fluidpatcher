@@ -76,8 +76,8 @@ try:
 except patcher.PatcherError:
     onboardled_blink(3)
 
-pxr.link_cc('inc', SELECT_CH, INC_CC, 'patch')
-pxr.link_cc('dec', SELECT_CH, DEC_CC, 'patch')
+pxr.link_cc('inc', chan=SELECT_CH, cc=INC_CC, type='patch')
+pxr.link_cc('dec', chan=SELECT_CH, cc=DEC_CC, type='patch')
 pno = 0
 pxr.select_patch(pno)
 
@@ -85,13 +85,13 @@ pxr.select_patch(pno)
 # main loop
 while True:
     time.sleep(POLL_TIME)
-    x = pxr.poll_cc()
-    if isinstance(x, int):
-        pno = (pno + x) % pxr.patches_count()
+    changed = pxr.poll_cc()
+    if 'patch' in changed:
+        pno = (pno + changed['patch']) % pxr.patches_count()
         pxr.select_patch(pno)
 
 
-    # check remote link for requests
+    # check remote link for requests and process them
     if remote_link.pending():
         req = remote_link.requests.pop(0)
         

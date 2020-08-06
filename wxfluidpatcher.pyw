@@ -16,7 +16,7 @@ from utils import netlink
 DEFAULT_WIDTH  = 700
 DEFAULT_HEIGHT = 600
 APP_NAME = 'FluidPatcher'
-
+POLL_TIME = 0.025
 
 class TextMsgDialog(wx.Dialog):
     def __init__(self, text, title, caption='', flags=wx.CLOSE, edit=False, **kwargs):
@@ -98,7 +98,7 @@ class MainWindow(wx.Frame):
     def __init__(self):
         super(MainWindow, self).__init__(None, size=(700,600), title=APP_NAME)
                 
-# create menus
+        # create menus
         fileMenu = wx.Menu()
         
         item = fileMenu.Append(wx.ID_OPEN, 'L&oad Bank...\tCtrl+O', 'Load bank file')
@@ -139,7 +139,7 @@ class MainWindow(wx.Frame):
         menuBar.Append(helpMenu, '&Help')
         self.SetMenuBar(menuBar)
 
-# toolbar
+        # toolbar
         patchTool = self.CreateToolBar()
         tool = patchTool.AddTool(wx.ID_REFRESH, 'Refresh', wx.ArtProvider.GetBitmap(wx.ART_REDO), 'Refresh patches (F5)')
         tool.SetLongHelp('Refresh patches from editor text')
@@ -156,7 +156,7 @@ class MainWindow(wx.Frame):
 
         patchTool.Realize()        
 
-# create window elements
+        # create window elements, bindings
         self.btxt = wx.TextCtrl(self, style=wx.TE_MULTILINE|wx.TE_RICH|
                                             wx.TE_NOHIDESEL|wx.HSCROLL)
         fwf = wx.Font(wx.FontInfo().Family(wx.FONTFAMILY_TELETYPE))
@@ -165,6 +165,11 @@ class MainWindow(wx.Frame):
         self.Bind(wx.EVT_TEXT, self.onMod)
         self.Bind(wx.EVT_CHAR_HOOK, self.onKeyPress)
         self.Bind(wx.EVT_CLOSE, self.onExit)
+        
+        self.timer = wx.Timer(self)
+        self.Bind(wx.EVT_TIMER, self.update, self.timer)
+        self.timer.Start(POLL_TIME*1000)
+        
         _icon = wx.Icon('images/gfl_logo.ico', wx.BITMAP_TYPE_ICO)
         self.SetIcon(_icon)
         self.SetSize(size=wx.Size(DEFAULT_WIDTH, DEFAULT_HEIGHT))
@@ -183,6 +188,7 @@ class MainWindow(wx.Frame):
                 return True
             self.remoteLink.close()
             self.remoteLink = None
+            self.timer.Start()
             wx.MessageBox("Lost connection to %" % self.remoteLinkAddr, "Connection Lost", wx.OK|wx.ICON_ERROR)
             self.load_bankfile(self.currentfile)
             self.linkmenuitem.SetItemLabel("&Remote Link")
@@ -302,6 +308,7 @@ class MainWindow(wx.Frame):
         if self.remote_linked():
             self.remoteLink.close()
             self.remoteLink = None
+            self.timer.Start()
             self.load_bankfile(self.currentfile)
             self.linkmenuitem.SetItemLabel("&Remote Link")
         else:                
@@ -337,6 +344,7 @@ class MainWindow(wx.Frame):
             self.SetTitle(APP_NAME + ' - ' + bfile + '@' + host)
             self.linkmenuitem.SetItemLabel("&Disconnect")
             pxr.fluid.router_clear()
+            self.timer.Stop()
 
     def onBrowsePlugins(self, event):
         if self.remote_linked():
@@ -439,6 +447,13 @@ class MainWindow(wx.Frame):
                 self.choose_patch(val=1)
                 return
         event.Skip()
+        
+    def update(self, event):
+        if self.remote_linked(): return
+        changed = pxr.poll_cc()
+        if 'patch' in changed:
+            pno = (pno + changed['patch']) % pxr.patches_count()
+            pxr.select_patch(pno)
         
 if __name__ == "__main__":
     if len(argv) > 1:
