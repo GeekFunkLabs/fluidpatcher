@@ -73,8 +73,12 @@ class StompBox():
         # set up buttons
         GPIO.setwarnings(False)
         GPIO.setmode(GPIO.BCM)
-        GPIO.setup(BTN_L, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-        GPIO.setup(BTN_R, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+        if ACTIVE_HIGH:
+            GPIO.setup(BTN_L, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+            GPIO.setup(BTN_R, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+        else:
+            GPIO.setup(BTN_L, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            GPIO.setup(BTN_R, GPIO.IN, pull_up_down=GPIO.PUD_UP)
         self.state = {BTN_L: STATE_NONE, BTN_R: STATE_NONE}
         self.timer = {BTN_L: 0, BTN_R: 0}
         

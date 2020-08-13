@@ -93,9 +93,12 @@ for client in midiports:
     subprocess.run(['aconnect', midiports[client], midiports['FLUID Synth']])
         
 # initialize network link
-port = pxr.cfg.get('remotelink_port', netlink.DEFAULT_PORT)
-passkey = pxr.cfg.get('remotelink_passkey', netlink.DEFAULT_PASSKEY)
-remote_link = netlink.Server(port, passkey)
+if pxr.cfg.get('remotelink_active', 0):
+    port = pxr.cfg.get('remotelink_port', netlink.DEFAULT_PORT)
+    passkey = pxr.cfg.get('remotelink_passkey', netlink.DEFAULT_PASSKEY)
+    remote_link = netlink.Server(port, passkey)
+else:
+    remote_link = None
 
 # load bank
 sb.lcd_write("loading patches ", 1)
@@ -307,11 +310,26 @@ while True:
                     sb.lcd_write(ssid, 0)
                     sb.lcd_write("%-16s" % ip, 1)
                 if not sb.waitfortap(10): break
-                sb.lcd_write("Add Network:    ", 0)
+                sb.lcd_write("Connections:    ", 0)
                 while True:
-                    j = sb.choose_opt(networks + ['Rescan..'], 1, timeout=0)
+                    if remote_link:
+                        opts = networks + ['Rescan...', 'Block RemoteLink']
+                    else:
+                        opts = networks + ['Rescan...', 'Allow RemoteLink']
+                    j = sb.choose_opt(opts, 1, timeout=0)
                     if j < 0: break
-                    if j == len(networks):
+                    if j == len(opts) - 1:
+                        if remote_link:
+                            remote_link = None
+                            pxr.cfg['remotelink_active'] = 0
+                        else:
+                            port = pxr.cfg.get('remotelink_port', netlink.DEFAULT_PORT)
+                            passkey = pxr.cfg.get('remotelink_passkey', netlink.DEFAULT_PASSKEY)
+                            remote_link = netlink.Server(port, passkey)
+                            pxr.cfg['remotelink_active'] = 1
+                        pxr.write_config()
+                        break
+                    if j == len(opts) - 2:
                         sb.lcd_write("scanning..      ", 1)
                         x = subprocess.check_output('sudo iwlist wlan0 scan'.split(), timeout=20).decode()
                         networks = re.findall('ESSID:"([^\n]*)"', x)
@@ -327,7 +345,6 @@ while True:
                         f.close()
                         subprocess.run('sudo service networking restart'.split())
                         break
-                break
                 
             elif k == 3: # add soundfonts from a flash drive
                 sb.lcd_clear()
@@ -358,6 +375,7 @@ while True:
                         pass
                 sb.lcd_write("copying files.. done!           ")
                 sb.waitforrelease(1)
+
             break
 
         # long-hold right button = refresh bank
@@ -383,7 +401,7 @@ while True:
             sys.exit(1)
 
         # check remote link for requests
-        if remote_link.pending():
+        if remote_link and remote_link.pending():
             req = remote_link.requests.pop(0)
             
             if req.type == netlink.SEND_STATE:

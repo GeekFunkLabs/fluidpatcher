@@ -47,17 +47,24 @@ class Server:
 
     def __init__(self, port=DEFAULT_PORT, passkey=DEFAULT_PASSKEY):
         self.passkey = passkey
+        self.port = port
 
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, BUFSIZE)      
-        self.socket.bind((get_ip(), port))
         self.socket.setblocking(0)
-        self.socket.listen(5)
 
-        self.inputs = [self.socket]
+        self.inputs = []
         self.requests = []
                 
     def pending(self):
+        if self.socket not in self.inputs:
+            netaddr = get_ip()
+            if netaddr in ['127.0.0.1', 'localhost', 'raspberrypi']:
+                return []
+            self.socket.bind((netaddr, self.port))
+            self.socket.listen(5)
+            self.inputs = [self.socket]
+            
         while True:
             readable, writable, errored = select.select(self.inputs, [], [], 0)
             if not readable: break

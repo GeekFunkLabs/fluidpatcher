@@ -422,7 +422,7 @@ class MainWindow(wx.Frame):
         else:
             lastpatch = pxr.patch_name(self.pno)
             pxr.load_bank(rawbank)
-            patches = pxr.patch_names()
+            patches = pxr.patch_name()
                         
         self.ptot = len(patches)
         self.patchlist.Clear()
