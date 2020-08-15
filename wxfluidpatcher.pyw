@@ -271,7 +271,7 @@ class MainWindow(wx.Frame):
             if bfile == '':
                 path = wx.FileSelector("Save Bank", pxr.bankdir, self.currentfile, "*.yaml", "Bank files (*.yaml)|*.yaml", wx.FD_SAVE)
                 if path == '': return
-                bfile = replath(path, start=pxr.bankdir)
+                bfile = relpath(path, start=pxr.bankdir)
             try:
                 pxr.save_bank(bfile, rawbank)
             except Exception as e:
