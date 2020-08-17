@@ -4,7 +4,7 @@
 router_rules: # router rules at this indent level apply to all patches
 - {type: note, chan: 1-16*1+0, par1: 0-127*1+0, par2: 0-127*1+0} # 1-1 routing for notes
 - {type: cc} # a router rule with no parameters defaults to 1-1 routing
-- {type: cc, chan: 1-1>2-16, par1: 7-7*1+0} # CC 7 is volume - route it to all used channels so it's global
+- {type: cc, chan: 1-1=2-16, par1: 7-7*1+0} # CC 7 is volume - route it to all used channels so it's global
 - {type: pbend}
 - {type: kpress}
 - {type: cpress}
@@ -33,17 +33,17 @@ patches: # indented list of patches
     3: FM Piano.sf2:000:000
     4: VintageDreamsWaves-v2.sf2:000:028
     router_rules: # this sends notes on the upper half of the keyboard to channel 3, lower half to channel 4
-    - {type: note, chan: 1-1>3-3, par1: C5-G9*1+0} # note names can be used
-    - {type: note, chan: 1-1>4-4, par1: C0-B4*1-12}
+    - {type: note, chan: 1-1=3-3, par1: C5-G9*1+0} # note names can be used
+    - {type: note, chan: 1-1=4-4, par1: C0-B4*1-12}
     cc: [3/91=127, 3/93=127] # sends control change messages when the patch is selected
                              # this will set the reverb and chorus level to max on channel 3
   Weird Keys: # you can get some interesting effects with MIDI routing
     5: VintageDreamsWaves-v2.sf2:000:014
     router_rules:
-    - {type: note, chan: 1-16>5-5, par1: Eb5-G9*1+0}
-    - {type: note, chan: 1-16>5-5, par1: D#5-G9*1+5} # 5ths
-    - {type: note, chan: 1-16>5-5, par1: C0-D5*-1+A7} # reverse??
-    - {type: pbend, chan: 1-16>5-5}
+    - {type: note, chan: 1-16=5-5, par1: Eb5-G9*1+0}
+    - {type: note, chan: 1-16=5-5, par1: D#5-G9*1+5} # 5ths
+    - {type: note, chan: 1-16=5-5, par1: C0-D5*-1+A7} # reverse??
+    - {type: pbend, chan: 1-16=5-5}
   Saw Lead:
     1: ModSynth.sf2:000:000
     router_rules:

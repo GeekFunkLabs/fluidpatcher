@@ -94,6 +94,7 @@ class Patcher:
         if 'fluidsettings' in self.bank:
             for opt, val in self.bank['fluidsettings'].items():
                 self.fluid_set(opt, val)
+        self._reload_bankfonts()
 
     def save_bank(self, bankfile='', raw=''):
     # save current patches, settings in :bankfile
@@ -269,7 +270,7 @@ class Patcher:
         if updatebank:
             self.bank['fluidsettings'][opt] = val
 
-    def link_cc(self, target, link='', type='effect', xfrm=yamlext.RouterSpec(0, 127, 1, 0), **kwargs):
+    def link_cc(self, target, link='', type='fluidsetting', xfrm=yamlext.RouterSpec(0, 127, 1, 0), **kwargs):
         if 'chan' in kwargs:
             link = '%s/%s' % (kwargs['chan'], kwargs['cc'])
         if not isinstance(xfrm, yamlext.RouterSpec):
@@ -347,37 +348,37 @@ class Patcher:
         except:
             return "Failed to parse or send SYSEX"
 
-    def _fxplugin_connect(self, name, lib, plugin=None, inports=['Input L', 'Input R'], outports=['Output L', 'Output R'], controls=[]):
+    def _fxplugin_connect(self, name, lib, plugin=None, audioports='stereo', controls=[]):
         libpath = joinpath(self.plugindir, lib)
-        if len(inports) == 2: # stereo effect
-            if not self.fluid.fxchain_add(name, libpath, plugin):
+        if audioports == 'mono':
+            audioports = ('Input', 'Output')
+        elif audioports == 'stereo':
+            audioports = ('Input L', 'Input R', 'Output L', 'Output R')
+            
+        if len(audioports) == 4:
+            names = (name, )
+        elif len(audioports) == 2:
+            names = (name + 'L', name + 'R')
+        for x in names:
+            if not self.fluid.fxchain_add(x, libpath, plugin):
                 return "Could not connect plugin %s" % lib
-            self.fluid.fxchain_link(name, inports[0], 'Main:L')
-            self.fluid.fxchain_link(name, inports[1], 'Main:R')
-            self.fluid.fxchain_link(name, outports[0], 'Main:L')
-            self.fluid.fxchain_link(name, outports[1], 'Main:R')
             for ctrl in controls:
                 if hasattr(ctrl, 'val'):
-                    self.fluid.fx_setcontrol(name, ctrl.port, ctrl.val)
+                    self.fluid.fx_setcontrol(x, ctrl.port, ctrl.val)
                 if hasattr(ctrl, 'link'):
-                    self.link_cc(name, **ctrl.dict())
-        elif len(inports) == 1: # mono effect
-            if not self.fluid.fxchain_add(name+'L', libpath, plugin):
-                return "Could not connect plugin %s" % lib
-            if not self.fluid.fxchain_add(name+'R', libpath, plugin):
-                return "Could not connect plugin %s" % lib
-            self.fluid.fxchain_link(name+'L', inports[0], 'Main:L')
-            self.fluid.fxchain_link(name+'R', inports[0], 'Main:R')
-            self.fluid.fxchain_link(name+'L', outports[0], 'Main:L')
-            self.fluid.fxchain_link(name+'R', outports[0], 'Main:R')
-            for ctrl in controls:
-                if hasattr(ctrl, 'val'):
-                    self.fluid.fx_setcontrol(name+'L', ctrl.port, ctrl.val)
-                    self.fluid.fx_setcontrol(name+'R', ctrl.port, ctrl.val)
-                if hasattr(ctrl, 'link'):
-                    self.link_cc(name+'L', **ctrl.dict())
-                    self.link_cc(name+'R', **ctrl.dict())
-                                
+                    self.link_cc(x, type='effect', **ctrl.dict())
+
+        if len(names) == 1:
+            self.fluid.fxchain_link(name[0], audioports[0], 'Main:L')
+            self.fluid.fxchain_link(name[0], audioports[2], 'Main:L')
+            self.fluid.fxchain_link(name[0], audioports[1], 'Main:R')
+            self.fluid.fxchain_link(name[0], audioports[3], 'Main:R')
+        elif len(names) == 2:
+            self.fluid.fxchain_link(name[0], audioports[0], 'Main:L')
+            self.fluid.fxchain_link(name[0], audioports[1], 'Main:L')
+            self.fluid.fxchain_link(name[1], audioports[0], 'Main:R')
+            self.fluid.fxchain_link(name[1], audioports[1], 'Main:R')
+
     def _midi_route(self, type, chan=None, par1=None, par2=None, **kwargs):
     # send midi message routing rules to fluidsynth
     # convert scientific note names in :par1 to midi note numbers

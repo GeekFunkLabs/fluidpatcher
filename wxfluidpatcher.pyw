@@ -16,7 +16,7 @@ from utils import netlink
 DEFAULT_WIDTH  = 700
 DEFAULT_HEIGHT = 600
 APP_NAME = 'FluidPatcher'
-POLL_TIME = 0.025
+POLL_TIME = 25
 
 class TextMsgDialog(wx.Dialog):
     def __init__(self, text, title, caption='', flags=wx.CLOSE, edit=False, **kwargs):
@@ -168,7 +168,7 @@ class MainWindow(wx.Frame):
         
         self.timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.update, self.timer)
-        self.timer.Start(POLL_TIME*1000)
+        self.timer.Start(POLL_TIME)
         
         _icon = wx.Icon('images/gfl_logo.ico', wx.BITMAP_TYPE_ICO)
         self.SetIcon(_icon)

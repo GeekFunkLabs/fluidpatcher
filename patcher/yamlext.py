@@ -104,16 +104,16 @@ class FromToSpec(oyaml.YAMLObject):
         
     @classmethod
     def to_yaml(cls, dumper, data):
-        rep = '%d-%d>%d-%d' % (data.from1, data.from2, data.to1, data.to2)
+        rep = '%d-%d=%d-%d' % (data.from1, data.from2, data.to1, data.to2)
         return dumper.represent_scalar('!ftspec', rep)
 
     @classmethod
     def from_yaml(cls, loader, node):
-        spec = re.findall('[^->]+', loader.construct_scalar(node))
+        spec = re.findall('[^-=]+', loader.construct_scalar(node))
         from1, from2, to1, to2 = map(int, spec)
         return FromToSpec(from1, from2, to1, to2)
         
-oyaml.add_implicit_resolver('!ftspec', re.compile('^\d+-\d+\>\d+-\d+$'),
+oyaml.add_implicit_resolver('!ftspec', re.compile('^\d+-\d+=\d+-\d+$'),
                             Loader=oyaml.SafeLoader, Dumper=oyaml.SafeDumper)
 
 class FlowSeq(oyaml.YAMLObject):
