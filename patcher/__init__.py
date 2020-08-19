@@ -5,7 +5,7 @@ Description: a performance-oriented patch interface for fluidsynth
 """
 import re, mido
 from copy import deepcopy
-from os.path import join as joinpath
+from os.path import relpath, join as joinpath
 from . import yamlext, cclink, fluidwrap
 
 MAX_BANK = 129
@@ -193,12 +193,9 @@ class Patcher:
         self.bank['patches'][name] = {}
         if addlike:
             addlike = self._resolve_patch(addlike)
-            if 'router_rules' in addlike:
-                self.bank['patches'][name]['router_rules'] = deepcopy(addlike['router_rules'])
-            if 'cc' in addlike:
-                self.bank['patches'][name]['cc'] = deepcopy(addlike['cc'])
-            if 'sysex' in addlike:
-                self.bank['patches'][name]['sysex'] = deepcopy(addlike['sysex'])
+            for x in addlike:
+                if not isinstance(x, int):
+                    self.bank['patches'][name][x] = deepcopy(addlike[x])
         return(self.bank['patches'][name])
 
     def delete_patch(self, patch):
@@ -219,7 +216,7 @@ class Patcher:
                     del patch[channel]
                 continue
             sfont, bank, prog = info
-            patch[channel] = yamlext.SFPreset(sfont, bank, prog)
+            patch[channel] = yamlext.SFPreset(relpath(sfont, start=self.sfdir), bank, prog)
             cc_messages = []
             for first, last, default in CC_DEFAULTS:
                 for cc in range(first, last + 1):
