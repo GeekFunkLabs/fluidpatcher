@@ -351,7 +351,7 @@ class Patcher:
             audioports = ('Input', 'Output')
         elif audioports == 'stereo':
             audioports = ('Input L', 'Input R', 'Output L', 'Output R')
-            
+
         if len(audioports) == 4:
             names = (name, )
         elif len(audioports) == 2:
@@ -366,15 +366,15 @@ class Patcher:
                     self.link_cc(x, type='effect', **ctrl.dict())
 
         if len(names) == 1:
-            self.fluid.fxchain_link(name[0], audioports[0], 'Main:L')
-            self.fluid.fxchain_link(name[0], audioports[2], 'Main:L')
-            self.fluid.fxchain_link(name[0], audioports[1], 'Main:R')
-            self.fluid.fxchain_link(name[0], audioports[3], 'Main:R')
+            self.fluid.fxchain_link(names[0], audioports[0], 'Main:L')
+            self.fluid.fxchain_link(names[0], audioports[2], 'Main:L')
+            self.fluid.fxchain_link(names[0], audioports[1], 'Main:R')
+            self.fluid.fxchain_link(names[0], audioports[3], 'Main:R')
         elif len(names) == 2:
-            self.fluid.fxchain_link(name[0], audioports[0], 'Main:L')
-            self.fluid.fxchain_link(name[0], audioports[1], 'Main:L')
-            self.fluid.fxchain_link(name[1], audioports[0], 'Main:R')
-            self.fluid.fxchain_link(name[1], audioports[1], 'Main:R')
+            self.fluid.fxchain_link(names[0], audioports[0], 'Main:L')
+            self.fluid.fxchain_link(names[0], audioports[1], 'Main:L')
+            self.fluid.fxchain_link(names[1], audioports[0], 'Main:R')
+            self.fluid.fxchain_link(names[1], audioports[1], 'Main:R')
 
     def _midi_route(self, type, chan=None, par1=None, par2=None, **kwargs):
     # send midi message routing rules to fluidsynth

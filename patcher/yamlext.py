@@ -56,6 +56,7 @@ class CCMsg(oyaml.YAMLObject):
 oyaml.add_implicit_resolver('!ccmsg', re.compile('^[0-9]+/[0-9]+=[0-9]+$'),
                             Loader=oyaml.SafeLoader, Dumper=oyaml.SafeDumper)
 
+rspecex = re.compile('^([\d\.A-Gb#]+)-([\d\.A-Gb#]+)\*(-?[\d\.]+)([+-][\d\.A-Gb#]+)$')
 class RouterSpec(oyaml.YAMLObject):
 
     yaml_tag = '!rspec'
@@ -78,8 +79,7 @@ class RouterSpec(oyaml.YAMLObject):
         
     @classmethod
     def from_yaml(cls, loader, node):
-        patt = '^([\dA-Gb#]+)-([\dA-Gb#]+)\*(-?[\d\.]+)([+-][\dA-Gb#]+)$'
-        route = list(re.findall(patt, loader.construct_scalar(node))[0])
+        route = list(rspecex.findall(loader.construct_scalar(node))[0])
         for i, spec in enumerate(route):
             if re.match('^[+-]?(\d*\.\d+|\d+\.\d*)', spec):
                 route[i] = float(spec)
@@ -87,7 +87,7 @@ class RouterSpec(oyaml.YAMLObject):
                 route[i] = int(spec)
         return RouterSpec(*route)
         
-oyaml.add_implicit_resolver('!rspec', re.compile('^[\dA-Gb#]+-[\dA-Gb#]+\*-?[\d\.]+[+-][\dA-Gb#]+$'),
+oyaml.add_implicit_resolver('!rspec', rspecex,
                             Loader=oyaml.SafeLoader, Dumper=oyaml.SafeDumper)
 
 class FromToSpec(oyaml.YAMLObject):
