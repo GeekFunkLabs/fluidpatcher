@@ -28,7 +28,7 @@ cp -r fluidpatcher/* /home/pi
 ```
 On a Raspberry Pi, add `sudo pip3 install RPLCD RPi.GPIO`.
 
-#### Mac OS X
+#### MacOS
 ```
 brew install fluidsynth git python3-pip
 sudo pip3 install oyaml mido python-rtmidi wxpython
