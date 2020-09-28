@@ -388,9 +388,9 @@ class Patcher:
                     sci = re.findall('([+-]?)([A-G])([b#]?)([0-9])', val)[0]
                     sign = ('+ -'.find(sci[0]) - 1) * -1
                     note = 'C_D_EF_G_A_B'.find(sci[1])
-                    sharpflat = (' #b'.find(sci[2]) + 1) % 3 - 1
+                    acc = (' #b'.find(sci[2]) + 1) % 3 - 1
                     octave = int(sci[3])
-                    par1_list.append(sign * (octave * 12 + note + sharpflat))
+                    par1_list.append(sign * ((octave + 1) * 12 + note + acc))
                 else:
                     par1_list.append(val)
         par2_list = None
