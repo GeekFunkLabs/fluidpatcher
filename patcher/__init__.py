@@ -30,7 +30,7 @@ class PatcherError(Exception):
 
 class Patcher:
 
-    def __init__(self, cfgfile=''):
+    def __init__(self, cfgfile='', fluidsettings={}):
         self.cfgfile = cfgfile
         if self.cfgfile != '':
             try:
@@ -42,19 +42,19 @@ class Patcher:
         else:
             self.cfg = {'currentbank': ''}
             
+        fluidsettings.update(self.cfg.get('fluidsettings', {}))
+        self.fluid = fluidwrap.Synth(**fluidsettings)
+
         self.sfdir = self.cfg.get('soundfontdir', 'sf2')
         self.bankdir = self.cfg.get('bankdir', 'banks')
         self.plugindir = self.cfg.get('plugindir', '')
-        fluidsettings = self.cfg.get('fluidsettings', {})
-
-        self.fluid = fluidwrap.Synth(**fluidsettings)
         self.max_channels = fluidsettings.get('synth.midi-channels', 16)
 
         self.bank = None
         self.soundfonts = set()
         self.sfpresets = []
         self.cc_links = []
-
+        
     def write_config(self, raw=''):
         if self.cfgfile == '':
             return

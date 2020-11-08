@@ -101,6 +101,7 @@ FL.fluid_synth_get_channel_info.restype = c_int
 
 FLUID_OK = 0
 FLUID_FAILED = -1
+FLUIDSETTING_EXISTS = 1
 
 class Synth:
 
@@ -127,15 +128,15 @@ class Synth:
             FL.fluid_settings_setnum(self.st, opt.encode(), c_double(val))
 
     def get_setting(self, opt):
-        num = c_double()
-        if FL.fluid_settings_getnum(self.st, opt.encode(), byref(num)) != FLUID_FAILED:
-            return round(num.value, 6)
         val = c_int()
-        if FL.fluid_settings_getint(self.st, opt.encode(), byref(val)) != FLUID_FAILED:
+        if FL.fluid_settings_getint(self.st, opt.encode(), byref(val)) == FLUIDSETTING_EXISTS:
             return val.value
         strval = create_string_buffer(32)
-        if FL.fluid_settings_copystr(self.st, opt.encode(), byref(strval), 32) != FLUID_FAILED:
-            return strval.decode('ascii')
+        if FL.fluid_settings_copystr(self.st, opt.encode(), strval, 32) == FLUIDSETTING_EXISTS:
+            return strval.value.decode()
+        num = c_double()
+        if FL.fluid_settings_getnum(self.st, opt.encode(), byref(num)) == FLUIDSETTING_EXISTS:
+            return round(num.value, 6)
         return None
 
     def load_soundfont(self, sfont):
