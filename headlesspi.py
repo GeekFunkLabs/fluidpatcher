@@ -8,12 +8,15 @@ import time, sys, os, re, glob, subprocess
 import patcher
 from utils import netlink
 
-SELECT_CH = 10
+# change these values to correspond to buttons/pads on your MIDI keyboard/controller
+PATCH_SELECT_CHANNEL = 10
 DEC_CC = 27
 INC_CC = 28
+# uncomment and modify this if using a knob/slider to select patch
+# SELECT_CC = 29
+
 
 POLL_TIME = 0.025
-
 
 def list_midiports():
     midiports = {}
@@ -35,17 +38,20 @@ def list_soundfonts():
     sfpaths = sorted(glob.glob(os.path.join(pxr.sfdir, '**', '*.sf2'), recursive=True), key=str.lower)
     return [os.path.relpath(x, start=pxr.sfdir) for x in sfpaths]
 
-def onboardled_blink(n):
-    # indicate a problem by blinking one of the onboard LEDs
-    e = subprocess.Popen(('sudo', 'echo', 'none'), stdout=subprocess.PIPE)
-    subprocess.run(('sudo', 'tee', '/sys/class/leds/led1/trigger'), stdin = e.stdout)
+def onboardled_set(state=1):
+    e = subprocess.Popen(('sudo', 'echo', str(state)), stdout=subprocess.PIPE)
+    subprocess.run(('sudo', 'tee', '/sys/class/leds/led1/brightness'), stdin = e.stdout)
+
+def onboardled_blink():
+    onboardled_set(0)
+    time.sleep(0.1)
+    onboardled_set(1)
+    
+def error_blink(n):
+    # indicate a problem by blinking one of the onboard LEDs and block forever
     while True:
         for i in range(n):
-            e = subprocess.Popen(('sudo', 'echo', '1'), stdout=subprocess.PIPE)
-            subprocess.run(('sudo', 'tee', '/sys/class/leds/led1/brightness'), stdin = e.stdout)
-            time.sleep(0.1)
-            e = subprocess.Popen(('sudo', 'echo', '0'), stdout=subprocess.PIPE)
-            subprocess.run(('sudo', 'tee', '/sys/class/leds/led1/brightness'), stdin = e.stdout)
+            onboardled_blink()
             time.sleep(0.1)
         time.sleep(1)            
 
@@ -57,7 +63,8 @@ else:
 try:
     pxr = patcher.Patcher(cfgfile)
 except patcher.PatcherError:
-    onboardled_blink(2)
+    # problem with config file
+    error_blink(2)
 
 # hack to connect MIDI devices to old versions of fluidsynth
 midiports = list_midiports()
@@ -66,18 +73,24 @@ for client in midiports:
     subprocess.run(['aconnect', midiports[client], midiports['FLUID Synth']])
         
 # initialize network link
-port = pxr.cfg.get('remotelink_port', netlink.DEFAULT_PORT)
-passkey = pxr.cfg.get('remotelink_passkey', netlink.DEFAULT_PASSKEY)
-remote_link = netlink.Server(port, passkey)
+if pxr.cfg.get('remotelink_active', 1):
+    port = pxr.cfg.get('remotelink_port', netlink.DEFAULT_PORT)
+    passkey = pxr.cfg.get('remotelink_passkey', netlink.DEFAULT_PASSKEY)
+    remote_link = netlink.Server(port, passkey)
+else:
+    remote_link = None
 
 # load bank
 try:
     pxr.load_bank(pxr.cfg['currentbank'])
 except patcher.PatcherError:
-    onboardled_blink(3)
+    # problem with bank file
+    error_blink(3)
 
-pxr.link_cc('inc', chan=SELECT_CH, cc=INC_CC, type='patch')
-pxr.link_cc('dec', chan=SELECT_CH, cc=DEC_CC, type='patch')
+pxr.link_cc('inc', type='patch', chan=PATCH_SELECT_CHANNEL, cc=INC_CC)
+pxr.link_cc('dec', type='patch', chan=PATCH_SELECT_CHANNEL, cc=DEC_CC)
+if 'SELECT_CC' in locals():
+    pxr.link_cc('select', type='patch', chan=PATCH_SELECT_CHANNEL, cc=SELECT_CC)
 pno = 0
 pxr.select_patch(pno)
 
@@ -89,10 +102,17 @@ while True:
     if 'patch' in changed:
         pno = (pno + changed['patch']) % pxr.patches_count()
         pxr.select_patch(pno)
+        onboardled_blink()
+    if 'selectpatch' in changed:
+        x = int(changed['selectpatch'] * pxr.patches_count() / 128)
+        if x != pno:
+            pno = x
+            pxr.select_patch(pno)
+            onboardled_blink()
 
 
     # check remote link for requests and process them
-    if remote_link.pending():
+    if remote_link and remote_link.pending():
         req = remote_link.requests.pop(0)
         
         if req.type == netlink.SEND_STATE:

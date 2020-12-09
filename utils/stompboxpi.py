@@ -176,7 +176,6 @@ class StompBox():
         has the user choose from a list of choices in :opts
         returns the index of the choice
         or -1 if the user backed out or time expired
-        scroll: scroll long menu items and don't time out
         passlong: pass STATE_LONG through to calling loop
         """
         i=0

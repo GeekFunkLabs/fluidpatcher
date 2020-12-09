@@ -281,18 +281,19 @@ class Patcher:
         retvals = {}
         for link in self.cc_links:
             if link.haschanged():
-                if link.type == 'patch':
-                    if link.val > 0:
-                        if link.target == 'inc':
-                            retvals['patch'] = 1
-                        elif link.target == 'dec':
-                            retvals['patch'] = -1
-                elif link.xfrm.min <= link.val <= link.xfrm.max:
+                if link.xfrm.min <= link.val <= link.xfrm.max:
                     val = link.val * link.xfrm.mul + link.xfrm.add
-                    if link.type == 'effect':
-                        self.fluid.fx_setcontrol(link.target, link.port, val)
-                    elif link.type == 'fluidsetting':
+                    if link.type == 'fluidsetting':
                         self.fluid_set(link.target, val)
+                    elif link.type == 'effect':
+                        self.fluid.fx_setcontrol(link.target, link.port, val)
+                    elif link.type == 'patch':
+                        if link.target == 'inc' and link.val > 0:
+                            retvals['patch'] = 1
+                        elif link.target == 'dec' and link.val > 0:
+                            retvals['patch'] = -1
+                        elif link.target == 'select':
+                            retvals['selectpatch'] = val
         return retvals
         
     def cclinks_clear(self, type=''):
