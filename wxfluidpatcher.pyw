@@ -194,25 +194,21 @@ class MainWindow(wx.Frame):
             self.linkmenuitem.SetItemLabel("&Remote Link")
         return False
            
-    def load_bankfile(self, file):
+    def load_bankfile(self, bfile=''):
         if self.remote_linked():
-            reply = self.remoteLink.request(netlink.LOAD_BANK, file)
-            bank, patches = patcher.read_yaml(reply.body)
-            rawbank = patcher.write_yaml(bank)
+            reply = self.remoteLink.request(netlink.LOAD_BANK, bfile)
+            bfile, rawbank, patches = patcher.read_yaml(reply.body)
             host = self.remoteLinkAddr.split(':')[0]
-            title = APP_NAME + ' - ' + file + '@' + host
+            title = APP_NAME + ' - ' + bfile + '@' + host
         else:
             try:
-                pxr.load_bank(file)
+                rawbank = pxr.load_bank(bfile)
             except Exception as e:
                 wx.MessageBox(str(e), "Error", wx.OK|wx.ICON_ERROR)
                 return
-            self.currentfile = file
-            f = open(joinpath(pxr.bankdir, self.currentfile))
-            rawbank = f.read()
-            f.close()
-            patches = pxr.patch_name()
-            title = APP_NAME + ' - ' + self.currentfile
+            patches = pxr.patch_names()
+            title = APP_NAME + ' - ' + bfile
+        self.currentfile = bfile
         self.btxt.Clear()
         self.btxt.AppendText(rawbank)
         self.btxt.SetInsertionPoint(0)
@@ -262,7 +258,8 @@ class MainWindow(wx.Frame):
             wx.MessageBox(str(e), "Error", wx.OK|wx.ICON_ERROR)
             return
         if self.remote_linked():
-            bfile = wx.GetTextFromUser("Bank file to save:", "Save Bank", ".yaml")
+            bfile = bfile.replace('.yaml', '') + '.yaml'
+            bfile = wx.GetTextFromUser("Bank file to save:", "Save Bank", bfile)
             if bfile == '': return            
             reply = self.remoteLink.request(netlink.SAVE_BANK, patcher.write_yaml(bfile, rawbank))
             host, port = self.remoteLinkAddr.split(':')
@@ -309,6 +306,7 @@ class MainWindow(wx.Frame):
             self.remoteLink.close()
             self.remoteLink = None
             self.timer.Start()
+            self.currentfile = self.localfile
             self.load_bankfile(self.currentfile)
             self.linkmenuitem.SetItemLabel("&Remote Link")
         else:                
@@ -319,7 +317,7 @@ class MainWindow(wx.Frame):
             passkey = pxr.cfg.get('remotelink_passkey', netlink.DEFAULT_PASSKEY)
             try:
                 self.remoteLink = netlink.Client(host, int(port), passkey)
-                reply = self.remoteLink.request(netlink.SEND_STATE)
+                reply = self.remoteLink.request(netlink.SEND_VERSION)
             except Exception as e:
                 wx.MessageBox(str(e), "Error", wx.OK|wx.ICON_ERROR)
                 return
@@ -330,21 +328,11 @@ class MainWindow(wx.Frame):
             pxr.cfg['remotelink_host'] = host
             pxr.cfg['remotelink_port'] = int(port)
             pxr.write_config()
-            
-            bank, patches, bfile = patcher.read_yaml(reply.body)
-            self.btxt.Clear()
-            self.btxt.AppendText(patcher.write_yaml(bank))
-            self.btxt.SetInsertionPoint(0)
-            self.patchlist.Clear()
-            for p in patches:
-                self.patchlist.Append(p)
-            self.patchlist.SetSelection(0)
-            self.pno = 0
-            self.ptot = len(patches)
-            self.SetTitle(APP_NAME + ' - ' + bfile + '@' + host)
             self.linkmenuitem.SetItemLabel("&Disconnect")
             pxr.fluid.router_clear()
             self.timer.Stop()
+            self.localfile = self.currentfile
+            self.load_bankfile()
 
     def onBrowsePlugins(self, event):
         if self.remote_linked():
@@ -379,30 +367,36 @@ class MainWindow(wx.Frame):
         tmsg.Destroy()
 
     def onSettings(self, event):
-        f = open(pxr.cfgfile)
-        rawcfg = f.read()
-        f.close()
-        tmsg = TextMsgDialog(rawcfg, "Settings", pxr.cfgfile, wx.OK|wx.CANCEL, edit=True, size=(500, 450))
+        if self.remote_linked():
+            reply = self.remoteLink.request(netlink.READ_CFG)
+            file, rawcfg = patcher.read_yaml(reply.body)
+        else:
+            file = pxr.cfgfile
+            rawcfg = pxr.read_config()
+        tmsg = TextMsgDialog(rawcfg, "Settings", file, wx.OK|wx.CANCEL, edit=True, size=(500, 450))
         if tmsg.ShowModal() == wx.ID_OK:
             newcfg = tmsg.text.GetValue()
-            try:
-                pxr.write_config(newcfg)
-            except patcher.PatcherError as e:
-                wx.MessageBox(str(e), "Error", wx.OK|wx.ICON_ERROR)
-                return
-            wx.MessageBox("Configuration saved\nRestart needed to apply", "Success", wx.OK)
+            if self.remote_linked():
+                reply = self.remoteLink.request(netlink.SAVE_CFG, newcfg)
+            else:
+                try:
+                    pxr.write_config(newcfg)
+                except patcher.PatcherError as e:
+                    wx.MessageBox(str(e), "Error", wx.OK|wx.ICON_ERROR)
+                    return
+            wx.MessageBox("Configuration saved!\nRestart may be needed for some settings to apply.", "Success", wx.OK)
         tmsg.Destroy()
 
     def onAbout(self, event):
         msg = """
-               Fluid Patcher v0.2
+               Fluid Patcher v%s
                
         Allows in-place editing and playing
            of FluidPatcher bank files.
 
                 by Bill Peterson
                 geekfunklabs.com
-"""
+""" % patcher.VERSION
         msg = wx.MessageDialog(self, msg, "About", wx.OK)
         msg.ShowModal()
         msg.Destroy()
@@ -422,7 +416,7 @@ class MainWindow(wx.Frame):
         else:
             lastpatch = pxr.patch_name(self.pno)
             pxr.load_bank(rawbank)
-            patches = pxr.patch_name()
+            patches = pxr.patch_names()
                         
         self.ptot = len(patches)
         self.patchlist.Clear()

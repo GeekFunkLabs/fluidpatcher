@@ -43,9 +43,9 @@ def onboardled_set(state=1):
     subprocess.run(('sudo', 'tee', '/sys/class/leds/led1/brightness'), stdin = e.stdout)
 
 def onboardled_blink():
-    onboardled_set(0)
-    time.sleep(0.1)
     onboardled_set(1)
+    time.sleep(0.1)
+    onboardled_set(0)
     
 def error_blink(n):
     # indicate a problem by blinking one of the onboard LEDs and block forever
@@ -54,6 +54,8 @@ def error_blink(n):
             onboardled_blink()
             time.sleep(0.1)
         time.sleep(1)            
+
+onboardled_set(0)
 
 # start the patcher
 if len(sys.argv) > 1:
@@ -114,18 +116,17 @@ while True:
     # check remote link for requests and process them
     if remote_link and remote_link.pending():
         req = remote_link.requests.pop(0)
-        
-        if req.type == netlink.SEND_STATE:
-            state = patcher.write_yaml(pxr.bank, pxr.patch_name(), pxr.cfg['currentbank'])
-            remote_link.reply(req, state)
 
+        if req.type == netlink.SEND_VERSION:
+            remote_link.reply(req, patcher.VERSION)
+        
         elif req.type == netlink.RECV_BANK:
             try:
                 pxr.load_bank(req.body)
             except patcher.PatcherError as e:
                 remote_link.reply(req, str(e), netlink.REQ_ERROR)
             else:
-                remote_link.reply(req, ','.join(pxr.patch_name()))
+                remote_link.reply(req, ','.join(pxr.patch_names()))
                 pno = 0
                 pxr.select_patch(pno)
                 
@@ -138,12 +139,12 @@ while True:
             
         elif req.type == netlink.LOAD_BANK:
             try:
-                pxr.load_bank(req.body)
+                rawbank = pxr.load_bank(req.body)
             except patcher.PatcherError as e:
                 remote_link.reply(req, str(e), netlink.REQ_ERROR)
             else:
-                state = patcher.write_yaml(pxr.bank, pxr.patch_name())
-                remote_link.reply(req, state)
+                info = patcher.write_yaml(pxr.cfg['currentbank'], rawbank, pxr.patch_names())
+                remote_link.reply(req, info)
                 pno = 0
                 pxr.select_patch(pno)
                 pxr.write_config()
@@ -162,12 +163,11 @@ while True:
             try:
                 warn = pxr.select_patch(int(req.body))
             except patcher.PatcherError as e:
-                warn = str(e)
-            if warn:
-                remote_link.reply(req, warn, netlink.REQ_ERROR)
+                remote_link.reply(req, str(e), netlink.REQ_ERROR)
             else:
-                remote_link.reply(req)
+                remote_link.reply(req, warn)
                 pno = int(req.body)
+                onboardled_blink()
                 
         elif req.type == netlink.LIST_SOUNDFONTS:
             sf = list_soundfonts()
@@ -198,3 +198,15 @@ while True:
         elif req.type == netlink.LIST_PORTS:
             info = '\n'.join(list_midiports().keys())
             remote_link.reply(req, info)
+            
+        elif req.type == netlink.READ_CFG:
+            info = patcher.write_yaml(pxr.cfgfile, pxr.read_config())
+            remote_link.reply(req, info)
+
+        elif req.type == netlink.SAVE_CFG:
+            try:
+                pxr.write_config(req.body)
+            except patcher.PatcherError as e:
+                remote_link.reply(req, str(e), netlink.REQ_ERROR)
+            else:
+                remote_link.reply(req)

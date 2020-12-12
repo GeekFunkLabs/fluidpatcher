@@ -16,7 +16,7 @@ MSG_INVALID = 0 # badly formed request
 REQ_OK = 1
 
 # request types
-SEND_STATE = 11
+SEND_VERSION = 11
 RECV_BANK = 12
 LIST_BANKS = 13
 LOAD_BANK = 14
@@ -27,8 +27,9 @@ LOAD_SOUNDFONT = 18
 SELECT_SFPRESET = 19
 LIST_PLUGINS = 20
 LIST_PORTS = 21
+READ_CFG = 22
+SAVE_CFG = 23
 # to be implemented(?):
-# SOFTWARE_VERSION
 # SOFTWARE_UPDATE
 
 def get_ip():
@@ -82,7 +83,7 @@ class Server:
         return self.requests
         
     def reply(self, req, response='', type=REQ_OK):
-        msg = Message(type=type, passkey=self.passkey, body=response, id=req.id)
+        msg = Message(type=type, passkey=self.passkey, body=str(response), id=req.id)
         try:
             req.origin.send(msg.content)
         except:

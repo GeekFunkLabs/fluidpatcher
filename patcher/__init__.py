@@ -14,6 +14,8 @@ MAX_PRESET = 128
 CC_DEFAULTS = [(7, 7, 100), (11, 11, 127), (12, 31, 0), (33, 42, 0),
                (43, 43, 127), (44, 63, 0), (65, 65, 0), (70, 79, 64),
                (80, 83, 0), (84, 84, 255), (85, 95, 0), (102, 119, 0)]
+               
+VERSION = 0.3
 
 def read_yaml(text):
     if '---' in text:
@@ -33,15 +35,9 @@ class Patcher:
     def __init__(self, cfgfile='', fluidsettings={}):
         self.cfgfile = cfgfile
         if self.cfgfile != '':
-            try:
-                f = open(self.cfgfile)
-                self.cfg = read_yaml(f.read())
-            except yamlext.YAMLError or IOError:
-                raise PatcherError("Bad configuration file")
-            f.close()
+            self.read_config()
         else:
-            self.cfg = {'currentbank': ''}
-            
+            self.cfg = {'currentbank': ''}            
         fluidsettings.update(self.cfg.get('fluidsettings', {}))
         self.fluid = fluidwrap.Synth(**fluidsettings)
 
@@ -49,12 +45,23 @@ class Patcher:
         self.bankdir = self.cfg.get('bankdir', 'banks')
         self.plugindir = self.cfg.get('plugindir', '')
         self.max_channels = fluidsettings.get('synth.midi-channels', 16)
-
         self.bank = None
         self.soundfonts = set()
         self.sfpresets = []
         self.cc_links = []
         
+    def read_config(self):
+        if self.cfgfile == '':
+            return write_yaml(self.cfg)
+        f = open(self.cfgfile)
+        cfg = f.read()
+        f.close()
+        try:
+            self.cfg = read_yaml(cfg)
+        except yamlext.YAMLError or IOError:
+            raise PatcherError("Bad configuration file")
+        return cfg
+
     def write_config(self, raw=''):
         if self.cfgfile == '':
             return
@@ -63,7 +70,7 @@ class Patcher:
             try:
                 c = read_yaml(raw)
             except yamlext.YAMLError or IOError:
-                raise PatcherError("Invalid bank data")
+                raise PatcherError("Invalid config data")
             self.cfg = c
             f.write(raw)
         else:
@@ -72,29 +79,27 @@ class Patcher:
 
     def load_bank(self, bank=''):
     # load patches, settings from :bank yaml string or filename
-        if '\n' in bank:
-            try:
-                b = read_yaml(bank)
-            except yamlext.YAMLError:
-                raise PatcherError("Unable to parse bank data")
-            self.cfg['currentbank'] = ''
-        else:
-            if bank == '':
-                bank = self.cfg['currentbank']
-            f = open(joinpath(self.bankdir, bank))
-            try:
-                b = read_yaml(f.read())
-            except yamlext.YAMLError:
-                raise PatcherError("Unable to load bank")
+    # returns the file contents/yaml string
+        bfile = ''
+        if '\n' not in bank:
+            bfile = bank
+            if bfile == '':
+                bfile = self.cfg['currentbank']
+            f = open(joinpath(self.bankdir, bfile))
+            bank = f.read()
             f.close()
-            self.cfg['currentbank'] = bank
-            
+        try:
+            b = read_yaml(bank)
+        except yamlext.YAMLError:
+            raise PatcherError("Unable to parse bank data")
+        self.cfg['currentbank'] = bfile
         self.bank = b
 
         if 'fluidsettings' in self.bank:
             for opt, val in self.bank['fluidsettings'].items():
                 self.fluid_set(opt, val)
         self._reload_bankfonts()
+        return bank
 
     def save_bank(self, bankfile='', raw=''):
     # save current patches, settings in :bankfile
@@ -114,12 +119,13 @@ class Patcher:
         f.close()
         self.cfg['currentbank'] = bankfile
 
-    def patch_name(self, patch_index=-1):
+    def patch_name(self, patch_index):
         if patch_index >= len(self.bank['patches']):
             raise PatcherError("Patch index out of range")
-        if patch_index == -1:
-            return list(self.bank['patches'])
         return list(self.bank['patches'])[patch_index]
+        
+    def patch_names(self):
+        return list(self.bank['patches'])
         
     def patch_index(self, patch_name):
         if patch_name not in self.bank['patches']:

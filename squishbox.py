@@ -384,17 +384,16 @@ while True:
         if remote_link and remote_link.pending():
             req = remote_link.requests.pop(0)
             
-            if req.type == netlink.SEND_STATE:
-                state = patcher.write_yaml(pxr.bank, pxr.patch_name(), pxr.cfg['currentbank'])
-                remote_link.reply(req, state)
-
+            if req.type == netlink.SEND_VERSION:
+                remote_link.reply(req, patcher.VERSION)
+            
             elif req.type == netlink.RECV_BANK:
                 try:
                     pxr.load_bank(req.body)
                 except patcher.PatcherError as e:
                     remote_link.reply(req, str(e), netlink.REQ_ERROR)
                 else:
-                    remote_link.reply(req, ','.join(pxr.patch_name()))
+                    remote_link.reply(req, ','.join(pxr.patch_names()))
                     pno = 0
                     pxr.select_patch(pno)
                     break
@@ -407,17 +406,17 @@ while True:
                     remote_link.reply(req, ','.join(banks))
                 
             elif req.type == netlink.LOAD_BANK:
+                sb.lcd_write(req.body, 0)
+                sb.lcd_write("loading patches ", 1)
                 try:
-                    sb.lcd_write(req.body, 0)
-                    sb.lcd_write("loading patches ", 1)
-                    pxr.load_bank(req.body)
+                    rawbank = pxr.load_bank(req.body)
                 except patcher.PatcherError as e:
                     remote_link.reply(req, str(e), netlink.REQ_ERROR)
                     sb.lcd_write("bank load error!", 1)
                     sb.waitforrelease(2)
                 else:
-                    state = patcher.write_yaml(pxr.bank, pxr.patch_name())
-                    remote_link.reply(req, state)
+                    info = patcher.write_yaml(pxr.cfg['currentbank'], rawbank, pxr.patch_names())
+                    remote_link.reply(req, info)
                     pno = 0
                     pxr.select_patch(pno)
                     break
@@ -472,3 +471,15 @@ while True:
             elif req.type == netlink.LIST_PORTS:
                 info = '\n'.join(list_midiports().keys())
                 remote_link.reply(req, info)
+
+            elif req.type == netlink.READ_CFG:
+                info = patcher.write_yaml(pxr.cfgfile, pxr.read_config())
+                remote_link.reply(req, info)
+
+            elif req.type == netlink.SAVE_CFG:
+                try:
+                    pxr.write_config(req.body)
+                except patcher.PatcherError as e:
+                    remote_link.reply(req, str(e), netlink.REQ_ERROR)
+                else:
+                    remote_link.reply(req)
