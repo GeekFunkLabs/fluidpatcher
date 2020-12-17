@@ -58,9 +58,9 @@ class SoundfontBrowser(wx.Dialog):
         self.SetSizer(vbox)
 
         if self.parent.remoteLink:
-            reply = self.parent.remote_link_request(netlink.LOAD_SOUNDFONT, sf)
-            if reply == None: self.EndModal(wx.CANCEL)
-            for p in patcher.read_yaml(reply):
+            response = self.parent.remote_link_request(netlink.LOAD_SOUNDFONT, sf)
+            if response == None: self.EndModal(wx.CANCEL)
+            for p in patcher.read_yaml(response):
                 self.presetlist.Append(("%03d:" % p.bank, "%03d:" % p.prog, p.name))
         else:
             pxr.load_soundfont(sf)
@@ -82,8 +82,8 @@ class SoundfontBrowser(wx.Dialog):
         self.pno = self.presetlist.GetNextSelected(-1)
         if self.pno < 0: return
         if self.parent.remoteLink:
-            reply = self.parent.remote_link_request(netlink.SELECT_SFPRESET, self.pno)
-            if reply == None: self.EndModal(wx.CANCEL)
+            response = self.parent.remote_link_request(netlink.SELECT_SFPRESET, self.pno)
+            if response == None: self.EndModal(wx.CANCEL)
         else:
             pxr.select_sfpreset(self.pno)
         
@@ -178,7 +178,7 @@ class MainWindow(wx.Frame):
             
         self.remoteLinkAddr = "%s:%d" % (host, port)
         self.remoteLink = None
-        self.load_bankfile(pxr.cfg['currentbank'])
+        self.load_bankfile(pxr.currentbank)
 
     def remote_link_request(self, type, body=''):
         try:
@@ -197,9 +197,9 @@ class MainWindow(wx.Frame):
 
     def load_bankfile(self, bfile=''):
         if self.remoteLink:
-            reply = self.remote_link_request(netlink.LOAD_BANK, bfile)
-            if reply == None: return
-            bfile, rawbank, patches = patcher.read_yaml(reply)
+            response = self.remote_link_request(netlink.LOAD_BANK, bfile)
+            if response == None: return
+            bfile, rawbank, patches = patcher.read_yaml(response)
             host = self.remoteLinkAddr.split(':')[0]
             title = APP_NAME + ' - ' + bfile + '@' + host
         else:
@@ -239,9 +239,9 @@ class MainWindow(wx.Frame):
 
     def onOpen(self, event):
         if self.remoteLink:
-            reply = self.remote_link_request(netlink.LIST_BANKS)
-            if reply == None: return
-            banks = reply.split(',')
+            response = self.remote_link_request(netlink.LIST_BANKS)
+            if response == None: return
+            banks = response.split(',')
             bfile = wx.GetSingleChoice("Choose bank to load:", "Load Bank", banks)
             if bfile == '': return
         else:
@@ -264,8 +264,8 @@ class MainWindow(wx.Frame):
             bfile = bfile.replace('.yaml', '') + '.yaml'
             bfile = wx.GetTextFromUser("Bank file to save:", "Save Bank", bfile)
             if bfile == '': return
-            reply = self.remote_link_request(netlink.SAVE_BANK, patcher.write_yaml(bfile, rawbank))
-            if reply == None: return
+            response = self.remote_link_request(netlink.SAVE_BANK, patcher.write_yaml(bfile, rawbank))
+            if response == None: return
             host, port = self.remoteLinkAddr.split(':')
             self.SetTitle(APP_NAME + ' - ' + bfile + '@' + host)
         else:
@@ -286,9 +286,9 @@ class MainWindow(wx.Frame):
 
     def onOpenSoundfont(self, event):
         if self.remoteLink:
-            reply = self.remote_link_request(netlink.LIST_SOUNDFONTS)
-            if reply == None: return
-            sfonts = reply.split(',')
+            response = self.remote_link_request(netlink.LIST_SOUNDFONTS)
+            if response == None: return
+            sfonts = response.split(',')
             sfont = wx.GetSingleChoice("Choose Soundfont to Open:", "Open Soundfont", sfonts)
             if sfont == '': return        
         else:
@@ -336,7 +336,7 @@ class MainWindow(wx.Frame):
             pxr.cfg['remotelink_port'] = int(port)
             pxr.write_config()
             self.linkmenuitem.SetItemLabel("&Disconnect")
-            pxr.fluid.router_clear()
+            pxr._fluid.router_clear()
             self.timer.Stop()
             self.localfile = self.currentfile
             self.load_bankfile()
@@ -377,8 +377,8 @@ class MainWindow(wx.Frame):
 
     def onSettings(self, event):
         if self.remoteLink:
-            reply = self.remote_link_request(netlink.READ_CFG)
-            file, rawcfg = patcher.read_yaml(reply)
+            response = self.remote_link_request(netlink.READ_CFG)
+            file, rawcfg = patcher.read_yaml(response)
         else:
             file = pxr.cfgfile
             rawcfg = pxr.read_config()
@@ -419,10 +419,10 @@ class MainWindow(wx.Frame):
             return
 
         if self.remoteLink:
-            reply = self.remote_link_request(netlink.RECV_BANK, rawbank)
-            if reply == None: return
+            response = self.remote_link_request(netlink.RECV_BANK, rawbank)
+            if response == None: return
             lastpatch = self.patchlist.GetString(self.pno)
-            patches = reply.split(',')
+            patches = response.split(',')
         else:
             lastpatch = pxr.patch_name(self.pno)
             pxr.load_bank(rawbank)

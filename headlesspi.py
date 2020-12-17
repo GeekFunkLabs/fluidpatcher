@@ -84,7 +84,7 @@ def headless_synth(cfgfile):
 
     # load bank
     try:
-        pxr.load_bank(pxr.cfg['currentbank'])
+        pxr.load_bank(pxr.currentbank)
     except patcher.PatcherError:
         # problem with bank file
         error_blink(3)
@@ -143,7 +143,7 @@ def headless_synth(cfgfile):
                 except patcher.PatcherError as e:
                     remote_link.reply(req, str(e), netlink.REQ_ERROR)
                 else:
-                    info = patcher.write_yaml(pxr.cfg['currentbank'], rawbank, pxr.patch_names())
+                    info = patcher.write_yaml(pxr.currentbank, rawbank, pxr.patch_names())
                     remote_link.reply(req, info)
                     pno = 0
                     pxr.select_patch(pno)

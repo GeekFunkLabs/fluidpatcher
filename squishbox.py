@@ -83,7 +83,7 @@ else:
 # load bank
 sb.lcd_write("loading patches ", 1)
 try:
-    pxr.load_bank(pxr.cfg['currentbank'])
+    pxr.load_bank(pxr.currentbank)
 except patcher.PatcherError:
     while True:
         sb.lcd_write("bank load error!", 1)
@@ -169,7 +169,7 @@ while True:
                     sb.waitforrelease(1)
                     break
                 sb.lcd_write("Save bank:      ", 0)
-                bankfile = sb.char_input(pxr.cfg['currentbank'])
+                bankfile = sb.char_input(pxr.currentbank)
                 if bankfile == '': break
                 try:
                     pxr.save_bank(bankfile)
@@ -363,7 +363,7 @@ while True:
             sb.lcd_clear()
             sb.lcd_blink("Refreshing Bank ", row=0)
             lastpatch = pxr.patch_name(pno)
-            pxr.load_bank(pxr.cfg['currentbank'])
+            pxr.load_bank(pxr.currentbank)
             try:
                 pno = pxr.patch_index(lastpatch)
             except patcher.PatcherError:
@@ -415,7 +415,7 @@ while True:
                     sb.lcd_write("bank load error!", 1)
                     sb.waitforrelease(2)
                 else:
-                    info = patcher.write_yaml(pxr.cfg['currentbank'], rawbank, pxr.patch_names())
+                    info = patcher.write_yaml(pxr.currentbank, rawbank, pxr.patch_names())
                     remote_link.reply(req, info)
                     pno = 0
                     pxr.select_patch(pno)
