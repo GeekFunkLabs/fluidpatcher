@@ -24,9 +24,12 @@ pip install oyaml wxpython mido python-rtmidi
 sudo apt install git fluidsynth python3-pip python3-wxgtk4.0
 sudo pip3 install oyaml mido python-rtmidi
 git clone https://github.com/albedozero/fluidpatcher.git
+```
+On a Raspberry Pi, add
+```
+sudo pip3 install RPLCD RPi.GPIO.
 cp -r fluidpatcher/* /home/pi
 ```
-On a Raspberry Pi, add `sudo pip3 install RPLCD RPi.GPIO`.
 
 #### MacOS
 ```
