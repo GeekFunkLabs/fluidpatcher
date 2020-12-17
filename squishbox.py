@@ -419,6 +419,7 @@ while True:
                     remote_link.reply(req, info)
                     pno = 0
                     pxr.select_patch(pno)
+                    pxr.write_config()
                     break
                     
             elif req.type == netlink.SAVE_BANK:
@@ -429,6 +430,7 @@ while True:
                     remote_link.reply(req, str(e), netlink.REQ_ERROR)
                 else:
                     remote_link.reply(req)
+                    pxr.write_config()
                             
             elif req.type == netlink.SELECT_PATCH:
                 try:
