@@ -352,7 +352,6 @@ class MainWindow(wx.Frame):
             if not pxr.plugindir:
                 pdir = wx.DirSelector("Select Plugins Directory")
                 if pdir == '': return
-                pxr.plugindir = pdir
                 pxr.cfg['plugindir'] = pdir
                 pxr.write_config()
             plugin = wx.FileSelector("Plugins", pxr.plugindir, "", "*.dll", "LADSPA plugin (*.dll)|*.dll")

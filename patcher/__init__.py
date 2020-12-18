@@ -34,37 +34,47 @@ class Patcher:
 
     def __init__(self, cfgfile='', fluidsettings={}):
         self._cfgfile = cfgfile
-        if self._cfgfile != '':
-            self.read_config()
-        else:
-            self.cfg = dict(currentbank='')
+        self.cfg = {}
+        self.read_config()
         fluidsettings.update(self.cfg.get('fluidsettings', {}))
-        self._fluid = fluidwrap.Synth(**fluidsettings)
-
-        self.sfdir = self.cfg.get('soundfontdir', 'sf2')
-        self.bankdir = self.cfg.get('bankdir', 'banks')
-        self.plugindir = self.cfg.get('plugindir', '')
-        self.sfpresets = []
-
+        self._fluid = fluidwrap.Synth(**fluidsettings)        
         self._max_channels = fluidsettings.get('synth.midi-channels', 16)
         self._soundfonts = set()
         self._cc_links = []
         
+        self.sfpresets = []
+
+    @property
+    def cfgfile(self):
+        return self._cfgfile
+        
+    @property
+    def sfdir(self):
+        return self.cfg.get('soundfontdir', 'sf2')
+        
+    @property
+    def bankdir(self):
+        return self.cfg.get('bankdir', 'banks')
+        
+    @property
+    def plugindir(self):
+        return self.cfg.get('plugindir', '')
+        
     @property
     def currentbank(self):
-        return self.cfg['currentbank']
+        return self.cfg.get('currentbank', '')
 
     def read_config(self):
         if self._cfgfile == '':
             return write_yaml(self.cfg)
         f = open(self._cfgfile)
-        cfg = f.read()
+        raw = f.read()
         f.close()
         try:
-            self.cfg = read_yaml(cfg)
+            self.cfg = read_yaml(raw)
         except yamlext.YAMLError or IOError:
             raise PatcherError("Bad configuration file")
-        return cfg
+        return raw
 
     def write_config(self, raw=''):
         if self._cfgfile == '':
@@ -84,11 +94,10 @@ class Patcher:
     def load_bank(self, bank=''):
     # load patches, settings from :bank yaml string or filename
     # returns the file contents/yaml string
-        bfile = ''
-        if '\n' not in bank:
-            bfile = bank
-            if bfile == '':
-                bfile = self.cfg['currentbank']
+        bfile = self.currentbank
+        if '\n' not in bank: # probably not yaml
+            if bank != '':
+                bfile = bank
             f = open(joinpath(self.bankdir, bfile))
             bank = f.read()
             f.close()
@@ -109,7 +118,7 @@ class Patcher:
     # save current patches, settings in :bankfile
     # if :raw parses, save it exactly
         if not bankfile:
-            bankfile = self.cfg['currentbank']
+            bankfile = self.currentbank
         f = open(joinpath(self.bankdir, bankfile), 'w')
         if raw:
             try:

@@ -222,5 +222,7 @@ if __name__ == "__main__":
 
     try:
         headless_synth(cfgfile)
+    except KeyboardInterrupt:
+        exit(1)
     except:
         error_blink(4)
