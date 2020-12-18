@@ -94,6 +94,17 @@ pno = 0
 pxr.select_patch(pno)
 networks = []
 
+fxmenu_info = (                    
+('Reverb Size', '%4.1f', 'synth.reverb.room-size', 0.1, 0.0, 1.0),
+('Reverb Damp', '%4.1f', 'synth.reverb.damp', 0.1, 0.0, 1.0),
+('Rev. Width', '%5.1f', 'synth.reverb.width', 1.0, 0.0, 100.0),
+('Rev. Level', '%5.2f', 'synth.reverb.level', 0.01, 0.00, 1.00),
+('Chorus Voices', '%2d', 'synth.chorus.nr', 1, 0, 99),
+('Chor. Level', '%4.1f', 'synth.chorus.level', 0.1, 0.0, 10.0),
+('Chor. Speed', '%4.1f', 'synth.chorus.speed', 0.1, 0.1, 21.0),
+('Chorus Depth', '%3.1f', 'synth.chorus.depth', 0.1, 0.3, 5.0),
+('Gain', '%11.1f', 'synth.gain', 0.1, 0.0, 5.0)
+)
 
 # update LCD
 while True:
@@ -197,64 +208,22 @@ while True:
                 pxr.select_sfpreset(pno)
                 
             elif k == 5: # effects menu
-                sb.lcd_write("Effects:        ", row=0)
-                j = sb.choose_opt(['Reverb', 'Chorus', 'Gain'], 1)
-                if j == 0:
-                    while True:
-                        sb.lcd_write("Reverb:         ", row=0)
-                        i = sb.choose_opt(['Reverb Size', 'Reverb Damping','Reverb Width','Reverb Level'], 1)
-                        if i < 0: break
-                        if i == 0:
-                            sb.lcd_write("Size (0-1):     ", row=0)
-                            curval = pxr.fluid_get('synth.reverb.room-size')
-                            newval = sb.choose_val(curval, 0.1, 0.0, 1.0, '%16.1f')
-                            pxr.fluid_set('synth.reverb.room-size', newval, True)
-                        if i == 1:
-                            sb.lcd_write("Damping (0-1):  ", row=0)
-                            curval = pxr.fluid_get('synth.reverb.damp')
-                            newval = sb.choose_val(curval, 0.1, 0.0, 1.0, '%16.1f')
-                            pxr.fluid_set('synth.reverb.damp', newval, True)
-                        if i == 2:
-                            sb.lcd_write("Width (0-100):  ", row=0)
-                            curval = pxr.fluid_get('synth.reverb.width')
-                            newval = sb.choose_val(curval, 1.0, 0.0, 100.0, '%16.1f')
-                            pxr.fluid_set('synth.reverb.width', newval, True)
-                        if i == 3:
-                            sb.lcd_write("Level (0-1):    ", row=0)
-                            curval = pxr.fluid_get('synth.reverb.level')
-                            newval = sb.choose_val(curval, 0.01, 0.00, 1.00, '%16.2f')
-                            pxr.fluid_set('synth.reverb.level', newval, True)
-                elif j == 1:
-                    while True:
-                        sb.lcd_write("Chorus:         ", row=0)
-                        i = sb.choose_opt(['Chorus Voices', 'Chorus Level', 'Chorus Speed', 'Chorus Depth'], 1)
-                        if i < 0: break
-                        
-                        if i == 0:
-                            sb.lcd_write("Voices (0-99):  ", row=0)
-                            curval = pxr.fluid_get('synth.chorus.nr')
-                            newval = sb.choose_val(curval, 1, 0, 99,'%16d')
-                            pxr.fluid_set('synth.chorus.nr', newval, True)
-                        if i == 1:
-                            sb.lcd_write("Level (0-10):   ", row=0)
-                            curval = pxr.fluid_get('synth.chorus.level')
-                            newval = sb.choose_val(curval, 0.1, 0.0, 10.0, '%16.1f')
-                            pxr.fluid_set('synth.chorus.level', newval, True)
-                        if i == 2:
-                            sb.lcd_write("Speed (0.1-21): ", row=0)
-                            curval = pxr.fluid_get('synth.chorus.level')
-                            newval = sb.choose_val(curval, 0.1, 0.1, 21.0, '%16.1f')
-                            pxr.fluid_set('synth.chorus.level', newval, True)
-                        if i == 3:
-                            sb.lcd_write("Depth (0.3-5):  ", row=0)
-                            curval = pxr.fluid_get('synth.chorus.depth')
-                            newval = sb.choose_val(curval, 0.1, 0.3, 5.0, '%16.1f')
-                            pxr.fluid_set('synth.chorus.depth', newval, True)
-                elif j == 2:
-                    sb.lcd_write("Gain (0-1):     ", row=0)
-                    curval = pxr.fluid_get('synth.gain')
-                    newval = sb.choose_val(curval, 0.1, 0.0, 5.0, "%16.2f")
-                    pxr.fluid_set('synth.gain', newval, True)
+                i=0
+                while True:
+                    fxopts = []
+                    args = []
+                    for name, fmt, opt, inc, min, max in fxmenu_info[i:] + fxmenu_info[0:i]:
+                        curval = pxr.fluid_get(opt)
+                        fxopts.append('%s:%s' % (name, fmt % curval))
+                        args.append((curval, inc, min, max, fmt, opt))
+                    sb.lcd_write("Effects:        ", row=0)
+                    j = sb.choose_opt(fxopts, row=1)
+                    if j < 0: break
+                    sb.lcd_write(fxopts[j], row=0)
+                    newval = sb.choose_val(*args[j][0:5])
+                    if sb.choose_opt(['set?%12s' % (args[j][4] % newval)], row=1) > -1:
+                        pxr.fluid_set(args[j][5], newval, updatebank=True)
+                    i = (i + j) % len(fxmenu_info)
             break
 
             
@@ -358,10 +327,10 @@ while True:
 
             break
 
-        # long-hold right button = refresh bank
+        # long-hold right button = reload bank
         if sb.state[SB.BTN_R] == SB.STATE_LONG:
             sb.lcd_clear()
-            sb.lcd_blink("Refreshing Bank ", row=0)
+            sb.lcd_blink("Reloading Bank  ", row=0)
             lastpatch = pxr.patch_name(pno)
             pxr.load_bank(pxr.currentbank)
             try:

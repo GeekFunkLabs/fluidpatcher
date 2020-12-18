@@ -200,7 +200,7 @@ class StompBox():
                     self.lcd_blink(opts[i], row)
                     return i
                 elif self.state[BTN_L] == STATE_HOLD:
-                    self.lcd_write(' '*16,row)
+                    self.lcd_write(' '*16, row)
                     return -1
                 elif STATE_LONG in self.state.values() and passlong:
                     for b in self.state:
@@ -214,7 +214,7 @@ class StompBox():
         returns the user's choice on timeout
         """
         while True:
-            self.lcd_write(format % val, 1)
+            self.lcd_write('%16s' % (format % val), 1)
             tstop = time.time() + MENU_TIMEOUT
             while time.time() < tstop:
                 self.update()
@@ -226,7 +226,6 @@ class StompBox():
                     val = max(val - inc, minval)
                 break
             else:
-                self.lcd_blink(format % val, 1)
                 return val
 
     def char_input(self, text=' ', row=1, timeout=MENU_TIMEOUT):
