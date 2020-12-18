@@ -47,7 +47,7 @@ FL.fluid_settings_setstr.restype = c_int
 FL.fluid_settings_getint.argtypes = [c_void_p, c_char_p, POINTER(c_int)]
 FL.fluid_settings_getint.restype = c_int
 FL.fluid_settings_getnum.argtypes = [c_void_p, c_char_p, POINTER(c_double)]
-FL.fluid_settings_getnum.restype = c_double
+FL.fluid_settings_getnum.restype = c_int
 FL.fluid_settings_copystr.argtypes = [c_void_p, c_char_p, c_char_p, c_int]
 FL.fluid_settings_copystr.restype = c_int
 
