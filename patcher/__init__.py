@@ -167,7 +167,8 @@ class Patcher:
                 self._fluid.program_unset(channel - 1)
 
         for msg in self._bank.get('cc', []) + patch.get('cc', []):
-            self._fluid.send_cc(msg.chan - 1, msg.cc, msg.val)
+            if msg == 'default': self._send_cc_defaults()
+            else: self._fluid.send_cc(msg.chan - 1, msg.cc, msg.val)
 
         for syx in self._bank.get('sysex', []) + patch.get('sysex', []):
             warn = self._parse_sysex(syx)
@@ -184,28 +185,21 @@ class Patcher:
         for effect in fx:
             name = 'e%s' % n
             warn = self._fxplugin_connect(name, **effect)
-            if warn:
-                warnings.append(warn)
-            else:
-                n += 1
-        if n > 1:
-            self._fluid.fxchain_activate()
+            if warn: warnings.append(warn)
+            else: n += 1
+        if n > 1: self._fluid.fxchain_activate()
 
         self._fluid.router_clear()
         for rule in self._bank.get('router_rules', []):
             self._midi_route(**rule.dict())
         for rule in patch.get('router_rules', []):
-            if rule == 'default':
-                self._fluid.router_default()
-            elif rule == 'clear':
-                self._fluid.router_clear()
-            else:
-                self._midi_route(**rule.dict())
-        if 'rule' not in locals():
+            if rule == 'default': self._fluid.router_default()
+            elif rule == 'clear': self._fluid.router_clear()
+            else: self._midi_route(**rule.dict())
+        if 'router_rules' not in {**self._bank, **patch}:
             self._fluid.router_default()
 
-        if warnings:
-            return warnings
+        return warnings
 
     def add_patch(self, name, addlike=None):
     # new empty patch name :name, copying settings from :addlike
@@ -267,6 +261,7 @@ class Patcher:
             self._fluid.program_unset(channel)
         self._fluid.router_clear()
         self._fluid.router_default()
+        self._send_cc_defaults()
         self._midi_route('note', chan=yamlext.FromToSpec(2, self._max_channels, 0, 0))
         return True
         
@@ -277,8 +272,8 @@ class Patcher:
         soundfont = list(self._soundfonts)[0]
         if not self._fluid.program_select(0, joinpath(self.sfdir, soundfont), p.bank, p.prog):
             return False
-        return True                
-        
+        return True
+
     def fluid_get(self, opt):
         return self._fluid.get_setting(opt)
 
@@ -432,3 +427,9 @@ class Patcher:
         else:
             self._fluid.router_addrule(type, None, par1_list, par2_list)
 
+    def _send_cc_defaults(self, channels=[]):
+        for channel in channels or range(1, self._max_channels + 1):
+            for first, last, default in CC_DEFAULTS:
+                for cc in range(first, last + 1):
+                    self._fluid.send_cc(channel - 1, cc, default)
+        

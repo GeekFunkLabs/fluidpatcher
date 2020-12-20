@@ -208,6 +208,7 @@ class MainWindow(wx.Frame):
             except Exception as e:
                 wx.MessageBox(str(e), "Error", wx.OK|wx.ICON_ERROR)
                 return
+            pxr.write_config()
             patches = pxr.patch_names()
             title = APP_NAME + ' - ' + bfile
         self.currentfile = bfile
@@ -236,6 +237,7 @@ class MainWindow(wx.Frame):
             self.remote_link_request(netlink.SELECT_PATCH, self.pno)
         else:
             warn = pxr.select_patch(self.pno)
+            if warn: wx.MessageBox(warn, "Warning", wx.OK|wx.ICON_WARNING)
 
     def onOpen(self, event):
         if self.remoteLink:
@@ -278,11 +280,9 @@ class MainWindow(wx.Frame):
             except Exception as e:
                 wx.MessageBox(str(e), "Error", wx.OK|wx.ICON_ERROR)
                 return
+            pxr.write_config()
             self.currentfile = bfile
             self.SetTitle(APP_NAME + ' - ' + self.currentfile)
-
-    def onMod(self, event):
-        self.SetTitle(self.GetTitle().rstrip('*') + '*')
 
     def onOpenSoundfont(self, event):
         if self.remoteLink:
@@ -384,7 +384,7 @@ class MainWindow(wx.Frame):
         tmsg = TextMsgDialog(rawcfg, "Settings", file, wx.OK|wx.CANCEL, edit=True, size=(500, 450))
         if tmsg.ShowModal() == wx.ID_OK:
             newcfg = tmsg.text.GetValue()
-            if self.remoteLink():
+            if self.remoteLink:
                 if not self.remote_link_request(netlink.SAVE_CFG, newcfg): return
             else:
                 try:
@@ -438,6 +438,9 @@ class MainWindow(wx.Frame):
         self.patchlist.SetSelection(self.pno)
         self.choose_patch()
         
+    def onMod(self, event):
+        self.SetTitle(self.GetTitle().rstrip('*') + '*')
+
     def onKeyPress(self, event):
         if event.GetModifiers()<=0:
             if event.GetKeyCode() == wx.WXK_F5:
