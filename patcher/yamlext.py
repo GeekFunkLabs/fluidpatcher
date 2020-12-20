@@ -16,6 +16,9 @@ class SFPreset(oyaml.YAMLObject):
         self.name = name
         self.bank = bank
         self.prog = prog
+        
+    def __repr__(self):
+        return '%s:%03d:%03d' % (self.name, self.bank, self.prog)
 
     @classmethod
     def to_yaml(cls, dumper, data):

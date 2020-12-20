@@ -154,17 +154,13 @@ class Patcher:
         self.sfpresets = []
         patch = self._resolve_patch(patch)
         for channel in range(1, self._max_channels + 1):
-            if channel in patch:
-                if patch[channel].name not in self._soundfonts:
-                    self._reload_bankfonts()
-                if not self._fluid.program_select(channel - 1,
-                                                 joinpath(self.sfdir, patch[channel].name),
-                                                 patch[channel].bank,
-                                                 patch[channel].prog):
-                    self._fluid.program_unset(channel - 1)
-                    warnings.append('Unable to set channel %d' % channel)
-            else:
-                self._fluid.program_unset(channel - 1)
+            self._fluid.program_unset(channel - 1)
+            if channel not in patch: continue
+            preset = patch[channel]
+            if preset.name not in self._soundfonts:
+                self._reload_bankfonts()
+            if not self._fluid.program_select(channel - 1, joinpath(self.sfdir, preset.name), preset.bank, preset.prog):
+                warnings.append('Unable to select preset %s on channel %d' % (preset, channel))
 
         for msg in self._bank.get('cc', []) + patch.get('cc', []):
             if msg == 'default': self._send_cc_defaults()

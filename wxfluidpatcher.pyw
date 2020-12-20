@@ -237,7 +237,7 @@ class MainWindow(wx.Frame):
             self.remote_link_request(netlink.SELECT_PATCH, self.pno)
         else:
             warn = pxr.select_patch(self.pno)
-            if warn: wx.MessageBox(warn, "Warning", wx.OK|wx.ICON_WARNING)
+            if warn: wx.MessageBox('\n'.join(warn), "Warning", wx.OK|wx.ICON_WARNING)
 
     def onOpen(self, event):
         if self.remoteLink:
