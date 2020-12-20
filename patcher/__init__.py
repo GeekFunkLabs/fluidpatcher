@@ -153,6 +153,8 @@ class Patcher:
         warnings = []
         self.sfpresets = []
         patch = self._resolve_patch(patch)
+        
+        # select soundfont presets
         for channel in range(1, self._max_channels + 1):
             self._fluid.program_unset(channel - 1)
             if channel not in patch: continue
@@ -162,19 +164,23 @@ class Patcher:
             if not self._fluid.program_select(channel - 1, joinpath(self.sfdir, preset.name), preset.bank, preset.prog):
                 warnings.append('Unable to select preset %s on channel %d' % (preset, channel))
 
+        # send CC messages
         for msg in self._bank.get('cc', []) + patch.get('cc', []):
             if msg == 'default': self._send_cc_defaults()
             else: self._fluid.send_cc(msg.chan - 1, msg.cc, msg.val)
 
+        # send SYSEX messages
         for syx in self._bank.get('sysex', []) + patch.get('sysex', []):
             warn = self._parse_sysex(syx)
             if warn: warnings.append(warn)
 
+        # link CC messages to parameters
         for type in ['effect', 'fluidsetting']:
             self.cclinks_clear(type)
         for link in self._bank.get('cclinks', []) + patch.get('cclinks', []):
             self.link_cc(**link.dict())
 
+        # activate LADSPA effects
         self._fluid.fxchain_clear()
         fx = self._bank.get('effects', []) + patch.get('effects', [])
         n = 1
@@ -185,15 +191,13 @@ class Patcher:
             else: n += 1
         if n > 1: self._fluid.fxchain_activate()
 
+        # add MIDI router rules
         self._fluid.router_clear()
-        for rule in self._bank.get('router_rules', []):
-            self._midi_route(**rule.dict())
-        for rule in patch.get('router_rules', []):
-            if rule == 'default': self._fluid.router_default()
-            elif rule == 'clear': self._fluid.router_clear()
+        self._fluid.router_default()
+        for rule in self._bank.get('router_rules', []) +  patch.get('router_rules', []):
+            if rule == 'clear': self._fluid.router_clear()
+            elif rule == 'default': self._fluid.router_default()
             else: self._midi_route(**rule.dict())
-        if 'router_rules' not in {**self._bank, **patch}:
-            self._fluid.router_default()
 
         return warnings
 
