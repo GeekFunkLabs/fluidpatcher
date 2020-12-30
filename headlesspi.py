@@ -75,7 +75,7 @@ def headless_synth(cfgfile):
         subprocess.run(['aconnect', midiports[client], midiports['FLUID Synth']])
             
     # initialize network link
-    if pxr.cfg.get('remotelink_active', 1):
+    if pxr.cfg.get('remotelink_active', 1): # allow link by default
         port = pxr.cfg.get('remotelink_port', netlink.DEFAULT_PORT)
         passkey = pxr.cfg.get('remotelink_passkey', netlink.DEFAULT_PASSKEY)
         remote_link = netlink.Server(port, passkey)
@@ -106,7 +106,7 @@ def headless_synth(cfgfile):
             pxr.select_patch(pno)
             onboardled_blink()
         if 'selectpatch' in changed:
-            x = int(changed['selectpatch'] * pxr.patches_count() / 128)
+            x = int(changed['selectpatch'] * min(pxr.patches_count(), 128) / 128)
             if x != pno:
                 pno = x
                 pxr.select_patch(pno)
