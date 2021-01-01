@@ -256,16 +256,12 @@ class MainWindow(wx.Frame):
         self.onSaveAs(bfile=self.currentfile)
 
     def onSaveAs(self, event=None, bfile=''):
+        self.onRefresh()
         rawbank = self.btxt.GetValue()
-        try:
-            patcher.read_yaml(rawbank)
-        except Exception as e:
-            wx.MessageBox(str(e), "Error", wx.OK|wx.ICON_ERROR)
-            return
         if self.remoteLink:
-            bfile = bfile.replace('.yaml', '') + '.yaml'
             bfile = wx.GetTextFromUser("Bank file to save:", "Save Bank", bfile)
             if bfile == '': return
+            bfile = bfile.replace('.yaml', '') + '.yaml'
             response = self.remote_link_request(netlink.SAVE_BANK, patcher.write_yaml(bfile, rawbank))
             if response == None: return
             host, port = self.remoteLinkAddr.split(':')
