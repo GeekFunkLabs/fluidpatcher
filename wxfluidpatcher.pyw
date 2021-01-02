@@ -13,8 +13,6 @@ from mido import get_output_names, get_input_names
 import patcher
 from utils import netlink
 
-DEFAULT_WIDTH  = 700
-DEFAULT_HEIGHT = 600
 APP_NAME = 'FluidPatcher'
 POLL_TIME = 25
 
@@ -42,8 +40,8 @@ class TextMsgDialog(wx.Dialog):
 
 class SoundfontBrowser(wx.Dialog):
     def __init__(self, parent, sf):
-        super(SoundfontBrowser, self).__init__(parent, size=(400,650), title=sf,
-                                                style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
+        super(SoundfontBrowser, self).__init__(parent, title=sf, size=(400, 650),
+            style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
         self.sf = sf
         self.parent = parent
         self.copypreset = ''
@@ -54,7 +52,7 @@ class SoundfontBrowser(wx.Dialog):
         self.presetlist.AppendColumn('Name')
         vbox = wx.BoxSizer(wx.VERTICAL)
         vbox.Add(self.presetlist, 1, wx.LEFT|wx.RIGHT|wx.EXPAND, 15)
-        vbox.Add(self.CreateSeparatedButtonSizer(wx.CLOSE), 0, wx.ALL|wx.EXPAND, 10)
+        vbox.Add(self.CreateSeparatedButtonSizer(wx.OK|wx.CANCEL), 0, wx.ALL|wx.EXPAND, 10)
         self.SetSizer(vbox)
 
         if self.parent.remoteLink:
@@ -86,16 +84,16 @@ class SoundfontBrowser(wx.Dialog):
             if response == None: self.EndModal(wx.CANCEL)
         else:
             pxr.select_sfpreset(self.pno)
-        
-    def onActivate(self, event):
         bank, prog = [self.presetlist.GetItemText(event.GetIndex(), x).strip(':') for x in (0, 1)]
         self.copypreset = ':'.join((self.sf, bank, prog))
+        
+    def onActivate(self, event):
         self.EndModal(wx.ID_OK)
 
 
 class MainWindow(wx.Frame):
     def __init__(self):
-        super(MainWindow, self).__init__(None, size=(700,600), title=APP_NAME)
+        super(MainWindow, self).__init__(None, title=APP_NAME, size=(700, 600))
                 
         # create menus
         fileMenu = wx.Menu()
@@ -109,19 +107,20 @@ class MainWindow(wx.Frame):
         item = fileMenu.Append(wx.ID_SAVEAS, 'Save Bank &As...\tCtrl+Shift+S', 'Save bank file')
         self.Bind(wx.EVT_MENU, self.onSaveAs, item)
         
-        item = fileMenu.Append(wx.ID_ANY, 'Open Sound&Font...', 'Open a soundfont and browse presets')
-        self.Bind(wx.EVT_MENU, self.onOpenSoundfont, item)
         fileMenu.AppendSeparator()
         item = fileMenu.Append(wx.ID_EXIT, 'E&xit\tCtrl+Q', 'Terminate the program')
         self.Bind(wx.EVT_MENU, self.onExit, item)
 
         toolsMenu = wx.Menu()
-        self.linkmenuitem = toolsMenu.Append(wx.ID_ANY, '&Remote Link', 'Connect to and control a remote unit')
-        self.Bind(wx.EVT_MENU, self.onRemoteLink, self.linkmenuitem)
-        item = toolsMenu.Append(wx.ID_ANY, 'Browse &Plugins', 'View available LADSPA plugins')
+        item = toolsMenu.Append(wx.ID_ANY, 'Choose &Preset...\tCtrl+P', 'Choose preset from a soundfont')
+        self.Bind(wx.EVT_MENU, self.onChoosePreset, item)
+        item = toolsMenu.Append(wx.ID_ANY, 'Browse P&lugins', 'View available LADSPA plugins')
         self.Bind(wx.EVT_MENU, self.onBrowsePlugins, item)
         item = toolsMenu.Append(wx.ID_ANY, '&MIDI ports', 'List available MIDI devices')
         self.Bind(wx.EVT_MENU, self.onListMIDI, item)
+        toolsMenu.AppendSeparator()
+        self.linkmenuitem = toolsMenu.Append(wx.ID_ANY, '&Remote Link', 'Connect to and control a remote unit')
+        self.Bind(wx.EVT_MENU, self.onRemoteLink, self.linkmenuitem)
         toolsMenu.AppendSeparator()
         item = toolsMenu.Append(wx.ID_ANY, '&Settings...\tCtrl+,', 'Edit FluidPatcher configuration')
         self.Bind(wx.EVT_MENU, self.onSettings, item)
@@ -171,7 +170,6 @@ class MainWindow(wx.Frame):
         
         _icon = wx.Icon('images/gfl_logo.ico', wx.BITMAP_TYPE_ICO)
         self.SetIcon(_icon)
-        self.SetSize(size=wx.Size(DEFAULT_WIDTH, DEFAULT_HEIGHT))
         
         host = pxr.cfg.get('remotelink_host', 'x.x.x.x')
         port = pxr.cfg.get('remotelink_port', netlink.DEFAULT_PORT)
@@ -261,7 +259,7 @@ class MainWindow(wx.Frame):
         if self.remoteLink:
             bfile = wx.GetTextFromUser("Bank file to save:", "Save Bank", bfile)
             if bfile == '': return
-            bfile = bfile.replace('.yaml', '') + '.yaml'
+            if not bfile.endswith('.yaml'): bfile += '.yaml'
             response = self.remote_link_request(netlink.SAVE_BANK, patcher.write_yaml(bfile, rawbank))
             if response == None: return
             host, port = self.remoteLinkAddr.split(':')
@@ -280,26 +278,14 @@ class MainWindow(wx.Frame):
             self.currentfile = bfile
             self.SetTitle(APP_NAME + ' - ' + self.currentfile)
 
-    def onOpenSoundfont(self, event):
-        if self.remoteLink:
-            response = self.remote_link_request(netlink.LIST_SOUNDFONTS)
-            if response == None: return
-            sfonts = response.split(',')
-            sfont = wx.GetSingleChoice("Choose Soundfont to Open:", "Open Soundfont", sfonts)
-            if sfont == '': return        
-        else:
-            s = wx.FileSelector("Open Soundfont", pxr.sfdir, "", "*.sf2", "Soundfont (*.sf2)|*.sf2", wx.FD_OPEN)
-            if s == '': return
-            sfont = relpath(s, start=pxr.sfdir)
-        sfbrowser = SoundfontBrowser(self, sfont)
-        if sfbrowser.ShowModal() == wx.ID_OK:
-            wx.TheClipboard.Open()
-            wx.TheClipboard.SetData(wx.TextDataObject(sfbrowser.copypreset))
-            wx.TheClipboard.Close()
-        sfbrowser.Destroy()
-        self.choose_patch()
-
     def onExit(self, event=None):
+        if event and not event.CanVeto():
+            self.Destroy()
+        if self.GetTitle().endswith('*'):
+            resp = wx.MessageBox("Unsaved changes in bank - close anyway?", "Confirm Exit", wx.ICON_QUESTION | wx.YES_NO)
+            if resp != wx.YES:
+                event.Veto()
+                return
         self.Destroy()
 
     def onRemoteLink(self, event=None):
@@ -336,6 +322,23 @@ class MainWindow(wx.Frame):
             self.timer.Stop()
             self.localfile = self.currentfile
             self.load_bankfile()
+
+    def onChoosePreset(self, event):
+        if self.remoteLink:
+            response = self.remote_link_request(netlink.LIST_SOUNDFONTS)
+            if response == None: return
+            sfonts = response.split(',')
+            sfont = wx.GetSingleChoice("Choose Soundfont to Open:", "Open Soundfont", sfonts)
+            if sfont == '': return        
+        else:
+            s = wx.FileSelector("Open Soundfont", pxr.sfdir, "", "*.sf2", "Soundfont (*.sf2)|*.sf2", wx.FD_OPEN)
+            if s == '': return
+            sfont = relpath(s, start=pxr.sfdir)
+        sfbrowser = SoundfontBrowser(self, sfont)
+        if sfbrowser.ShowModal() == wx.ID_OK:
+            self.btxt.WriteText(sfbrowser.copypreset)
+        sfbrowser.Destroy()
+        self.choose_patch()
 
     def onBrowsePlugins(self, event):
         if self.remoteLink:
@@ -393,7 +396,7 @@ class MainWindow(wx.Frame):
 
     def onAbout(self, event):
         msg = """
-               Fluid Patcher v%s
+               FluidPatcher v%s
                
         Allows in-place editing and playing
            of FluidPatcher bank files.
@@ -456,6 +459,12 @@ class MainWindow(wx.Frame):
         if 'patch' in changed:
             pno = (pno + changed['patch']) % pxr.patches_count()
             pxr.select_patch(pno)
+        if 'selectpatch' in changed:
+            x = int(changed['selectpatch'] * min(pxr.patches_count(), 128) / 128)
+            if x != pno:
+                pno = x
+                pxr.select_patch(pno)
+        
         
 if __name__ == "__main__":
     if len(argv) > 1:
