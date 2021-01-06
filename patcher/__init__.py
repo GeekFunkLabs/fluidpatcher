@@ -304,9 +304,9 @@ class Patcher:
                         self._fluid.fx_setcontrol(link.target, link.port, val)
                     elif link.type == 'patch':
                         if link.target == 'inc' and link.val > 0:
-                            retvals['patch'] = 1
+                            retvals['incpatch'] = 1
                         elif link.target == 'dec' and link.val > 0:
-                            retvals['patch'] = -1
+                            retvals['incpatch'] = -1
                         elif link.target == 'select':
                             retvals['selectpatch'] = val
         return retvals

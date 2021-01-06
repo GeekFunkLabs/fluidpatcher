@@ -16,6 +16,22 @@ from utils import netlink
 APP_NAME = 'FluidPatcher'
 POLL_TIME = 25
 
+def remote_link_request(type, body=''):
+    try:
+        reply = remote.link.request(type, body)
+    except:
+        reply = None
+    if not reply or reply.type == netlink.NO_COMM:
+        wx.MessageBox("Lost connection to %s" % remote.host, "Connection Lost", wx.OK|wx.ICON_ERROR)
+        main.remote_disconnect()
+        return None
+    elif reply.type == netlink.REQ_ERROR:
+        wx.MessageBox(reply.body, "Error", wx.OK|wx.ICON_ERROR)
+        return None
+    else:
+        return reply.body
+
+
 class TextMsgDialog(wx.Dialog):
     def __init__(self, text, title, caption='', flags=wx.CLOSE, edit=False, **kwargs):
         super(TextMsgDialog, self).__init__(None, title=title,
@@ -39,11 +55,10 @@ class TextMsgDialog(wx.Dialog):
 
 
 class SoundfontBrowser(wx.Dialog):
-    def __init__(self, parent, sf):
-        super(SoundfontBrowser, self).__init__(parent, title=sf, size=(400, 650),
+    def __init__(self, sf):
+        super(SoundfontBrowser, self).__init__(None, title=sf, size=(400, 650),
             style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
         self.sf = sf
-        self.parent = parent
         self.copypreset = ''
 
         self.presetlist = wx.ListCtrl(self, style=wx.LC_REPORT|wx.LC_SINGLE_SEL)
@@ -55,8 +70,8 @@ class SoundfontBrowser(wx.Dialog):
         vbox.Add(self.CreateSeparatedButtonSizer(wx.OK|wx.CANCEL), 0, wx.ALL|wx.EXPAND, 10)
         self.SetSizer(vbox)
 
-        if self.parent.remoteLink:
-            response = self.parent.remote_link_request(netlink.LOAD_SOUNDFONT, sf)
+        if remote.link:
+            response = remote_link_request(netlink.LOAD_SOUNDFONT, sf)
             if response == None: self.EndModal(wx.CANCEL)
             for p in patcher.read_yaml(response):
                 self.presetlist.Append(("%03d:" % p.bank, "%03d:" % p.prog, p.name))
@@ -79,8 +94,8 @@ class SoundfontBrowser(wx.Dialog):
             return
         self.pno = self.presetlist.GetNextSelected(-1)
         if self.pno < 0: return
-        if self.parent.remoteLink:
-            response = self.parent.remote_link_request(netlink.SELECT_SFPRESET, self.pno)
+        if remote.link:
+            response = remote_link_request(netlink.SELECT_SFPRESET, self.pno)
             if response == None: self.EndModal(wx.CANCEL)
         else:
             pxr.select_sfpreset(self.pno)
@@ -144,10 +159,10 @@ class MainWindow(wx.Frame):
         self.Bind(wx.EVT_TOOL, self.onRefresh, tool)
         tool = patchTool.AddTool(wx.ID_ANY, 'Prev', wx.ArtProvider.GetBitmap(wx.ART_MINUS), 'Select previous patch (F7)')
         tool.SetLongHelp('Select previous patch')
-        self.Bind(wx.EVT_TOOL, lambda x: self.choose_patch(x, -1), tool)
+        self.Bind(wx.EVT_TOOL, lambda x: self.choose_patch(inc=-1), tool)
         tool = patchTool.AddTool(wx.ID_ANY, 'Next', wx.ArtProvider.GetBitmap(wx.ART_PLUS), 'Select next patch (F8)')
         tool.SetLongHelp('Select next patch')
-        self.Bind(wx.EVT_TOOL, lambda x: self.choose_patch(x, 1), tool)
+        self.Bind(wx.EVT_TOOL, lambda x: self.choose_patch(inc=1), tool)
         self.patchlist = wx.Choice(patchTool)
         tool = patchTool.AddControl(self.patchlist, 'Patches')
         self.Bind(wx.EVT_CHOICE, self.choose_patch, self.patchlist)
@@ -171,35 +186,14 @@ class MainWindow(wx.Frame):
         _icon = wx.Icon('images/gfl_logo.ico', wx.BITMAP_TYPE_ICO)
         self.SetIcon(_icon)
         
-        host = pxr.cfg.get('remotelink_host', 'x.x.x.x')
-        port = pxr.cfg.get('remotelink_port', netlink.DEFAULT_PORT)
-            
-        self.remoteLinkAddr = "%s:%d" % (host, port)
-        self.remoteLink = None
         self.load_bankfile(pxr.currentbank)
 
-    def remote_link_request(self, type, body=''):
-        try:
-            reply = self.remoteLink.request(type, body)
-        except:
-            reply = None
-        if not reply or reply.type == netlink.NO_COMM:
-            wx.MessageBox("Lost connection to %s" % self.remoteLinkAddr, "Connection Lost", wx.OK|wx.ICON_ERROR)
-            self.onRemoteLink()
-            return None
-        elif reply.type == netlink.REQ_ERROR:
-            wx.MessageBox(reply.body, "Error", wx.OK|wx.ICON_ERROR)
-            return None
-        else:
-            return reply.body
-
     def load_bankfile(self, bfile=''):
-        if self.remoteLink:
-            response = self.remote_link_request(netlink.LOAD_BANK, bfile)
+        if remote.link:
+            response = remote_link_request(netlink.LOAD_BANK, bfile)
             if response == None: return
             bfile, rawbank, patches = patcher.read_yaml(response)
-            host = self.remoteLinkAddr.split(':')[0]
-            title = APP_NAME + ' - ' + bfile + '@' + host
+            title = APP_NAME + ' - ' + bfile + '@' + remote.host
         else:
             try:
                 rawbank = pxr.load_bank(bfile)
@@ -218,28 +212,59 @@ class MainWindow(wx.Frame):
         for p in patches:
             self.patchlist.Append(p)
         self.ptot = len(patches)
-        self.choose_patch(val=0)
+        self.choose_patch()
 
-    def choose_patch(self, event=None, val=''):
-        if val == 0:
-            self.pno = 0
-            self.patchlist.SetSelection(0)
-        elif val == 1 or val == -1:
-            self.pno = (self.pno + val) % self.ptot
-            self.patchlist.SetSelection(self.pno)
-        else:
+    def choose_patch(self, event=None, inc=0, pno=0):
+        if event:
             n = self.patchlist.GetSelection()
             if n == wx.NOT_FOUND: return
             self.pno = n
-        if self.remoteLink:
-            self.remote_link_request(netlink.SELECT_PATCH, self.pno)
+        elif inc:
+            self.pno = (self.pno + inc) % self.ptot
+            self.patchlist.SetSelection(self.pno)
+        else:
+            self.pno = pno
+            self.patchlist.SetSelection(pno)
+        if remote.link:
+            remote_link_request(netlink.SELECT_PATCH, self.pno)
         else:
             warn = pxr.select_patch(self.pno)
             if warn: wx.MessageBox('\n'.join(warn), "Warning", wx.OK|wx.ICON_WARNING)
 
+    def remote_connect(self):
+        addr = wx.GetTextFromUser("Network Address (host:port):", "Remote Link", "%s:%s" % (remote.host, remote.port))
+        if addr == '': return
+        remote.host, remote.port = addr.split(':')
+        try:
+            remote.link = netlink.Client(remote.host, int(remote.port), remote.passkey)
+            reply = remote.link.request(netlink.SEND_VERSION)
+        except Exception as e:
+            wx.MessageBox(str(e), "Error", wx.OK|wx.ICON_ERROR)
+            remote.link = None
+            return
+        if not reply or reply.type != netlink.REQ_OK:
+            wx.MessageBox("Unable to connect to %s" % host, "Error", wx.OK|wx.ICON_ERROR)
+            remote.link = None
+            return
+        wx.MessageBox("Connected to %s!" % host, "Connected", wx.OK)
+        pxr.cfg['remotelink_host'] = remote.host
+        pxr.cfg['remotelink_port'] = int(remote.port)
+        pxr.write_config()
+        self.linkmenuitem.SetItemLabel("&Disconnect")
+        pxr._fluid.router_clear()
+        self.localfile = self.currentfile
+        self.load_bankfile()
+    
+    def remote_disconnect(self):
+        remote.link.close()
+        remote.link = None
+        self.currentfile = self.localfile
+        self.load_bankfile(self.currentfile)
+        self.linkmenuitem.SetItemLabel("&Remote Link")
+
     def onOpen(self, event):
-        if self.remoteLink:
-            response = self.remote_link_request(netlink.LIST_BANKS)
+        if remote.link:
+            response = remote_link_request(netlink.LIST_BANKS)
             if response == None: return
             banks = response.split(',')
             bfile = wx.GetSingleChoice("Choose bank to load:", "Load Bank", banks)
@@ -256,14 +281,13 @@ class MainWindow(wx.Frame):
     def onSaveAs(self, event=None, bfile=''):
         self.onRefresh()
         rawbank = self.btxt.GetValue()
-        if self.remoteLink:
+        if remote.link:
             bfile = wx.GetTextFromUser("Bank file to save:", "Save Bank", bfile)
             if bfile == '': return
             if not bfile.endswith('.yaml'): bfile += '.yaml'
-            response = self.remote_link_request(netlink.SAVE_BANK, patcher.write_yaml(bfile, rawbank))
+            response = remote_link_request(netlink.SAVE_BANK, patcher.write_yaml(bfile, rawbank))
             if response == None: return
-            host, port = self.remoteLinkAddr.split(':')
-            self.SetTitle(APP_NAME + ' - ' + bfile + '@' + host)
+            self.SetTitle(APP_NAME + ' - ' + bfile + '@' + remote.host)
         else:
             if bfile == '':
                 path = wx.FileSelector("Save Bank", pxr.bankdir, self.currentfile, "*.yaml", "Bank files (*.yaml)|*.yaml", wx.FD_SAVE)
@@ -279,7 +303,7 @@ class MainWindow(wx.Frame):
             self.SetTitle(APP_NAME + ' - ' + self.currentfile)
 
     def onExit(self, event=None):
-        if event and not event.CanVeto():
+        if isinstance(event, wx.CloseEvent) and not event.CanVeto():
             self.Destroy()
         if self.GetTitle().endswith('*'):
             resp = wx.MessageBox("Unsaved changes in bank - close anyway?", "Confirm Exit", wx.ICON_QUESTION | wx.YES_NO)
@@ -288,44 +312,9 @@ class MainWindow(wx.Frame):
                 return
         self.Destroy()
 
-    def onRemoteLink(self, event=None):
-        if self.remoteLink:
-            self.remoteLink.close()
-            self.remoteLink = None
-            self.timer.Start()
-            self.currentfile = self.localfile
-            self.load_bankfile(self.currentfile)
-            self.linkmenuitem.SetItemLabel("&Remote Link")
-        else:
-            addr = wx.GetTextFromUser("Network Address (host:port):", "Remote Link", self.remoteLinkAddr)
-            if addr == '': return
-            self.remoteLinkAddr = addr
-            host, port = addr.split(':')
-            passkey = pxr.cfg.get('remotelink_passkey', netlink.DEFAULT_PASSKEY)
-            try:
-                self.remoteLink = netlink.Client(host, int(port), passkey)
-                reply = self.remoteLink.request(netlink.SEND_VERSION)
-            except Exception as e:
-                wx.MessageBox(str(e), "Error", wx.OK|wx.ICON_ERROR)
-                self.remoteLink = None
-                return
-            if not reply or reply.type != netlink.REQ_OK:
-                wx.MessageBox("Unable to connect to %s" % host, "Error", wx.OK|wx.ICON_ERROR)
-                self.remoteLink = None
-                return
-            wx.MessageBox("Connected to %s!" % host, "Connected", wx.OK)
-            pxr.cfg['remotelink_host'] = host
-            pxr.cfg['remotelink_port'] = int(port)
-            pxr.write_config()
-            self.linkmenuitem.SetItemLabel("&Disconnect")
-            pxr._fluid.router_clear()
-            self.timer.Stop()
-            self.localfile = self.currentfile
-            self.load_bankfile()
-
     def onChoosePreset(self, event):
-        if self.remoteLink:
-            response = self.remote_link_request(netlink.LIST_SOUNDFONTS)
+        if remote.link:
+            response = remote_link_request(netlink.LIST_SOUNDFONTS)
             if response == None: return
             sfonts = response.split(',')
             sfont = wx.GetSingleChoice("Choose Soundfont to Open:", "Open Soundfont", sfonts)
@@ -334,17 +323,17 @@ class MainWindow(wx.Frame):
             s = wx.FileSelector("Open Soundfont", pxr.sfdir, "", "*.sf2", "Soundfont (*.sf2)|*.sf2", wx.FD_OPEN)
             if s == '': return
             sfont = relpath(s, start=pxr.sfdir)
-        sfbrowser = SoundfontBrowser(self, sfont)
+        sfbrowser = SoundfontBrowser(sfont)
         if sfbrowser.ShowModal() == wx.ID_OK:
             self.btxt.WriteText(sfbrowser.copypreset)
         sfbrowser.Destroy()
-        self.choose_patch()
+        self.choose_patch(pno=self.pno)
 
     def onBrowsePlugins(self, event):
-        if self.remoteLink:
-            plugins = self.remote_link_request(netlink.LIST_PLUGINS)
+        if remote.link:
+            plugins = remote_link_request(netlink.LIST_PLUGINS)
             if not plugins: return
-            tmsg = TextMsgDialog(plugins, "Plugins", "Available plugins on %s:" % self.remoteLinkAddr)
+            tmsg = TextMsgDialog(plugins, "Plugins", "Available plugins on %s:" % remote.host)
             tmsg.ShowModal()
             tmsg.Destroy()
         else:
@@ -355,15 +344,13 @@ class MainWindow(wx.Frame):
                 pxr.write_config()
             plugin = wx.FileSelector("Plugins", pxr.plugindir, "", "*.dll", "LADSPA plugin (*.dll)|*.dll")
             if plugin:
-                wx.TheClipboard.Open()
-                wx.TheClipboard.SetData(wx.TextDataObject(relpath(plugin, start=pxr.plugindir)))
-                wx.TheClipboard.Close()
+                self.btxt.WriteText(relpath(plugin, start=pxr.plugindir))
 
     def onListMIDI(self, event):
-        if self.remoteLink:
-            ports = self.remote_link_request(netlink.LIST_PORTS)
+        if remote.link:
+            ports = remote_link_request(netlink.LIST_PORTS)
             if not ports: return
-            caption = "MIDI ports on %s:" % self.remoteLinkAddr
+            caption = "MIDI ports on %s:" % remote.host
         else:
             ports = "Inputs:\n  %s\nOutputs:\n  %s" % (
                 '\n  '.join(get_input_names()),
@@ -373,9 +360,15 @@ class MainWindow(wx.Frame):
         tmsg.ShowModal()
         tmsg.Destroy()
 
+    def onRemoteLink(self, event=None):
+        if remote.link:
+            self.remote_disconnect()
+        else:
+            self.remote_connect()
+            
     def onSettings(self, event):
-        if self.remoteLink:
-            response = self.remote_link_request(netlink.READ_CFG)
+        if remote.link:
+            response = remote_link_request(netlink.READ_CFG)
             file, rawcfg = patcher.read_yaml(response)
         else:
             file = pxr.cfgfile
@@ -383,8 +376,8 @@ class MainWindow(wx.Frame):
         tmsg = TextMsgDialog(rawcfg, "Settings", file, wx.OK|wx.CANCEL, edit=True, size=(500, 450))
         if tmsg.ShowModal() == wx.ID_OK:
             newcfg = tmsg.text.GetValue()
-            if self.remoteLink:
-                if not self.remote_link_request(netlink.SAVE_CFG, newcfg): return
+            if remote.link:
+                if not remote_link_request(netlink.SAVE_CFG, newcfg): return
             else:
                 try:
                     pxr.write_config(newcfg)
@@ -415,9 +408,8 @@ class MainWindow(wx.Frame):
         except Exception as e:
             wx.MessageBox(str(e), "Error", wx.OK|wx.ICON_ERROR)
             return
-
-        if self.remoteLink:
-            response = self.remote_link_request(netlink.RECV_BANK, rawbank)
+        if remote.link:
+            response = remote_link_request(netlink.RECV_BANK, rawbank)
             if response == None: return
             lastpatch = self.patchlist.GetString(self.pno)
             patches = response.split(',')
@@ -425,7 +417,6 @@ class MainWindow(wx.Frame):
             lastpatch = pxr.patch_name(self.pno)
             pxr.load_bank(rawbank)
             patches = pxr.patch_names()
-                        
         self.ptot = len(patches)
         self.patchlist.Clear()
         for p in patches:
@@ -435,7 +426,7 @@ class MainWindow(wx.Frame):
         elif self.pno >= self.ptot:
             self.pno = 0
         self.patchlist.SetSelection(self.pno)
-        self.choose_patch()
+        self.choose_patch(pno=self.pno)
         
     def onMod(self, event):
         self.SetTitle(self.GetTitle().rstrip('*') + '*')
@@ -446,24 +437,15 @@ class MainWindow(wx.Frame):
                 self.onRefresh()
                 return
             if event.GetKeyCode() == wx.WXK_F7:
-                self.choose_patch(val=-1)
+                self.choose_patch(inc=-1)
                 return
             if event.GetKeyCode() == wx.WXK_F8:
-                self.choose_patch(val=1)
+                self.choose_patch(inc=1)
                 return
         event.Skip()
         
     def update(self, event):
-        if self.remoteLink: return
         changed = pxr.poll_cc()
-        if 'patch' in changed:
-            pno = (pno + changed['patch']) % pxr.patches_count()
-            pxr.select_patch(pno)
-        if 'selectpatch' in changed:
-            x = int(changed['selectpatch'] * min(pxr.patches_count(), 128) / 128)
-            if x != pno:
-                pno = x
-                pxr.select_patch(pno)
         
         
 if __name__ == "__main__":
@@ -473,7 +455,12 @@ if __name__ == "__main__":
         cfgfile = 'patcherconf.yaml'
     pxr = patcher.Patcher(cfgfile)
 
+    host = pxr.cfg.get('remotelink_host', '127.0.0.1')
+    port = pxr.cfg.get('remotelink_port', netlink.DEFAULT_PORT)    
+    passkey = pxr.cfg.get('remotelink_passkey', netlink.DEFAULT_PASSKEY)
+    remote = type('Remote', (object,), dict(link=None, host=host, port=port, passkey=passkey))
+
     app = wx.App()
-    frame = MainWindow()
-    frame.Show()
+    main = MainWindow()
+    main.Show()
     app.MainLoop()

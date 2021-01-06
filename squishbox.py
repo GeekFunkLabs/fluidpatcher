@@ -95,15 +95,15 @@ pxr.select_patch(pno)
 networks = []
 
 fxmenu_info = (                    
-('Reverb Size', '%4.1f', 'synth.reverb.room-size', 0.1, 0.0, 1.0),
-('Reverb Damp', '%4.1f', 'synth.reverb.damp', 0.1, 0.0, 1.0),
-('Rev. Width', '%5.1f', 'synth.reverb.width', 1.0, 0.0, 100.0),
-('Rev. Level', '%5.2f', 'synth.reverb.level', 0.01, 0.00, 1.00),
-('Chorus Voices', '%2d', 'synth.chorus.nr', 1, 0, 99),
-('Chor. Level', '%4.1f', 'synth.chorus.level', 0.1, 0.0, 10.0),
-('Chor. Speed', '%4.1f', 'synth.chorus.speed', 0.1, 0.1, 21.0),
-('Chorus Depth', '%3.1f', 'synth.chorus.depth', 0.1, 0.3, 5.0),
-('Gain', '%11.1f', 'synth.gain', 0.1, 0.0, 5.0)
+('Reverb Size', 'synth.reverb.room-size', '%4.1f', 0.1, 0.0, 1.0),
+('Reverb Damp', 'synth.reverb.damp', '%4.1f', 0.1, 0.0, 1.0),
+('Rev. Width', 'synth.reverb.width', '%5.1f', 1.0, 0.0, 100.0),
+('Rev. Level', 'synth.reverb.level', '%5.2f', 0.01, 0.00, 1.00),
+('Chorus Voices', 'synth.chorus.nr', '%2d', 1, 0, 99),
+('Chor. Level', 'synth.chorus.level', '%4.1f', 0.1, 0.0, 10.0),
+('Chor. Speed', 'synth.chorus.speed', '%4.1f', 0.1, 0.1, 21.0),
+('Chorus Depth', 'synth.chorus.depth', '%3.1f', 0.1, 0.3, 5.0),
+('Gain', 'synth.gain', '%11.1f', 0.1, 0.0, 5.0)
 )
 
 # update LCD
@@ -212,7 +212,7 @@ while True:
                 while True:
                     fxopts = []
                     args = []
-                    for name, fmt, opt, inc, min, max in fxmenu_info[i:] + fxmenu_info[0:i]:
+                    for name, opt, fmt, inc, min, max in fxmenu_info[i:] + fxmenu_info[0:i]:
                         curval = pxr.fluid_get(opt)
                         fxopts.append('%s:%s' % (name, fmt % curval))
                         args.append((curval, inc, min, max, fmt, opt))

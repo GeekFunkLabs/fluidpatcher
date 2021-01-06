@@ -13,11 +13,12 @@ import patcher
 from utils import netlink
 
 # change these values to correspond to buttons/pads on your MIDI keyboard/controller
-PATCH_SELECT_CHANNEL = 10
-DEC_CC = 27
+PATCH_INC_CHANNEL = 10
 INC_CC = 28
-# uncomment and modify this if using a knob/slider to select patch
-# SELECT_CC = 29
+DEC_CC = 27
+# uncomment and modify these if using a knob/slider to select patch
+# PATCH_SELECT_CHANNEL = 1
+# SELECT_CC = 17
 
 
 POLL_TIME = 0.025
@@ -89,9 +90,9 @@ def headless_synth(cfgfile):
         # problem with bank file
         error_blink(3)
 
-    pxr.link_cc('inc', type='patch', chan=PATCH_SELECT_CHANNEL, cc=INC_CC)
-    pxr.link_cc('dec', type='patch', chan=PATCH_SELECT_CHANNEL, cc=DEC_CC)
-    if 'SELECT_CC' in locals():
+    pxr.link_cc('inc', type='patch', chan=PATCH_INC_CHANNEL, cc=INC_CC)
+    pxr.link_cc('dec', type='patch', chan=PATCH_INC_CHANNEL, cc=DEC_CC)
+    if 'PATCH_SELECT_CHANNEL' in locals():
         pxr.link_cc('select', type='patch', chan=PATCH_SELECT_CHANNEL, cc=SELECT_CC)
     pno = 0
     pxr.select_patch(pno)
@@ -101,8 +102,8 @@ def headless_synth(cfgfile):
     while True:
         sleep(POLL_TIME)
         changed = pxr.poll_cc()
-        if 'patch' in changed:
-            pno = (pno + changed['patch']) % pxr.patches_count()
+        if 'incpatch' in changed:
+            pno = (pno + changed['incpatch']) % pxr.patches_count()
             pxr.select_patch(pno)
             onboardled_blink()
         if 'selectpatch' in changed:
