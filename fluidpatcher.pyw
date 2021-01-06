@@ -452,7 +452,7 @@ if __name__ == "__main__":
     if len(argv) > 1:
         cfgfile = argv[1]
     else:
-        cfgfile = 'patcherconf.yaml'
+        cfgfile = 'fluidpatcherconf.yaml'
     pxr = patcher.Patcher(cfgfile)
 
     host = pxr.cfg.get('remotelink_host', '127.0.0.1')
