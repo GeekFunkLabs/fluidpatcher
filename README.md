@@ -4,7 +4,7 @@
 FluidPatcher should work on any operating system on which FluidSynth and Python can be installed. The *patcher/* module creates a Python wrapper around FluidSynth's C functions and provides an API to handle patches and banks, load soundfonts, change FluidSynth settings, etc. This repository includes the following implementations of FluidPatcher:
 - *squishbox.py* - a front-end designed to work on a Raspberry Pi with a 16x2 character LCD and two buttons, like the [SquishBox](https://www.tindie.com/products/albedozero/squishbox) designed by [Geek Funk Labs](https://geekfunklabs.com/hardware/)
 - *headlesspi.py* - a simple implementation that can run at startup on a bare-bones Raspberry Pi with no screen or keyboard
-- *wxfluidpatcher.pyw* - a cross-platform wxpython-based GUI that allows live editing of bank files, playing of patches, and browsing/playing soundfont presets; can also connect to an instance of *squishbox.py* or *headlesspi.py* to control it and edit/test banks.
+- *fluidpatcher.pyw* - a cross-platform wxpython-based GUI that allows live editing of bank files, playing of patches, and browsing/playing soundfont presets; can also connect to an instance of *squishbox.py* or *headlesspi.py* to control it and edit/test banks.
 
 Check the [wiki](https://github.com/albedozero/fluidpatcher/wiki) for more information about using the scripts, bank/config file formats, the API, etc.
 
