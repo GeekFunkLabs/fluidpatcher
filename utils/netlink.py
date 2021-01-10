@@ -63,9 +63,13 @@ class Server:
             netaddr = get_ip()
             if netaddr in ['127.0.0.1', 'localhost', 'raspberrypi']:
                 return []
-            self.socket.bind((netaddr, self.port))
-            self.socket.listen(5)
-            self.inputs = [self.socket]
+            try:
+                self.socket.bind((netaddr, self.port))
+            except:
+                pass # just keep trying if the socket is in use
+            else:
+                self.socket.listen(5)
+                self.inputs = [self.socket]
             
         while True:
             readable, writable, errored = select.select(self.inputs, [], [], 0)

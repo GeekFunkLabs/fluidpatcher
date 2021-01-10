@@ -243,10 +243,10 @@ class MainWindow(wx.Frame):
             remote.link = None
             return
         if not reply or reply.type != netlink.REQ_OK:
-            wx.MessageBox("Unable to connect to %s" % host, "Error", wx.OK|wx.ICON_ERROR)
+            wx.MessageBox("Unable to connect to %s" % remote.host, "Error", wx.OK|wx.ICON_ERROR)
             remote.link = None
             return
-        wx.MessageBox("Connected to %s!" % host, "Connected", wx.OK)
+        wx.MessageBox("Connected to %s!" % remote.host, "Connected", wx.OK)
         pxr.cfg['remotelink_host'] = remote.host
         pxr.cfg['remotelink_port'] = int(remote.port)
         pxr.write_config()
