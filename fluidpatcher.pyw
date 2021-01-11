@@ -183,7 +183,7 @@ class MainWindow(wx.Frame):
         self.Bind(wx.EVT_TIMER, self.update, self.timer)
         self.timer.Start(POLL_TIME)
         
-        _icon = wx.Icon('images/gfl_logo.ico', wx.BITMAP_TYPE_ICO)
+        _icon = wx.Icon('assets/gfl_logo.ico', wx.BITMAP_TYPE_ICO)
         self.SetIcon(_icon)
         
         self.load_bankfile(pxr.currentbank)
