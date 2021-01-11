@@ -8,6 +8,7 @@ import sys, os, re, glob, subprocess
 import patcher
 from utils import netlink, stompboxpi as SB
 
+SQUISHBOX_VERSION = '3.3'
 
 def list_midiports():
     midiports = {}
@@ -53,7 +54,7 @@ def load_bank_menu():
 
 sb = SB.StompBox()
 sb.lcd_clear()
-sb.lcd_write("Squishbox v%s" % patcher.VERSION, 0)
+sb.lcd_write("Squishbox v%s" % SQUISHBOX_VERSION, 0)
 
 # start the patcher
 if len(sys.argv) > 1:
