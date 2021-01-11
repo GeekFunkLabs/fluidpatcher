@@ -53,7 +53,7 @@ def load_bank_menu():
 
 sb = SB.StompBox()
 sb.lcd_clear()
-sb.lcd_write("Squishbox v3.2", 0)
+sb.lcd_write("Squishbox v%s" % patcher.VERSION, 0)
 
 # start the patcher
 if len(sys.argv) > 1:
