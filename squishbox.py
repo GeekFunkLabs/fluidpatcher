@@ -285,7 +285,7 @@ while True:
                         networks = re.findall('ESSID:"([^\n]*)"', x)
                     else:
                         sb.lcd_write("Password:", 0)
-                        newpsk = sb.char_input()
+                        newpsk = sb.char_input(charset = SB.PRNCHARS)
                         if newpsk == '': break
                         sb.lcd_clear()
                         sb.lcd_write(networks[j], 0)
