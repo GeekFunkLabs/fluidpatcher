@@ -26,13 +26,13 @@ class SFPreset(oyaml.YAMLObject):
 
     @classmethod
     def from_yaml(cls, loader, node):
-        vals = loader.construct_scalar(node).split(':')
+        vals = re.match('^(.+):(\d+):(\d+)$', loader.construct_scalar(node)).groups()
         name = vals[0]
         bank = int(vals[1])
         prog = int(vals[2])
         return SFPreset(name, bank, prog)
 
-oyaml.add_implicit_resolver('!sfpreset', re.compile('^[^:]+:\d+:\d+$'),
+oyaml.add_implicit_resolver('!sfpreset', re.compile('^.+:\d+:\d+$'),
                             Loader=oyaml.SafeLoader, Dumper=oyaml.SafeDumper)
 
 class CCMsg(oyaml.YAMLObject):
