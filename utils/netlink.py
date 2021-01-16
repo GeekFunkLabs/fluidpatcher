@@ -144,7 +144,11 @@ class Message:
         self.origin = origin
 
         if origin:
-            hdr = origin.recv(40)
+            try:
+                hdr = origin.recv(40)
+            except:
+                self.type = NO_COMM
+                return
             if len(hdr) == 0:
                 self.type = NO_COMM
                 return
