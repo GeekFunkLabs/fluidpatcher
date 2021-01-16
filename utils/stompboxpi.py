@@ -53,6 +53,7 @@ STATE_LONGER = 6
 CHR_BSP = 0
 CHR_ENT = 1
 INPCHARS = " abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.\/" + chr(CHR_BSP) + chr(CHR_ENT)
+PRNCHARS = ' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~' + chr(CHR_BSP) + chr(CHR_ENT)
 
 class StompBox():
 
@@ -228,7 +229,7 @@ class StompBox():
             else:
                 return val
 
-    def char_input(self, text=' ', row=1, timeout=MENU_TIMEOUT):
+    def char_input(self, text=' ', row=1, timeout=MENU_TIMEOUT, charset=INPCHARS):
         """
         a way of letting the user enter a text string with two buttons
         text: the initial value of the text
@@ -240,15 +241,15 @@ class StompBox():
         timeout returns empty string
         """
         i = len(text)
-        char = len(INPCHARS) - 1
+        char = len(charset) - 1
         self.LCD.cursor_mode = 'blink'
         while True:
             if i < len(text):
-                char = INPCHARS.find(text[i])
+                char = charset.find(text[i])
             lpos = max(i - 15, 0)
             self.lcd_write("%-16s" % text[lpos:lpos + 16], row)
             if char > -1:
-                self.lcd_write(INPCHARS[char], row, min(i, 15))
+                self.lcd_write(charset[char], row, min(i, 15))
             self.LCD.cursor_pos = (row, min(i, 15))
             tstop = time.time() + timeout
             while time.time() < tstop:
@@ -258,20 +259,20 @@ class StompBox():
                 elif STATE_TAP in self.state.values():
                     if i==len(text):
                         if self.state[BTN_R] == STATE_TAP:
-                            char = (char + 1) % len(INPCHARS)
+                            char = (char + 1) % len(charset)
                         else:
-                            char = (char - 1) % len(INPCHARS)
+                            char = (char - 1) % len(charset)
                     else:
                         if self.state[BTN_R] == STATE_TAP:
-                            char = (char + 1) % (len(INPCHARS) - 2)
+                            char = (char + 1) % (len(charset) - 2)
                         else:
-                            char = (char - 1) % (len(INPCHARS) - 2)
-                    if char < (len(INPCHARS) - 2):
-                        text = text[0:i] + INPCHARS[char] + text[i+1:]
+                            char = (char - 1) % (len(charset) - 2)
+                    if char < (len(charset) - 2):
+                        text = text[0:i] + charset[char] + text[i+1:]
                     break
                 elif self.state[BTN_R] >= STATE_HOLD:
                     if self.state[BTN_R] == STATE_HELD: continue
-                    if char == (len(INPCHARS) - 1):
+                    if char == (len(charset) - 1):
                         if self.state[BTN_R] != STATE_HOLD: continue
                         self.LCD.cursor_mode = 'hide'
                         self.lcd_blink(text.strip()[0:16], row)
@@ -279,11 +280,11 @@ class StompBox():
                     if self.state[BTN_R] > STATE_HELD: time.sleep(BLINK_TIME)
                     i = min(i + 1, len(text))
                     if i == len(text):
-                        char = len(INPCHARS) - 1
+                        char = len(charset) - 1
                     break
                 elif self.state[BTN_L] >= STATE_HOLD:
                     if self.state[BTN_L] == STATE_HELD: continue
-                    if char == (len(INPCHARS) - 2):
+                    if char == (len(charset) - 2):
                         text = text[0:max(0, i - 1)] + text[i:]
                     if self.state[BTN_L] > STATE_HELD: time.sleep(BLINK_TIME)
                     i = max(i - 1, 0)
