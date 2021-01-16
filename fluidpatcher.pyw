@@ -73,6 +73,7 @@ class SoundfontBrowser(wx.Dialog):
         if remote.link:
             response = remote_link_request(netlink.LOAD_SOUNDFONT, sf)
             if response == None: self.EndModal(wx.CANCEL)
+            print(response)
             for p in patcher.read_yaml(response):
                 self.presetlist.Append(("%03d:" % p.bank, "%03d:" % p.prog, p.name))
         else:
@@ -234,7 +235,9 @@ class MainWindow(wx.Frame):
     def remote_connect(self):
         addr = wx.GetTextFromUser("Network Address (host:port):", "Remote Link", "%s:%s" % (remote.host, remote.port))
         if addr == '': return
-        remote.host, remote.port = addr.split(':')
+        remote.host = addr.split(':')[0]
+        if len(addr.split(':')) > 1:
+            remote.port = addr.split(':')[1]
         try:
             remote.link = netlink.Client(remote.host, int(remote.port), remote.passkey)
             reply = remote.link.request(netlink.SEND_VERSION)
@@ -299,8 +302,8 @@ class MainWindow(wx.Frame):
                 wx.MessageBox(str(e), "Error", wx.OK|wx.ICON_ERROR)
                 return
             pxr.write_config()
-            self.currentfile = bfile
-            self.SetTitle(APP_NAME + ' - ' + self.currentfile)
+            self.SetTitle(APP_NAME + ' - ' + bfile)
+        self.currentfile = bfile
 
     def onExit(self, event=None):
         if isinstance(event, wx.CloseEvent) and not event.CanVeto():
