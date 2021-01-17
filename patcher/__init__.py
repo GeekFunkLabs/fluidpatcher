@@ -39,9 +39,9 @@ class Patcher:
         fluidsettings.update(self.cfg.get('fluidsettings', {}))
         self._fluid = fluidwrap.Synth(**fluidsettings)        
         self._max_channels = fluidsettings.get('synth.midi-channels', 16)
+        self._bank = {'patches': {'Empty Bank': {}}}
         self._soundfonts = set()
         self._cc_links = []
-        
         self.sfpresets = []
 
     @property
@@ -98,9 +98,11 @@ class Patcher:
         if '\n' not in bank: # probably not yaml
             if bank != '':
                 bfile = bank
-            f = open(joinpath(self.bankdir, bfile))
-            bank = f.read()
-            f.close()
+            try:
+                with open(joinpath(self.bankdir, bfile)) as f:
+                    bank = f.read()
+            except:
+                return ''
         try:
             b = read_yaml(bank)
         except yamlext.YAMLError:
@@ -266,13 +268,14 @@ class Patcher:
         return True
         
     def select_sfpreset(self, presetnum):
+        warnings = []
         p = self.sfpresets[presetnum]
         if not self._soundfonts:
-            return False
+            warnings.append('Unable to load soundfont')
         soundfont = list(self._soundfonts)[0]
         if not self._fluid.program_select(0, joinpath(self.sfdir, soundfont), p.bank, p.prog):
-            return False
-        return True
+            warnings.append('Unable to select preset %s' % p)
+        return warnings
 
     def fluid_get(self, opt):
         return self._fluid.get_setting(opt)

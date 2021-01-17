@@ -92,7 +92,7 @@ except patcher.PatcherError:
         if load_bank_menu():
             break
 pno = 0
-pxr.select_patch(pno)
+warn = pxr.select_patch(pno)
 networks = []
 
 fxmenu_info = (                    
@@ -120,6 +120,9 @@ while True:
         patchname = pxr.patch_name(pno)
         sb.lcd_write(patchname, 0)
         sb.lcd_write("%16s" % ("patch: %d/%d" % (pno + 1, ptot)), 1)
+    if warn:
+        sb.lcd_write(';'.join(warn), 1)
+        warn = []
 
     # input loop
     while True:
@@ -133,9 +136,9 @@ while True:
             elif sb.state[SB.BTN_L] == SB.STATE_TAP:
                 pno = (pno - 1) % ptot
             if pxr.sfpresets:
-                pxr.select_sfpreset(pno)
+                warn = pxr.select_sfpreset(pno)
             else:
-                pxr.select_patch(pno)
+                warn = pxr.select_patch(pno)
             break
 
         # right button menu
@@ -156,7 +159,7 @@ while True:
                         pxr.add_patch(newname, addlike=patchname)
                     pxr.update_patch(newname)
                 pno = pxr.patch_index(newname)
-                pxr.select_patch(pno)
+                warn = pxr.select_patch(pno)
                 
             elif k == 1: # delete patch if it's not last one or a preset; ask confirm
                 if pxr.sfpresets or ptot < 2:
@@ -167,12 +170,12 @@ while True:
                 if j == 0:
                     pxr.delete_patch(patchname)
                     pno = min(pno, (ptot - 2))
-                    pxr.select_patch(pno)
+                    warn = pxr.select_patch(pno)
                     
             elif k == 2: # load bank
                 if not load_bank_menu(): break
                 pno = 0
-                pxr.select_patch(pno)
+                warn = pxr.select_patch(pno)
                 pxr.write_config()
                 
             elif k == 3: # save bank, prompt for name
@@ -206,7 +209,7 @@ while True:
                 pxr.load_soundfont(sf[s])
                 sb.waitforrelease(1)
                 pno = 0
-                pxr.select_sfpreset(pno)
+                warn = pxr.select_sfpreset(pno)
                 
             elif k == 5: # effects menu
                 i=0
@@ -339,7 +342,7 @@ while True:
             except patcher.PatcherError:
                 if pno >= pxr.patches_count():
                     pno = 0
-            pxr.select_patch(pno)
+            warn = pxr.select_patch(pno)
             sb.waitforrelease(1)
             break
 
