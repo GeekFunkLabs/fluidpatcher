@@ -121,7 +121,7 @@ class StompBox():
         while True:
             self.update()
             if time.time() >= tmin:
-                if sum(self.state.values()) == STATE_NONE:
+                if all(s == STATE_NONE for s in self.state.values()):
                     break
 
     def waitfortap(self, t):
