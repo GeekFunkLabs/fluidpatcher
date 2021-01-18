@@ -10,7 +10,7 @@ from utils import netlink, stompboxpi as SB
 
 SQUISHBOX_VERSION = '3.3'
 
-def list_midiports():
+def scan_midiports():
     midiports = {}
     x = subprocess.check_output(['aconnect', '-o']).decode()
     for port, client in re.findall(" (\d+): '([^\n]*)'", x):
@@ -68,7 +68,7 @@ except patcher.PatcherError:
     sys.exit("bad config file")
 
 # hack to connect MIDI devices to old versions of fluidsynth
-midiports = list_midiports()
+midiports = scan_midiports()
 for client in midiports:
     if client == 'FLUID Synth': continue
     subprocess.run(['aconnect', midiports[client], midiports['FLUID Synth']])
@@ -122,7 +122,6 @@ while True:
         sb.lcd_write("%16s" % ("patch: %d/%d" % (pno + 1, ptot)), 1)
     if warn:
         sb.lcd_write(';'.join(warn), 1)
-        warn = []
 
     # input loop
     while True:
@@ -131,6 +130,9 @@ while True:
 
         # patch/preset switching
         if SB.STATE_TAP in sb.state.values():
+            if warn:
+                warn = []
+                break
             if sb.state[SB.BTN_R] == SB.STATE_TAP:
                 pno = (pno + 1) % ptot
             elif sb.state[SB.BTN_L] == SB.STATE_TAP:
@@ -206,8 +208,9 @@ while True:
                 s = sb.choose_opt(sf, row=1, timeout=0)
                 if s < 0: break
                 sb.lcd_write("loading...      ", row=1)
-                pxr.load_soundfont(sf[s])
-                sb.waitforrelease(1)
+                if not pxr.load_soundfont(sf[s]):
+                    sb.lcd_write("unable to load! ", 1)
+                sb.waitforrelease(2)
                 pno = 0
                 warn = pxr.select_sfpreset(pno)
                 
@@ -242,7 +245,7 @@ while True:
                 subprocess.run('sudo shutdown -h now'.split())
                 
             elif k == 1: # reconnect midi devices
-                ports = list_midiports()
+                ports = scan_midiports()
                 clients = list(ports.keys())
                 clients.remove('FLUID Synth')
                 sb.lcd_write("MIDI Devices:   ", 0)
@@ -366,17 +369,14 @@ while True:
                 except patcher.PatcherError as e:
                     remote_link.reply(req, str(e), netlink.REQ_ERROR)
                 else:
-                    remote_link.reply(req, ','.join(pxr.patch_names()))
-                    pno = 0
-                    pxr.select_patch(pno)
-                    break
+                    remote_link.reply(req, patcher.write_yaml(pxr.patch_names()))
                     
             elif req.type == netlink.LIST_BANKS:
                 banks = list_banks()
                 if not banks:
                     remote_link.reply(req, "no banks found!", netlink.REQ_ERROR)
                 else:
-                    remote_link.reply(req, ','.join(banks))
+                    remote_link.reply(req, patcher.write_yaml(banks))
                 
             elif req.type == netlink.LOAD_BANK:
                 sb.lcd_write(req.body, 0)
@@ -390,10 +390,7 @@ while True:
                 else:
                     info = patcher.write_yaml(pxr.currentbank, rawbank, pxr.patch_names())
                     remote_link.reply(req, info)
-                    pno = 0
-                    pxr.select_patch(pno)
                     pxr.write_config()
-                    break
                     
             elif req.type == netlink.SAVE_BANK:
                 bfile, rawbank = patcher.read_yaml(req.body)
@@ -407,14 +404,15 @@ while True:
                             
             elif req.type == netlink.SELECT_PATCH:
                 try:
-                    warn = pxr.select_patch(int(req.body))
+                    if req.body.isdecimal():
+                        pno = int(req.body)
+                    else:
+                        pno = pxr.patch_index(req.body)
+                    warn = pxr.select_patch(pno)
                 except patcher.PatcherError as e:
-                    warn = str(e)
-                if warn:
-                    remote_link.reply(req, warn, netlink.REQ_ERROR)
+                    remote_link.reply(req, str(e), netlink.REQ_ERROR)
                 else:
-                    remote_link.reply(req)
-                    pno = int(req.body)
+                    remote_link.reply(req, warn)
                     break
                     
             elif req.type == netlink.LIST_SOUNDFONTS:
@@ -422,30 +420,34 @@ while True:
                 if not sf:
                     remote_link.reply(req, "no soundfonts!", netlink.REQ_ERROR)
                 else:
-                    remote_link.reply(req, ','.join(sf))
+                    remote_link.reply(req, patcher.write_yaml(sf))
             
             elif req.type == netlink.LOAD_SOUNDFONT:
                 sb.lcd_write(req.body, 0)
                 sb.lcd_write("loading...      ", 1)
-                pxr.load_soundfont(req.body)
-                remote_link.reply(req, patcher.write_yaml(pxr.sfpresets))
-                pno = 0
-                pxr.select_sfpreset(pno)
-                break
+                if not pxr.load_soundfont(req.body):
+                    sb.lcd_write("unable to load! ", 1)
+                    remote_link.reply(req, "Unable to load %s" % req.body, netlink.REQ_ERROR)
+                else:
+                    remote_link.reply(req, patcher.write_yaml(pxr.sfpresets))
             
             elif req.type == netlink.SELECT_SFPRESET:
-                remote_link.reply(req)
                 pno = int(req.body)
-                pxr.select_sfpreset(pno)
+                warn = pxr.select_sfpreset(pno)
+                remote_link.reply(req, warn)
                 break
 
             elif req.type == netlink.LIST_PLUGINS:
-                info = subprocess.check_output(['listplugins']).decode()
-                remote_link.reply(req, info)
+                try:
+                    info = subprocess.check_output(['listplugins']).decode()
+                except:
+                    remote_link.reply(req, 'No plugins installed')
+                else:
+                    remote_link.reply(req, patcher.write_yaml(info))
 
             elif req.type == netlink.LIST_PORTS:
-                info = '\n'.join(list_midiports().keys())
-                remote_link.reply(req, info)
+                ports = list(scan_midiports().keys())
+                remote_link.reply(req, patcher.write_yaml(ports))
 
             elif req.type == netlink.READ_CFG:
                 info = patcher.write_yaml(pxr.cfgfile, pxr.read_config())

@@ -29,7 +29,10 @@ def remote_link_request(type, body=''):
         wx.MessageBox(reply.body, "Error", wx.OK|wx.ICON_ERROR)
         return None
     else:
-        return reply.body
+        if reply.body == '':
+            return reply.body
+        else:
+            return patcher.read_yaml(reply.body)
 
 
 class TextMsgDialog(wx.Dialog):
@@ -73,8 +76,7 @@ class SoundfontBrowser(wx.Dialog):
         if remote.link:
             response = remote_link_request(netlink.LOAD_SOUNDFONT, sf)
             if response == None: self.EndModal(wx.CANCEL)
-            print(response)
-            for p in patcher.read_yaml(response):
+            for p in response:
                 self.presetlist.Append(("%03d:" % p.bank, "%03d:" % p.prog, p.name))
         else:
             pxr.load_soundfont(sf)
@@ -98,8 +100,13 @@ class SoundfontBrowser(wx.Dialog):
         if remote.link:
             response = remote_link_request(netlink.SELECT_SFPRESET, self.pno)
             if response == None: self.EndModal(wx.CANCEL)
+            if response:
+                warn = patcher.read_yaml(response)
+                wx.MessageBox('\n'.join(warn), "Warning", wx.OK|wx.ICON_WARNING)
         else:
-            pxr.select_sfpreset(self.pno)
+            warn = pxr.select_sfpreset(self.pno)
+            if warn:
+                wx.MessageBox('\n'.join(warn), "Warning", wx.OK|wx.ICON_WARNING)
         bank, prog = [self.presetlist.GetItemText(event.GetIndex(), x).strip(':') for x in (0, 1)]
         self.copypreset = ':'.join((self.sf, bank, prog))
         
@@ -193,7 +200,7 @@ class MainWindow(wx.Frame):
         if remote.link:
             response = remote_link_request(netlink.LOAD_BANK, bfile)
             if response == None: return
-            bfile, rawbank, patches = patcher.read_yaml(response)
+            bfile, rawbank, patches = response
             title = APP_NAME + ' - ' + bfile + '@' + remote.host
         else:
             try:
@@ -227,7 +234,9 @@ class MainWindow(wx.Frame):
             self.pno = pno
             self.patchlist.SetSelection(pno)
         if remote.link:
-            remote_link_request(netlink.SELECT_PATCH, self.pno)
+            response = remote_link_request(netlink.SELECT_PATCH, self.pno)
+            if response:
+                wx.MessageBox('\n'.join(response), "Warning", wx.OK|wx.ICON_WARNING)
         else:
             warn = pxr.select_patch(self.pno)
             if warn: wx.MessageBox('\n'.join(warn), "Warning", wx.OK|wx.ICON_WARNING)
@@ -267,9 +276,8 @@ class MainWindow(wx.Frame):
 
     def onOpen(self, event):
         if remote.link:
-            response = remote_link_request(netlink.LIST_BANKS)
-            if response == None: return
-            banks = response.split(',')
+            banks = remote_link_request(netlink.LIST_BANKS)
+            if banks == None: return
             bfile = wx.GetSingleChoice("Choose bank to load:", "Load Bank", banks)
             if bfile == '': return
         else:
@@ -282,14 +290,15 @@ class MainWindow(wx.Frame):
         self.onSaveAs(bfile=self.currentfile)
 
     def onSaveAs(self, event=None, bfile=''):
-        self.onRefresh()
+        if not self.onRefresh():
+            return
         rawbank = self.btxt.GetValue()
         if remote.link:
             bfile = wx.GetTextFromUser("Bank file to save:", "Save Bank", bfile)
             if bfile == '': return
             if not bfile.endswith('.yaml'): bfile += '.yaml'
-            response = remote_link_request(netlink.SAVE_BANK, patcher.write_yaml(bfile, rawbank))
-            if response == None: return
+            if remote_link_request(netlink.SAVE_BANK, patcher.write_yaml(bfile, rawbank)) == None:
+                return
             self.SetTitle(APP_NAME + ' - ' + bfile + '@' + remote.host)
         else:
             if bfile == '':
@@ -317,11 +326,10 @@ class MainWindow(wx.Frame):
 
     def onChoosePreset(self, event):
         if remote.link:
-            response = remote_link_request(netlink.LIST_SOUNDFONTS)
-            if response == None: return
-            sfonts = response.split(',')
+            sfonts = remote_link_request(netlink.LIST_SOUNDFONTS)
+            if sfonts == None: return
             sfont = wx.GetSingleChoice("Choose Soundfont to Open:", "Open Soundfont", sfonts)
-            if sfont == '': return        
+            if sfont == '': return
         else:
             s = wx.FileSelector("Open Soundfont", pxr.sfdir, "", "*.sf2", "Soundfont (*.sf2)|*.sf2", wx.FD_OPEN)
             if s == '': return
@@ -351,8 +359,9 @@ class MainWindow(wx.Frame):
 
     def onListMIDI(self, event):
         if remote.link:
-            ports = remote_link_request(netlink.LIST_PORTS)
-            if not ports: return
+            response = remote_link_request(netlink.LIST_PORTS)
+            if not response: return
+            ports = '\n'.join(response)
             caption = "MIDI ports on %s:" % remote.host
         else:
             ports = "Inputs:\n  %s\nOutputs:\n  %s" % (
@@ -372,7 +381,8 @@ class MainWindow(wx.Frame):
     def onSettings(self, event):
         if remote.link:
             response = remote_link_request(netlink.READ_CFG)
-            file, rawcfg = patcher.read_yaml(response)
+            if not response: return
+            file, rawcfg = response
         else:
             file = pxr.cfgfile
             rawcfg = pxr.read_config()
@@ -410,12 +420,11 @@ class MainWindow(wx.Frame):
             patcher.read_yaml(rawbank)
         except Exception as e:
             wx.MessageBox(str(e), "Error", wx.OK|wx.ICON_ERROR)
-            return
+            return False
         if remote.link:
-            response = remote_link_request(netlink.RECV_BANK, rawbank)
-            if response == None: return
+            patches = remote_link_request(netlink.RECV_BANK, rawbank)
+            if patches == None: return False
             lastpatch = self.patchlist.GetString(self.pno)
-            patches = response.split(',')
         else:
             lastpatch = pxr.patch_name(self.pno)
             pxr.load_bank(rawbank)
@@ -430,6 +439,7 @@ class MainWindow(wx.Frame):
             self.pno = 0
         self.patchlist.SetSelection(self.pno)
         self.choose_patch(pno=self.pno)
+        return True
         
     def onMod(self, event):
         self.SetTitle(self.GetTitle().rstrip('*') + '*')
