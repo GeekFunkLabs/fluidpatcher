@@ -269,12 +269,13 @@ class Patcher:
         
     def select_sfpreset(self, presetnum):
         warnings = []
-        p = self.sfpresets[presetnum]
-        if not self._soundfonts:
-            warnings.append('Unable to load soundfont')
-        soundfont = list(self._soundfonts)[0]
-        if not self._fluid.program_select(0, joinpath(self.sfdir, soundfont), p.bank, p.prog):
-            warnings.append('Unable to select preset %s' % p)
+        if presetnum < len(self.sfpresets):
+            p = self.sfpresets[presetnum]
+            soundfont = list(self._soundfonts)[0]
+            if not self._fluid.program_select(0, joinpath(self.sfdir, soundfont), p.bank, p.prog):
+                warnings.append('Unable to select preset %s' % p)
+        else:
+            warnings.append('Preset out of range')
         return warnings
 
     def fluid_get(self, opt):
