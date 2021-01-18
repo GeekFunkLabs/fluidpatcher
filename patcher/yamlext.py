@@ -84,10 +84,13 @@ class RouterSpec(oyaml.YAMLObject):
     def from_yaml(cls, loader, node):
         route = list(rspecex.findall(loader.construct_scalar(node))[0])
         for i, spec in enumerate(route):
-            if re.match('^[+-]?(\d*\.\d+|\d+\.\d*)', spec):
+            try:
                 route[i] = float(spec)
-            elif re.match('^[+-]?[\d]+', spec):
-                route[i] = int(spec)
+            except ValueError:
+                pass
+            else:
+                if route[i] == int(route[i]):
+                    route[i] = int(route[i])
         return RouterSpec(*route)
         
 oyaml.add_implicit_resolver('!rspec', rspecex,
