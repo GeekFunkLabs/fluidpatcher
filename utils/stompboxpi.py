@@ -229,7 +229,7 @@ class StompBox():
             else:
                 return val
 
-    def char_input(self, text=' ', row=1, timeout=MENU_TIMEOUT, charset=INPCHARS):
+    def char_input(self, text='', row=1, timeout=MENU_TIMEOUT, charset=INPCHARS):
         """
         a way of letting the user enter a text string with two buttons
         text: the initial value of the text

@@ -290,7 +290,7 @@ while True:
                         x = subprocess.check_output('sudo iwlist wlan0 scan'.split(), timeout=20).decode()
                         networks = re.findall('ESSID:"([^\n]*)"', x)
                     else:
-                        sb.lcd_write("Password:", 0)
+                        sb.lcd_write("Password:       ", 0)
                         newpsk = sb.char_input(charset = SB.PRNCHARS)
                         if newpsk == '': break
                         sb.lcd_clear()
