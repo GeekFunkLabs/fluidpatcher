@@ -156,7 +156,7 @@ class Message:
                 self.type = MSG_INVALID
                 return
             try:
-                self.type, self.passkey, msglen, self.id = int(hdr[0:2]), hdr[3:9].decode(), int(hdr[9:19]), int(hdr[19:40])
+                self.type, self.passkey, msglen, self.id = int(hdr[0:2]), hdr[2:9].decode().strip(), int(hdr[9:19]), int(hdr[19:40])
             except ValueError:
                 self.type = MSG_INVALID
                 return
