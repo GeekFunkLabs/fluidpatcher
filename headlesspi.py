@@ -16,9 +16,9 @@ from utils import netlink
 PATCH_INC_CHANNEL = 10
 INC_CC = 28
 DEC_CC = 27
-# uncomment and modify these if using a knob/slider to select patch
-# PATCH_SELECT_CHANNEL = 1
-# SELECT_CC = 17
+# modify these if using a knob/slider to select patch
+PATCH_SELECT_CHANNEL = 1
+SELECT_CC = 17
 
 
 POLL_TIME = 0.025
@@ -45,7 +45,7 @@ def list_soundfonts():
 
 def onboardled_set(state=1):
     e = subprocess.Popen(('sudo', 'echo', str(state)), stdout=subprocess.PIPE)
-    subprocess.run(('sudo', 'tee', '/sys/class/leds/led1/brightness'), stdin = e.stdout)
+    subprocess.run(('sudo', 'tee', '/sys/class/leds/led1/brightness'), stdin=e.stdout, stdout=subprocess.DEVNULL)
 
 def onboardled_blink():
     onboardled_set(1)
@@ -92,8 +92,7 @@ def headless_synth(cfgfile):
 
     pxr.link_cc('inc', type='patch', chan=PATCH_INC_CHANNEL, cc=INC_CC)
     pxr.link_cc('dec', type='patch', chan=PATCH_INC_CHANNEL, cc=DEC_CC)
-    if 'PATCH_SELECT_CHANNEL' in locals():
-        pxr.link_cc('select', type='patch', chan=PATCH_SELECT_CHANNEL, cc=SELECT_CC)
+    pxr.link_cc('select', type='patch', chan=PATCH_SELECT_CHANNEL, cc=SELECT_CC)
     pno = 0
     pxr.select_patch(pno)
 
