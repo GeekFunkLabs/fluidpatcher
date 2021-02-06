@@ -3,9 +3,7 @@ bankdir: /home/pi/SquishBox/banks
 currentbank: bank0.yaml
 fluidsettings: # http://www.fluidsynth.org/api/fluidsettings.xml
   midi.autoconnect: 1
-  synth.midi-channels: 16
   audio.driver: alsa
   audio.period-size: 64
   audio.periods: 3
   synth.ladspa.active: 1
-
