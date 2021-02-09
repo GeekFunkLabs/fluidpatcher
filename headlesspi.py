@@ -7,6 +7,7 @@ Description: an implementation of patcher.py for a headless Raspberry Pi
 import glob, subprocess
 from re import findall
 from time import sleep
+from os import umask
 from os.path import relpath, join as joinpath
 from sys import argv
 import patcher
@@ -44,7 +45,7 @@ def list_soundfonts():
     return [relpath(x, start=pxr.sfdir) for x in sfpaths]
 
 def onboardled_set(state=1):
-    e = subprocess.Popen(('sudo', 'echo', str(state)), stdout=subprocess.PIPE)
+    e = subprocess.Popen(('echo', str(state)), stdout=subprocess.PIPE)
     subprocess.run(('sudo', 'tee', '/sys/class/leds/led1/brightness'), stdin=e.stdout, stdout=subprocess.DEVNULL)
 
 def onboardled_blink():
@@ -214,6 +215,7 @@ def headless_synth(cfgfile):
 
 if __name__ == "__main__":
     onboardled_set(0)
+    umask(0o002)
 
     if len(argv) > 1:
         cfgfile = argv[1]

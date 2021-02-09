@@ -56,6 +56,8 @@ sb = SB.StompBox()
 sb.lcd_clear()
 sb.lcd_write("Squishbox v%s" % SQUISHBOX_VERSION, 0)
 
+os.umask(0o002)
+
 # start the patcher
 if len(sys.argv) > 1:
     cfgfile = sys.argv[1]
