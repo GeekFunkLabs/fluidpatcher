@@ -15,11 +15,14 @@ from utils import netlink
 
 # change these values to correspond to buttons/pads on your MIDI keyboard/controller
 PATCH_INC_CHANNEL = 10
-INC_CC = 28
-DEC_CC = 27
-# modify these if using a knob/slider to select patch
-PATCH_SELECT_CHANNEL = 1
-SELECT_CC = 17
+DEC_CC = 21
+INC_CC = 22
+# uncomment and modify these if using a knob/slider to select patch
+#PATCH_SELECT_CHANNEL = 1
+#SELECT_CC = 17
+# uncomment and modify if you want to be able to switch banks
+#BANK_INC_CHANNEL = 10
+#BANK_INC_CC = 24
 
 
 POLL_TIME = 0.025
@@ -35,14 +38,6 @@ def scan_midiports():
         else:
             midiports[client] = port
     return midiports
-
-def list_banks():
-    bpaths = sorted(glob.glob(joinpath(pxr.bankdir, '**', '*.yaml'), recursive=True), key=str.lower)
-    return [relpath(x, start=pxr.bankdir) for x in bpaths]
-
-def list_soundfonts():
-    sfpaths = sorted(glob.glob(joinpath(pxr.sfdir, '**', '*.sf2'), recursive=True), key=str.lower)
-    return [relpath(x, start=pxr.sfdir) for x in sfpaths]
 
 def onboardled_set(state=1):
     e = subprocess.Popen(('echo', str(state)), stdout=subprocess.PIPE)
@@ -91,11 +86,22 @@ def headless_synth(cfgfile):
         # problem with bank file
         error_blink(3)
 
-    pxr.link_cc('inc', type='patch', chan=PATCH_INC_CHANNEL, cc=INC_CC)
-    pxr.link_cc('dec', type='patch', chan=PATCH_INC_CHANNEL, cc=DEC_CC)
-    pxr.link_cc('select', type='patch', chan=PATCH_SELECT_CHANNEL, cc=SELECT_CC)
+    pxr.link_cc('incpatch', type='patch', chan=PATCH_INC_CHANNEL, cc=INC_CC, xfrm='1-127*0+1')
+    pxr.link_cc('incpatch', type='patch', chan=PATCH_INC_CHANNEL, cc=DEC_CC, xfrm='1-127*0-1')
+    if 'PATCH_SELECT_CHANNEL' in globals():
+        pxr.link_cc('selectpatch', type='patch', chan=PATCH_SELECT_CHANNEL, cc=SELECT_CC)
+    if 'BANK_INC_CHANNEL' in globals():
+        pxr.link_cc('incbank', type='bank', chan=BANK_INC_CHANNEL, cc=BANK_INC_CC, xfrm='1-127*0+1')
     pno = 0
     pxr.select_patch(pno)
+
+    def list_banks():
+        bpaths = sorted(glob.glob(joinpath(pxr.bankdir, '**', '*.yaml'), recursive=True), key=str.lower)
+        return [relpath(x, start=pxr.bankdir) for x in bpaths]
+
+    def list_soundfonts():
+        sfpaths = sorted(glob.glob(joinpath(pxr.sfdir, '**', '*.sf2'), recursive=True), key=str.lower)
+        return [relpath(x, start=pxr.sfdir) for x in sfpaths]
 
 
     # main loop
@@ -106,13 +112,28 @@ def headless_synth(cfgfile):
             pno = (pno + changed['incpatch']) % pxr.patches_count()
             pxr.select_patch(pno)
             onboardled_blink()
-        if 'selectpatch' in changed:
+        elif 'selectpatch' in changed:
             x = int(changed['selectpatch'] * min(pxr.patches_count(), 128) / 128)
             if x != pno:
                 pno = x
                 pxr.select_patch(pno)
                 onboardled_blink()
-
+        elif 'incbank' in changed:
+            banks = list_banks()
+            if pxr.currentbank in banks:
+                bno = banks.index(pxr.currentbank)
+            else:
+                bno = 0
+            bno = (bno + changed['incbank']) % len(banks)
+            try:
+                onboardled_set(1)
+                pxr.load_bank(banks[bno])
+                onboardled_set(0)
+                pno = 0
+                pxr.select_patch(pno)
+            except patcher.PatcherError:
+                error_blink(3)
+                
 
         # check remote link for requests and process them
         if remote_link and remote_link.pending():
@@ -228,3 +249,4 @@ if __name__ == "__main__":
         exit(1)
     except:
         error_blink(4)
+
