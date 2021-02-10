@@ -306,13 +306,8 @@ class Patcher:
                         self.fluid_set(link.target, val)
                     elif link.type == 'effect':
                         self._fluid.fx_setcontrol(link.target, link.port, val)
-                    elif link.type == 'patch':
-                        if link.target == 'inc' and link.val > 0:
-                            retvals['incpatch'] = 1
-                        elif link.target == 'dec' and link.val > 0:
-                            retvals['incpatch'] = -1
-                        elif link.target == 'select':
-                            retvals['selectpatch'] = val
+                    else:
+                        retvals[link.target] = val
         return retvals
         
     def cclinks_clear(self, type=''):
