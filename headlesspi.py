@@ -15,14 +15,14 @@ from utils import netlink
 
 # change these values to correspond to buttons/pads on your MIDI keyboard/controller
 PATCH_INC_CHANNEL = 10
-DEC_CC = 21
-INC_CC = 22
+DEC_CC = 25
+INC_CC = 26
 # uncomment and modify these if using a knob/slider to select patch
-#PATCH_SELECT_CHANNEL = 1
-#SELECT_CC = 17
+PATCH_SELECT_CHANNEL = 1
+SELECT_CC = 17
 # uncomment and modify if you want to be able to switch banks
-#BANK_INC_CHANNEL = 10
-#BANK_INC_CC = 24
+BANK_INC_CHANNEL = 10
+BANK_INC_CC = 28
 
 
 POLL_TIME = 0.025
@@ -39,31 +39,43 @@ def scan_midiports():
             midiports[client] = port
     return midiports
 
-def onboardled_set(state=1):
-    e = subprocess.Popen(('echo', str(state)), stdout=subprocess.PIPE)
-    subprocess.run(('sudo', 'tee', '/sys/class/leds/led1/brightness'), stdin=e.stdout, stdout=subprocess.DEVNULL)
+try:
+    subprocess.run(('cat', '/sys/class/leds/led1/brightness'), stdout=subprocess.DEVNULL)
+except:
+    def onboardled_set(state=1):
+        pass
+        
+    def onboardled_blink():
+        pass
+        
+    def error_blink(n, e=None):
+        if e: raise e    
+else:
+    def onboardled_set(state=1):
+        e = subprocess.Popen(('echo', str(state)), stdout=subprocess.PIPE)
+        subprocess.run(('sudo', 'tee', '/sys/class/leds/led1/brightness'), stdin=e.stdout, stdout=subprocess.DEVNULL)
 
-def onboardled_blink():
-    onboardled_set(1)
-    sleep(0.1)
-    onboardled_set(0)
-    
-def error_blink(n):
-    # indicate a problem by blinking one of the onboard LEDs and block forever
-    while True:
-        for i in range(n):
-            onboardled_blink()
-            sleep(0.1)
-        sleep(1)            
+    def onboardled_blink():
+        onboardled_set(1)
+        sleep(0.1)
+        onboardled_set(0)
+        
+    def error_blink(n, e=None):
+        # indicate a problem by blinking one of the onboard LEDs and block forever
+        while True:
+            for i in range(n):
+                onboardled_blink()
+                sleep(0.1)
+            sleep(1)            
 
 
 def headless_synth(cfgfile):
     # start the patcher
     try:
         pxr = patcher.Patcher(cfgfile)
-    except patcher.PatcherError:
+    except patcher.PatcherError as e:
         # problem with config file
-        error_blink(2)
+        error_blink(2, e)
 
     # hack to connect MIDI devices to old versions of fluidsynth
     midiports = scan_midiports()
@@ -82,9 +94,9 @@ def headless_synth(cfgfile):
     # load bank
     try:
         pxr.load_bank(pxr.currentbank)
-    except patcher.PatcherError:
+    except patcher.PatcherError as e:
         # problem with bank file
-        error_blink(3)
+        error_blink(3, e)
 
     pxr.link_cc('incpatch', type='patch', chan=PATCH_INC_CHANNEL, cc=INC_CC, xfrm='1-127*0+1')
     pxr.link_cc('incpatch', type='patch', chan=PATCH_INC_CHANNEL, cc=DEC_CC, xfrm='1-127*0-1')
@@ -131,9 +143,10 @@ def headless_synth(cfgfile):
                 onboardled_set(0)
                 pno = 0
                 pxr.select_patch(pno)
-            except patcher.PatcherError:
-                error_blink(3)
-                
+            except patcher.PatcherError as e:
+                error_blink(3, e)
+            else:
+                pxr.write_config()    
 
         # check remote link for requests and process them
         if remote_link and remote_link.pending():
@@ -238,15 +251,20 @@ if __name__ == "__main__":
     onboardled_set(0)
     umask(0o002)
 
+    if '--interactive' in argv:
+        argv.remove('--interactive')
+        def error_blink(n, e=None):
+            if e: raise e    
+
     if len(argv) > 1:
         cfgfile = argv[1]
     else:
-        cfgfile = '/home/pi/SquishBox/squishboxconf.yaml'
+        cfgfile = 'SquishBox/squishboxconf.yaml'
 
     try:
         headless_synth(cfgfile)
     except KeyboardInterrupt:
         exit(1)
-    except:
-        error_blink(4)
+    except Exception as e:
+        error_blink(4, e)
 
