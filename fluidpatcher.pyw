@@ -121,6 +121,9 @@ class MainWindow(wx.Frame):
         # create menus
         fileMenu = wx.Menu()
         
+        item = fileMenu.Append(wx.ID_NEW, '&New Bank\tCtrl+N', 'Start a new bank')
+        self.Bind(wx.EVT_MENU, self.onNew, item)
+        
         item = fileMenu.Append(wx.ID_OPEN, 'L&oad Bank...\tCtrl+O', 'Load bank file')
         self.Bind(wx.EVT_MENU, self.onOpen, item)
         
@@ -274,6 +277,17 @@ class MainWindow(wx.Frame):
         self.load_bankfile(self.currentfile)
         self.linkmenuitem.SetItemLabel("&Remote Link")
 
+    def onNew(self, event):
+        if self.GetTitle().endswith('*'):
+            resp = wx.MessageBox("Unsaved changes in bank - close anyway?", "New", wx.ICON_QUESTION | wx.OK | wx.CANCEL)
+            if resp != wx.OK:
+                return
+        self.btxt.Clear()        
+        self.btxt.AppendText(" ")
+        self.btxt.SetInsertionPoint(0)
+        self.currentfile = ''
+        self.SetTitle(APP_NAME + ' - (Untitled)')
+
     def onOpen(self, event):
         if remote.link:
             banks = remote_link_request(netlink.LIST_BANKS)
@@ -318,9 +332,9 @@ class MainWindow(wx.Frame):
         if isinstance(event, wx.CloseEvent) and not event.CanVeto():
             self.Destroy()
         if self.GetTitle().endswith('*'):
-            resp = wx.MessageBox("Unsaved changes in bank - close anyway?", "Confirm Exit", wx.ICON_QUESTION | wx.YES_NO)
-            if resp != wx.YES:
-                event.Veto()
+            resp = wx.MessageBox("Unsaved changes in bank - quit anyway?", "Exit", wx.ICON_QUESTION | wx.OK | wx.CANCEL)
+            if resp != wx.OK:
+                if hasattr(event, 'Veto'): event.Veto()
                 return
         self.Destroy()
 
