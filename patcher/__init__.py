@@ -39,7 +39,7 @@ class Patcher:
         fluidsettings.update(self.cfg.get('fluidsettings', {}))
         self._fluid = fluidwrap.Synth(**fluidsettings)        
         self._max_channels = fluidsettings.get('synth.midi-channels', 16)
-        self._bank = {'patches': {'Empty Bank': {}}}
+        self._bank = {'patches': {'No Patches': {}}}
         self._soundfonts = set()
         self._cc_links = []
         self.sfpresets = []
@@ -72,7 +72,7 @@ class Patcher:
         f.close()
         try:
             self.cfg = read_yaml(raw)
-        except yamlext.YAMLError or IOError:
+        except (yamlext.YAMLError, IOError):
             raise PatcherError("Bad configuration file")
         return raw
 
@@ -83,7 +83,7 @@ class Patcher:
         if raw:
             try:
                 c = read_yaml(raw)
-            except yamlext.YAMLError or IOError:
+            except (yamlext.YAMLError, IOError):
                 raise PatcherError("Invalid config data")
             self.cfg = c
             f.write(raw)
@@ -91,25 +91,29 @@ class Patcher:
             f.write(write_yaml(self.cfg))
         f.close()
 
-    def load_bank(self, bank=''):
+    def load_bank(self, bank=None):
     # load patches, settings from :bank yaml string or filename
     # returns the file contents/yaml string
-        bfile = self.currentbank
-        if '\n' not in bank: # probably not yaml
-            if bank != '':
-                bfile = bank
-            try:
-                with open(joinpath(self.bankdir, bfile)) as f:
-                    bank = f.read()
-            except:
-                return ''
+        if bank == None:
+            bfile = self.currentbank
+        else:
+            bfile = bank
+        try:
+            f = open(joinpath(self.bankdir, bfile))
+            bank = f.read()
+            f.close()
+            self.cfg['currentbank'] = bfile
+        except (OSError, FileNotFoundError):
+            pass
         try:
             b = read_yaml(bank)
         except yamlext.YAMLError:
             raise PatcherError("Unable to parse bank data")
-        self.cfg['currentbank'] = bfile
         self._bank = b
-
+        try:
+            self._bank['patches'].values()
+        except:
+            self._bank = {'patches': {'No Patches': {}}}
         if 'fluidsettings' in self._bank:
             for opt, val in self._bank['fluidsettings'].items():
                 self.fluid_set(opt, val)
@@ -125,7 +129,7 @@ class Patcher:
         if raw:
             try:
                 b = read_yaml(raw)
-            except yamlext.YAMLError or IOError:
+            except (yamlext.YAMLError, IOError):
                 raise PatcherError("Invalid bank data")
             self._bank = b
             f.write(raw)
