@@ -1,5 +1,5 @@
-soundfontdir: /home/pi/SquishBox/sf2
-bankdir: /home/pi/SquishBox/banks
+soundfontdir: SquishBox/sf2
+bankdir: SquishBox/banks
 currentbank: bank0.yaml
 fluidsettings: # http://www.fluidsynth.org/api/fluidsettings.xml
   midi.autoconnect: 1
