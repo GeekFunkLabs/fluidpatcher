@@ -18,11 +18,11 @@ PATCH_INC_CHANNEL = 10
 DEC_CC = 25
 INC_CC = 26
 # uncomment and modify these if using a knob/slider to select patch
-PATCH_SELECT_CHANNEL = 1
-SELECT_CC = 17
+#PATCH_SELECT_CHANNEL = 1
+#SELECT_CC = 17
 # uncomment and modify if you want to be able to switch banks
-BANK_INC_CHANNEL = 10
-BANK_INC_CC = 28
+#BANK_INC_CHANNEL = 10
+#BANK_INC_CC = 28
 
 
 POLL_TIME = 0.025
