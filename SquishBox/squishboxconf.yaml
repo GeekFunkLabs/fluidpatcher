@@ -1,6 +1,6 @@
 soundfontdir: SquishBox/sf2
 bankdir: SquishBox/banks
-currentbank: bank0.yaml
+currentbank: bank1.yaml
 fluidsettings: # http://www.fluidsynth.org/api/fluidsettings.xml
   midi.autoconnect: 1
   audio.driver: alsa
