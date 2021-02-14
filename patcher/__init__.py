@@ -267,6 +267,7 @@ class Patcher:
             self._fluid.program_unset(channel)
         self._fluid.router_clear()
         self._fluid.router_default()
+        self._fluid.fxchain_clear()
         self._send_cc_defaults()
         self._midi_route('note', chan=yamlext.FromToSpec(2, self._max_channels, 0, 0))
         return True
