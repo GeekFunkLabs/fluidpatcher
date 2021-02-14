@@ -9,7 +9,7 @@ FluidPatcher should work on any operating system on which FluidSynth and Python 
 Check the [wiki](https://github.com/albedozero/fluidpatcher/wiki) for more information about using the scripts, bank/config file formats, the API, etc.
 
 ## Installation
-Requires Python 3 [Python 3](https://python.org). Installation of FluidSynth and needed Python modules varies a bit by system.
+Requires [Python 3](https://python.org). Installation of FluidSynth and needed Python modules varies a bit by system.
 
 ### Raspberry Pi
 You can run a script that will query you for options, then install and configure FluidSynth and FluidPatcher for you by typing the following at a command line:
