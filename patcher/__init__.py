@@ -76,7 +76,7 @@ class Patcher:
             raise PatcherError("Bad configuration file")
         return raw
 
-    def write_config(self, raw=''):
+    def write_config(self, raw=None):
         if self._cfgfile == '':
             return
         f = open(self._cfgfile, 'w')
@@ -305,14 +305,12 @@ class Patcher:
         retvals = {}
         for link in self._cc_links:
             if link.haschanged():
-                if link.xfrm.min <= link.val <= link.xfrm.max:
-                    val = link.val * link.xfrm.mul + link.xfrm.add
-                    if link.type == 'fluidsetting':
-                        self.fluid_set(link.target, val)
-                    elif link.type == 'effect':
-                        self._fluid.fx_setcontrol(link.target, link.port, val)
-                    else:
-                        retvals[link.target] = val
+                if link.type == 'fluidsetting':
+                    self.fluid_set(link.target, link.val)
+                elif link.type == 'effect':
+                    self._fluid.fx_setcontrol(link.target, link.port, link.val)
+                else:
+                    retvals[link.target] = link.val
         return retvals
         
     def cclinks_clear(self, type=''):
