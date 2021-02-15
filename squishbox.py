@@ -131,13 +131,13 @@ while True:
         pxr.poll_cc()
 
         # patch/preset switching
-        if SB.STATE_TAP in sb.state.values():
+        if SB.TAP in sb.buttons():
             if warn:
                 warn = []
                 break
-            if sb.state[SB.BTN_R] == SB.STATE_TAP:
+            if sb.button('right') == SB.TAP:
                 pno = (pno + 1) % ptot
-            elif sb.state[SB.BTN_L] == SB.STATE_TAP:
+            elif sb.button('left') == SB.TAP:
                 pno = (pno - 1) % ptot
             if pxr.sfpresets:
                 warn = pxr.select_sfpreset(pno)
@@ -146,7 +146,7 @@ while True:
             break
 
         # right button menu
-        if sb.state[SB.BTN_R] == SB.STATE_HOLD:
+        if sb.button('right') == SB.HOLD:
             k = sb.choose_opt(['Save Patch', 'Delete Patch', 'Load Bank', 'Save Bank', 'Load Soundfont', 'Effects..'], row=1, passlong=True)
             
             if k == 0: # save the current patch or save preset to a patch
@@ -237,7 +237,7 @@ while True:
 
             
         # left button menu - system-related tasks
-        if sb.state[SB.BTN_L] == SB.STATE_HOLD:
+        if sb.button('left') == SB.HOLD:
             sb.lcd_write("Options:        ", 0)
             k = sb.choose_opt(['Power Down', 'MIDI Devices', 'Wifi Settings', 'Add From USB'], row=1, passlong=True)
             
@@ -337,7 +337,7 @@ while True:
             break
 
         # long-hold right button = reload bank
-        if sb.state[SB.BTN_R] == SB.STATE_LONG:
+        if sb.button('right') == SB.LONG:
             sb.lcd_clear()
             sb.lcd_blink("Reloading Bank  ", row=0)
             lastpatch = pxr.patch_name(pno)
@@ -352,7 +352,7 @@ while True:
             break
 
         # long-hold left button = panic
-        if sb.state[SB.BTN_L] == SB.STATE_LONG:
+        if sb.button('left') == SB.LONG:
             sb.lcd_clear()
             sb.lcd_blink("Panic Restart   ", row=0)
             sb.waitforrelease(1)

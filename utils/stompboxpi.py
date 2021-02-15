@@ -42,18 +42,19 @@ if ACTIVE_HIGH:
     ACTIVE = GPIO.HIGH
 else:
     ACTIVE = GPIO.LOW
-STATE_NONE = 0
-STATE_DOWN = 1
-STATE_TAP = 2
-STATE_HOLD = 3
-STATE_HELD = 4
-STATE_LONG = 5
-STATE_LONGER = 6
+UP = 0
+DOWN = 1
+TAP = 2
+HOLD = 3
+HELD = 4
+LONG = 5
+LONGER = 6
 
 CHR_BSP = 0
 CHR_ENT = 1
 INPCHARS = " abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.\/" + chr(CHR_BSP) + chr(CHR_ENT)
 PRNCHARS = ' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~' + chr(CHR_BSP) + chr(CHR_ENT)
+BUTTONS = {'left': BTN_L, 'right': BTN_R}
 
 class StompBox():
 
@@ -74,40 +75,45 @@ class StompBox():
         # set up buttons
         GPIO.setwarnings(False)
         GPIO.setmode(GPIO.BCM)
-        if ACTIVE_HIGH:
-            GPIO.setup(BTN_L, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-            GPIO.setup(BTN_R, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-        else:
-            GPIO.setup(BTN_L, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-            GPIO.setup(BTN_R, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        self.state = {BTN_L: STATE_NONE, BTN_R: STATE_NONE}
-        self.timer = {BTN_L: 0, BTN_R: 0}
+        for button in BUTTONS:
+            if ACTIVE_HIGH:
+                GPIO.setup(BUTTONS[button], GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+            else:
+                GPIO.setup(BUTTONS[button], GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        self.state = {button: UP for button in BUTTONS}
+        self.timer = {button: 0 for button in BUTTONS}
+
+    def button(self, button):
+        return self.state[button]
         
+    def buttons(self):
+        return self.state.values()
+
     def update(self):
         time.sleep(POLL_TIME)
 
         t = time.time()
-        for button in (BTN_L, BTN_R):
-            if GPIO.input(button) != ACTIVE:
+        for button in BUTTONS:
+            if GPIO.input(BUTTONS[button]) != ACTIVE:
                 self.timer[button] = t
-                if self.state[button] == STATE_DOWN:
-                    self.state[button] = STATE_TAP
+                if self.state[button] == DOWN:
+                    self.state[button] = TAP
                 else:
-                    self.state[button] = STATE_NONE
+                    self.state[button] = UP
             else:
-                if self.state[button] == STATE_NONE:
-                    self.state[button] = STATE_DOWN
+                if self.state[button] == UP:
+                    self.state[button] = DOWN
                     self.timer[button] = t
-                elif self.state[button] == STATE_DOWN:
+                elif self.state[button] == DOWN:
                     if (t - self.timer[button]) >= HOLD_TIME:
-                        self.state[button] = STATE_HOLD
-                elif self.state[button] == STATE_HOLD:
-                    self.state[button] = STATE_HELD
-                elif self.state[button] == STATE_HELD:
+                        self.state[button] = HOLD
+                elif self.state[button] == HOLD:
+                    self.state[button] = HELD
+                elif self.state[button] == HELD:
                     if (t - self.timer[button]) >= LONG_TIME:
-                        self.state[button] = STATE_LONG
-                elif self.state[button] == STATE_LONG:
-                    self.state[button] = STATE_LONGER
+                        self.state[button] = LONG
+                elif self.state[button] == LONG:
+                    self.state[button] = LONGER
 
         if self.scrollmsg:
             if (t - self.lastscroll) >= SCROLL_TIME:
@@ -121,7 +127,7 @@ class StompBox():
         while True:
             self.update()
             if time.time() >= tmin:
-                if all(s == STATE_NONE for s in self.state.values()):
+                if all(s == UP for s in self.state.values()):
                     break
 
     def waitfortap(self, t):
@@ -130,7 +136,7 @@ class StompBox():
         tstop = time.time() + t
         while time.time() < tstop:
             self.update()
-            if STATE_TAP in self.state.values():
+            if TAP in self.state.values():
                 return True
         return False
 
@@ -177,7 +183,7 @@ class StompBox():
         has the user choose from a list of choices in :opts
         returns the index of the choice
         or -1 if the user backed out or time expired
-        passlong: pass STATE_LONG through to calling loop
+        passlong: pass LONG through to calling loop
         """
         i=0
         while True:
@@ -189,24 +195,24 @@ class StompBox():
                     self.lcd_write(' '*16, row)
                     return -1
                 self.update()
-                if sum(self.state.values()) == STATE_NONE:
+                if sum(self.state.values()) == UP:
                     continue
-                elif self.state[BTN_R] == STATE_TAP:
+                elif self.state['right'] == TAP:
                     i=(i+1)%len(opts)
                     break
-                elif self.state[BTN_L] == STATE_TAP:
+                elif self.state['left'] == TAP:
                     i=(i-1)%len(opts)
                     break
-                elif self.state[BTN_R] == STATE_HOLD:
+                elif self.state['right'] == HOLD:
                     self.lcd_blink(opts[i], row)
                     return i
-                elif self.state[BTN_L] == STATE_HOLD:
+                elif self.state['left'] == HOLD:
                     self.lcd_write(' '*16, row)
                     return -1
-                elif STATE_LONG in self.state.values() and passlong:
+                elif LONG in self.state.values() and passlong:
                     for b in self.state:
-                        if self.state[b] == STATE_LONG:
-                            self.state[b] = STATE_HELD
+                        if self.state[b] == LONG:
+                            self.state[b] = HELD
                     return -1
 
     def choose_val(self, val, inc, minval, maxval, format="%16s"):
@@ -219,11 +225,11 @@ class StompBox():
             tstop = time.time() + MENU_TIMEOUT
             while time.time() < tstop:
                 self.update()
-                if sum(self.state.values()) == STATE_NONE:
+                if sum(self.state.values()) == UP:
                     continue
-                if self.state[BTN_R] > STATE_DOWN:
+                if self.state['right'] > DOWN:
                     val = min(val + inc, maxval)
-                elif self.state[BTN_L] > STATE_DOWN:
+                elif self.state['left'] > DOWN:
                     val = max(val - inc, minval)
                 break
             else:
@@ -254,39 +260,39 @@ class StompBox():
             tstop = time.time() + timeout
             while time.time() < tstop:
                 self.update()
-                if sum(self.state.values()) == STATE_NONE:
+                if sum(self.state.values()) == UP:
                     continue
-                elif STATE_TAP in self.state.values():
+                elif TAP in self.state.values():
                     if i==len(text):
-                        if self.state[BTN_R] == STATE_TAP:
+                        if self.state['right'] == TAP:
                             char = (char + 1) % len(charset)
                         else:
                             char = (char - 1) % len(charset)
                     else:
-                        if self.state[BTN_R] == STATE_TAP:
+                        if self.state['right'] == TAP:
                             char = (char + 1) % (len(charset) - 2)
                         else:
                             char = (char - 1) % (len(charset) - 2)
                     if char < (len(charset) - 2):
                         text = text[0:i] + charset[char] + text[i+1:]
                     break
-                elif self.state[BTN_R] >= STATE_HOLD:
-                    if self.state[BTN_R] == STATE_HELD: continue
+                elif self.state['right'] >= HOLD:
+                    if self.state['right'] == HELD: continue
                     if char == (len(charset) - 1):
-                        if self.state[BTN_R] != STATE_HOLD: continue
+                        if self.state['right'] != HOLD: continue
                         self.LCD.cursor_mode = 'hide'
                         self.lcd_blink(text.strip()[0:16], row)
                         return text.strip()
-                    if self.state[BTN_R] > STATE_HELD: time.sleep(BLINK_TIME)
+                    if self.state['right'] > HELD: time.sleep(BLINK_TIME)
                     i = min(i + 1, len(text))
                     if i == len(text):
                         char = len(charset) - 1
                     break
-                elif self.state[BTN_L] >= STATE_HOLD:
-                    if self.state[BTN_L] == STATE_HELD: continue
+                elif self.state['left'] >= HOLD:
+                    if self.state['left'] == HELD: continue
                     if char == (len(charset) - 2):
                         text = text[0:max(0, i - 1)] + text[i:]
-                    if self.state[BTN_L] > STATE_HELD: time.sleep(BLINK_TIME)
+                    if self.state['left'] > HELD: time.sleep(BLINK_TIME)
                     i = max(i - 1, 0)
                     break
             else:
