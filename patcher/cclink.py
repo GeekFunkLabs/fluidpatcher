@@ -14,14 +14,13 @@ class CCLink:
         self.xfrm = xfrm
         for a in kwargs:
             setattr(self, a, kwargs[a])
-
         self.val = self.fluid.get_cc(self.channel - 1, self.cc)
-            
+
     def haschanged(self):
         val = self.fluid.get_cc(self.channel - 1, self.cc)
-        if self.xfrm.min <= val <= self.xfrm.max:
-            val = val * self.xfrm.mul + self.xfrm.add
-            if val != self.val:
-                self.val = val
-                return True
-        return False
+        if val != self.val:
+            self.val = val
+            return True
+        else:
+            return False
+            

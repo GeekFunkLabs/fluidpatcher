@@ -305,13 +305,15 @@ class Patcher:
         retvals = {}
         for link in self._cc_links:
             if link.haschanged():
-                if link.type == 'fluidsetting':
-                    self.fluid_set(link.target, link.val)
-                elif link.type == 'effect':
-                    self._fluid.fx_setcontrol(link.target, link.port, link.val)
-                else:
-                    retvals[link.target] = link.val
-        return retvals
+                if link.xfrm.min <= link.val <= link.xfrm.max:
+                    val = link.val * link.xfrm.mul + link.xfrm.add
+                    if link.type == 'fluidsetting':
+                        self.fluid_set(link.target, val)
+                    elif link.type == 'effect':
+                        self._fluid.fx_setcontrol(link.target, link.port, val)
+                    else:
+                        retvals[link.target] = val
+            return retvals
         
     def cclinks_clear(self, type=''):
         if type:
