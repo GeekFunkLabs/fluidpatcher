@@ -79,7 +79,7 @@ while True:
             if sb.button('right') == SB.TAP:
                 x += 1
                 break
-            elif sb.button('left'):
+            elif sb.button('left') == SB.TAP:
                 x -= 1
                 break
         if SB.HOLD in sb.buttons():
