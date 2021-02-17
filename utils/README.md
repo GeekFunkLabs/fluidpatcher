@@ -115,13 +115,13 @@ Message objects are used by clients and servers to encode requests and replies i
 
 Sets up a server listening on _port_. The _passkey_ must be the same on client and server, and can be up to 7 characters.
   
-**pending**()
+- **pending**()
 
-Checks to see if any clients have connected and made requests. Returns the current queue of requests as a list of _Message_ objects.
+  Checks to see if any clients have connected and made requests. Returns the current queue of requests as a list of _Message_ objects.
 
-**reply**(_req, response='', type=REQ_OK_)
+- **reply**(_req, response='', type=REQ_OK_)
 
-Sends a reply to the client that sent _req_, with _response_ as the message body.
+  Sends a reply to the client that sent _req_, with _response_ as the message body.
 
 ### class Client
 
