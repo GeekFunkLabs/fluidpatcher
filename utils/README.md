@@ -18,6 +18,7 @@ Each button can be in different states depending on how long it has been held do
 
 A Python object that acts as an interface for two buttons and a 16x2 character LCD connected to a Raspberry Pi
 
+#### Methods
 **button**(_self, button_)
 
 Get the current state of a button by name
@@ -102,29 +103,36 @@ To use this for your own purposes, import `netlink` in the two scripts that you 
 ### class Message
 
 Message objects are used by clients and servers to encode requests and replies into text streams that can be sent via sockets. You don't need to create them yourself - they are created internally when you call _Client.request()_ and _Server.reply()_.
-- Public Attributes:
-  - _type_: one of the integer constants defined at the top of _netlink.py_
-  - _body_: the text of the request or reply
-  - _id_: Each request has a unique ID - the server tags its responses with the request ID so that the client can match responses with requests
+
+#### Public Attributes:
+- _type_: one of the integer constants defined at the top of _netlink.py_
+- _body_: the text of the request or reply
+- _id_: Each request has a unique ID - the server tags its responses with the request ID so that the client can match responses with requests
 
 ### class Server
 
 **Server**(_port=DEFAULT_PORT, passkey=DEFAULT_PASSKEY_)
+
 Sets up a server listening on _port_. The _passkey_ must be the same on client and server, and can be up to 7 characters.
   
 **pending**()
+
 Checks to see if any clients have connected and made requests. Returns the current queue of requests as a list of _Message_ objects.
 
 **reply**(_req, response='', type=REQ_OK_)
+
 Sends a reply to the client that sent _req_, with _response_ as the message body.
 
 ### class Client
 
 **Client**(_server='', port=DEFAULT_PORT, passkey=DEFAULT_PASSKEY, timeout=20_)
+
 Starts a client and connects to IP address _server_ on _port_ with _passkey_.
 
 **request**(_type, body='', blocking=1_)
+
 Sends a request to the server, where message _type_ is one of the integer constants defined at the top of the file. If _blocking_ evaluates as **True**, waits until the server responds and returns the response as a _Message_ object.
 
 **check**()
+
 Checks to see if a reply to any non-blocking requests has arrived. If so, remove the request from the list and return a _Message_ object for the response.
