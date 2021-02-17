@@ -4,7 +4,7 @@ These files contain code that is used in the _implementations_ of patcher (i.e s
 
 ## stompboxpi.py
 
-This module creates a StompBox object that reads the buttons and controls the LCD connected to a Raspberry Pi, and is used by squishbox.py. The variables imported from hw_overlay.py store what pins on the GPIO header these things are connected to. It uses RPLCD and RPi.GPIO to control them. Create a StompBox object to initialize the LCD, and call its _update()_ method in the main loop of your code to update the display and poll the buttons. Other methods (described below) allow you to write text to the LCD, query the user for a choice between options, input a number or text string, etc.
+This module creates a StompBox object that reads the buttons and controls the LCD connected to a Raspberry Pi, and is used by squishbox.py. The variables imported from _hw_overlay.py_ store what pins on the GPIO header these things are connected to. It uses RPLCD and RPi.GPIO to control them. Create a _StompBox_ object to initialize the LCD, and call its _update()_ method in the main loop of your code to update the display and poll the buttons. Other methods (described below) allow you to write text to the LCD, query the user for a choice between options, input a number or text string, etc.
 
 Each button can be in different states depending on how long it has been held down, which you check using the _button()_ method. The ones to check for are:
 - _UP_: the button is not pressed
@@ -97,3 +97,34 @@ while True:
 
 This code implements a simple client/server architecture using sockets that is used by fluidpatcher.pyw (client) to communicate with a running instance of squishbox.py or headlesspi.py (server). This allows fluidpatcher.pyw to be used as a graphical tool for configuring the SquishBox or headless Pi synth, and for creating/editing/testing patches.
 
+To use this for your own purposes, import `netlink` in the two scripts that you want to communicate. You can implement your own request types and change the default port, passkey, and buffer size if needed. Create a _Server_ object in one script to listen for connections. Create a _Client_ object in the other script to connect to the server script. Call the _request_ method on the client to talk to the server and get a _Message_ object with the reply in its _body_ attribute. On the server, call _pending_ in the main loop of your program to get requests from clients as a list of _Message_ objects. After dealing with a request, call the _reply_ method of the server to respond.
+
+### class Message
+
+Message objects are used by clients and servers to encode requests and replies into text streams that can be sent via sockets. You don't need to create them yourself - they are created internally when you call _Client.request()_ and _Server.reply()_.
+- Public Attributes:
+  - _type_: one of the integer constants defined at the top of _netlink.py_
+  - _body_: the text of the request or reply
+  - _id_: Each request has a unique ID - the server tags its responses with the request ID so that the client can match responses with requests
+
+### class Server
+
+**Server**(_port=DEFAULT_PORT, passkey=DEFAULT_PASSKEY_)
+Sets up a server listening on _port_. The _passkey_ must be the same on client and server, and can be up to 7 characters.
+  
+**pending**()
+Checks to see if any clients have connected and made requests. Returns the current queue of requests as a list of _Message_ objects.
+
+**reply**(_req, response='', type=REQ_OK_)
+Sends a reply to the client that sent _req_, with _response_ as the message body.
+
+### class Client
+
+**Client**(_server='', port=DEFAULT_PORT, passkey=DEFAULT_PASSKEY, timeout=20_)
+Starts a client and connects to IP address _server_ on _port_ with _passkey_.
+
+**request**(_type, body='', blocking=1_)
+Sends a request to the server, where message _type_ is one of the integer constants defined at the top of the file. If _blocking_ evaluates as **True**, waits until the server responds and returns the response as a _Message_ object.
+
+**check**()
+Checks to see if a reply to any non-blocking requests has arrived. If so, remove the request from the list and return a _Message_ object for the response.

@@ -45,6 +45,49 @@ def get_ip():
     return IP
 
 
+class Message:
+
+    def __init__(self, origin=None, type=None, passkey='', body='', id=0):
+        self.origin = origin
+
+        if origin:
+            try:
+                hdr = origin.recv(40)
+            except:
+                self.type = NO_COMM
+                return
+            if len(hdr) == 0:
+                self.type = NO_COMM
+                return
+            if len(hdr) < 40:
+                self.type = MSG_INVALID
+                return
+            try:
+                self.type, self.passkey, msglen, self.id = int(hdr[0:2]), hdr[2:9].decode().strip(), int(hdr[9:19]), int(hdr[19:40])
+            except ValueError:
+                self.type = MSG_INVALID
+                return
+            msg = b''
+            while len(msg) < msglen:
+                b = origin.recv(min(BUFSIZE, msglen - len(msg)))
+                if len(b) == 0:
+                    self.type = NO_COMM
+                    return
+                msg += b
+            self.body = msg.decode()
+            self.content = hdr + msg
+        else:
+            self.type = type
+            self.passkey = passkey
+            self.body = body
+            if id > 0:
+                self.id = id
+            else:
+                self.id = time_ns()
+            hdr = '%2s%7s%10s%21s' % (type, passkey, len(body), self.id)
+            self.content = hdr.encode() + body.encode()
+
+
 class Server:
 
     def __init__(self, port=DEFAULT_PORT, passkey=DEFAULT_PASSKEY):
@@ -94,11 +137,14 @@ class Server:
         return self.requests
 
     def reply(self, req, response='', type=REQ_OK):
+        if req in self.requests:
+            self.requests.remove(req)
         msg = Message(type=type, passkey=self.passkey, body=str(response), id=req.id)
         try:
             req.origin.sendall(msg.content)
         except:
             pass
+
 
 class Client:
 
@@ -137,46 +183,4 @@ class Client:
 
     def close(self):
         self.socket.close()
-
-class Message:
-
-    def __init__(self, origin=None, type=None, passkey='', body='', id=0):
-        self.origin = origin
-
-        if origin:
-            try:
-                hdr = origin.recv(40)
-            except:
-                self.type = NO_COMM
-                return
-            if len(hdr) == 0:
-                self.type = NO_COMM
-                return
-            if len(hdr) < 40:
-                self.type = MSG_INVALID
-                return
-            try:
-                self.type, self.passkey, msglen, self.id = int(hdr[0:2]), hdr[2:9].decode().strip(), int(hdr[9:19]), int(hdr[19:40])
-            except ValueError:
-                self.type = MSG_INVALID
-                return
-            msg = b''
-            while len(msg) < msglen:
-                b = origin.recv(min(BUFSIZE, msglen - len(msg)))
-                if len(b) == 0:
-                    self.type = NO_COMM
-                    return
-                msg += b
-            self.body = msg.decode()
-            self.content = hdr + msg
-        else:
-            self.type = type
-            self.passkey = passkey
-            self.body = body
-            if id > 0:
-                self.id = id
-            else:
-                self.id = time_ns()
-            hdr = '%2s%7s%10s%21s' % (type, passkey, len(body), self.id)
-            self.content = hdr.encode() + body.encode()
 
