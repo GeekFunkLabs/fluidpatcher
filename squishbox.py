@@ -231,7 +231,7 @@ while True:
                     sb.lcd_write(fxopts[j], row=0)
                     newval = sb.choose_val(*args[j][0:5])
                     if sb.choose_opt(['set?%12s' % (args[j][4] % newval)], row=1) > -1:
-                        pxr.fluid_set(args[j][5], newval, updatebank=True)
+                        pxr.fluid_set(args[j][5], newval, updatebank=True, patch=pno)
                     i = (i + j) % len(fxmenu_info)
             break
 

@@ -114,9 +114,13 @@ class Patcher:
             self._bank['patches'].values()
         except:
             self._bank = {'patches': {'No Patches': {}}}
-        if 'fluidsettings' in self._bank:
-            for opt, val in self._bank['fluidsettings'].items():
-                self.fluid_set(opt, val)
+
+        if 'init' in self._bank:
+            for msg in self._bank['init'].get('cc', []):
+                self._fluid.send_cc(msg.chan - 1, msg.cc, msg.val)
+            for syx in self._bank['init'].get('sysex', []):
+                self._parse_sysex(syx)
+
         self._reload_bankfonts()
         return bank
 
@@ -180,6 +184,12 @@ class Patcher:
             warn = self._parse_sysex(syx)
             if warn: warnings.append(warn)
 
+        # apply fluidsettings
+        for opt, val in self._bank.get('fluidsettings', {}).items():
+            self.fluid_set(opt, val)
+        for opt, val in patch.get('fluidsettings', {}).items():
+            self.fluid_set(opt, val)
+
         # link CC messages to parameters
         for type in ['effect', 'fluidsetting']:
             self.cclinks_clear(type)
@@ -188,9 +198,8 @@ class Patcher:
 
         # activate LADSPA effects
         self._fluid.fxchain_clear()
-        fx = self._bank.get('effects', []) + patch.get('effects', [])
         n = 1
-        for effect in fx:
+        for effect in self._bank.get('effects', []) + patch.get('effects', []):
             name = 'e%s' % n
             warn = self._fxplugin_connect(name, **effect)
             if warn: warnings.append(warn)
@@ -286,10 +295,14 @@ class Patcher:
     def fluid_get(self, opt):
         return self._fluid.get_setting(opt)
 
-    def fluid_set(self, opt, val, updatebank=False):
+    def fluid_set(self, opt, val, updatebank=False, patch=None):
         self._fluid.setting(opt, val)
         if updatebank:
             self._bank['fluidsettings'][opt] = val
+            if patch:
+                patch = self._resolve_patch(patch)
+                if opt in patch.get('fluidsettings', {}):
+                    patch['fluidsettings'].remove(opt)
 
     def link_cc(self, target, link='', type='fluidsetting', xfrm=yamlext.RouterSpec(0, 127, 1, 0), **kwargs):
         if 'chan' in kwargs:
@@ -313,7 +326,7 @@ class Patcher:
                         self._fluid.fx_setcontrol(link.target, link.port, val)
                     else:
                         retvals[link.target] = val
-            return retvals
+        return retvals
         
     def cclinks_clear(self, type=''):
         if type:
