@@ -384,7 +384,10 @@ while True:
                 sb.lcd_write(req.body, 0)
                 sb.lcd_write("loading patches ", 1)
                 try:
-                    rawbank = pxr.load_bank(req.body)
+                    if req.body == '':
+                        rawbank = pxr.load_bank()
+                    else:
+                        rawbank = pxr.load_bank(req.body)
                 except patcher.PatcherError as e:
                     remote_link.reply(req, str(e), netlink.REQ_ERROR)
                     sb.lcd_write("bank load error!", 1)

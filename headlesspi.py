@@ -172,7 +172,10 @@ def headless_synth(cfgfile):
                 
             elif req.type == netlink.LOAD_BANK:
                 try:
-                    rawbank = pxr.load_bank(req.body)
+                    if req.body == '':
+                        rawbank = pxr.load_bank()
+                    else:
+                        rawbank = pxr.load_bank(req.body)
                 except patcher.PatcherError as e:
                     remote_link.reply(req, str(e), netlink.REQ_ERROR)
                 else:

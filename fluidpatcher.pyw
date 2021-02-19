@@ -357,7 +357,7 @@ class MainWindow(wx.Frame):
     def onBrowsePlugins(self, event):
         if remote.link:
             plugins = remote_link_request(netlink.LIST_PLUGINS)
-            if not plugins: return
+            if plugins == None: return
             tmsg = TextMsgDialog(plugins, "Plugins", "Available plugins on %s:" % remote.host)
             tmsg.ShowModal()
             tmsg.Destroy()
@@ -404,7 +404,7 @@ class MainWindow(wx.Frame):
         if tmsg.ShowModal() == wx.ID_OK:
             newcfg = tmsg.text.GetValue()
             if remote.link:
-                if not remote_link_request(netlink.SAVE_CFG, newcfg): return
+                if remote_link_request(netlink.SAVE_CFG, newcfg) == None: return
             else:
                 try:
                     pxr.write_config(newcfg)
