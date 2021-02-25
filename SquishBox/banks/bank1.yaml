@@ -74,8 +74,8 @@ patches:
   Stacked Lead:
     1: VintageDreamsWaves-v2.sf2:000:043
   ModSynth:
-    5: ModSynth.sf2:000:000
-    6: ModSynth.sf2:000:002
+    5: ModSynth_R1.sf2:000:000
+    6: ModSynth_R1.sf2:000:002
     router_rules:
     # CC 15-18 = filter Q, release time, attack time, filter freq
     # CC 19, 23 delay effect time, on/off

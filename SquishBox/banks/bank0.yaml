@@ -49,7 +49,7 @@ patches: # indented list of patches
     - {type: pbend, chan: 1-16=5-5}
 
   Saw Lead:
-    1: ModSynth.sf2:000:000
+    1: ModSynth_R1.sf2:000:000
     router_rules:
     - clear # clears all previous router rules
     - {type: note, par1: 0-127*1+0, par2: 0-127*0+127} # all notes max volume like a retro synth
