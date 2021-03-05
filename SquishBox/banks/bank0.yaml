@@ -56,10 +56,11 @@ patches: # indented list of patches
     - {type: cc}
     - {type: pbend}
     effects: # recent versions of fluidsynth support LADSPA effects
-      - lib: /usr/lib/ladspa/tap_echo.so
+      - &delayeffect # this is a YaML anchor
+        lib: /usr/lib/ladspa/delay.so
+        audioports: mono
         controls:
-        - {port: L Delay, val: 300, link: 1/15, xfrm: 0-127*6.3+0}
-        - {port: R/Haas Delay, val: 300, link: 1/15, xfrm: 0-127*6.3+0}
-        - {port: L Feedback, val: 50, link: 1/16, xfrm: 0-127*0.7+0}
-        - {port: R/Haas Feedback, val: 50, link: 1/16, xfrm: 0-127*0.7+0}
-
+        - {port: Delay, val: 0.3, link: 1/15, xfrm: 0-127*0.039+0}
+        - {port: Dry/Wet, val: 0.5, link: 1/16, xfrm: 0-127*0.0079+0}
+      - *delayeffect # copies the contents of the anchor node here
+      - *delayeffect
