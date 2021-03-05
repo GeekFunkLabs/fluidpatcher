@@ -116,6 +116,8 @@ class Patcher:
             self._bank = {'patches': {'No Patches': {}}}
 
         if 'init' in self._bank:
+            for opt, val in self._bank['init'].get('fluidsettings', {}).items():
+                self.fluid_set(opt, val)
             for msg in self._bank['init'].get('cc', []):
                 self._fluid.send_cc(msg.chan - 1, msg.cc, msg.val)
             for syx in self._bank['init'].get('sysex', []):
@@ -174,22 +176,6 @@ class Patcher:
             if not self._fluid.program_select(channel - 1, joinpath(self.sfdir, preset.name), preset.bank, preset.prog):
                 warnings.append('Unable to select preset %s on channel %d' % (preset, channel))
 
-        # send CC messages
-        for msg in self._bank.get('cc', []) + patch.get('cc', []):
-            if msg == 'default': self._send_cc_defaults()
-            else: self._fluid.send_cc(msg.chan - 1, msg.cc, msg.val)
-
-        # send SYSEX messages
-        for syx in self._bank.get('sysex', []) + patch.get('sysex', []):
-            warn = self._parse_sysex(syx)
-            if warn: warnings.append(warn)
-
-        # apply fluidsettings
-        for opt, val in self._bank.get('fluidsettings', {}).items():
-            self.fluid_set(opt, val)
-        for opt, val in patch.get('fluidsettings', {}).items():
-            self.fluid_set(opt, val)
-
         # link CC messages to parameters
         for type in ['effect', 'fluidsetting']:
             self.cclinks_clear(type)
@@ -206,6 +192,12 @@ class Patcher:
             else: n += 1
         if n > 1: self._fluid.fxchain_activate()
 
+        # apply fluidsettings
+        for opt, val in self._bank.get('fluidsettings', {}).items():
+            self.fluid_set(opt, val)
+        for opt, val in patch.get('fluidsettings', {}).items():
+            self.fluid_set(opt, val)
+
         # add MIDI router rules
         self._fluid.router_clear()
         self._fluid.router_default()
@@ -213,6 +205,16 @@ class Patcher:
             if rule == 'clear': self._fluid.router_clear()
             elif rule == 'default': self._fluid.router_default()
             else: self._midi_route(**rule.dict())
+
+        # send CC messages
+        for msg in self._bank.get('cc', []) + patch.get('cc', []):
+            if msg == 'default': self._send_cc_defaults()
+            else: self._fluid.send_cc(msg.chan - 1, msg.cc, msg.val)
+
+        # send SYSEX messages
+        for syx in self._bank.get('sysex', []) + patch.get('sysex', []):
+            warn = self._parse_sysex(syx)
+            if warn: warnings.append(warn)
 
         return warnings
 
@@ -330,9 +332,7 @@ class Patcher:
         
     def cclinks_clear(self, type=''):
         if type:
-            for link in self._cc_links:
-                if link.type == type:
-                    self._cc_links.remove(link)
+            self._cc_links = [link for link in self._cc_links if link.type != type]
         else:
             self._cc_links = []
         
