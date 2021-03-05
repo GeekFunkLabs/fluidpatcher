@@ -279,14 +279,18 @@ class MainWindow(wx.Frame):
 
     def onNew(self, event):
         if self.GetTitle().endswith('*'):
-            resp = wx.MessageBox("Unsaved changes in bank - close anyway?", "New", wx.ICON_QUESTION | wx.OK | wx.CANCEL)
+            resp = wx.MessageBox("Unsaved changes in bank - close anyway?", "New", wx.ICON_WARNING|wx.OK|wx.CANCEL)
             if resp != wx.OK:
                 return
         self.btxt.Clear()        
         self.btxt.AppendText(" ")
         self.btxt.SetInsertionPoint(0)
         self.currentfile = ''
-        self.SetTitle(APP_NAME + ' - (Untitled)')
+        if remote.link:
+            self.onRefresh()
+            self.SetTitle(APP_NAME + ' - (Untitled)' + '@' + remote.host)
+        else:
+            self.SetTitle(APP_NAME + ' - (Untitled)')
 
     def onOpen(self, event):
         if remote.link:
@@ -311,12 +315,17 @@ class MainWindow(wx.Frame):
             bfile = wx.GetTextFromUser("Bank file to save:", "Save Bank", bfile)
             if bfile == '': return
             if not bfile.endswith('.yaml'): bfile += '.yaml'
+            banks = remote_link_request(netlink.LIST_BANKS)
+            if banks == None: return
+            if bfile in banks:
+                resp = wx.MessageBox(bfile + " exists - overwrite it?", "Save", wx.ICON_WARNING|wx.OK|wx.CANCEL)
+                if resp != wx.OK: return
             if remote_link_request(netlink.SAVE_BANK, patcher.write_yaml(bfile, rawbank)) == None:
                 return
             self.SetTitle(APP_NAME + ' - ' + bfile + '@' + remote.host)
         else:
             if bfile == '':
-                path = wx.FileSelector("Save Bank", pxr.bankdir, self.currentfile, "*.yaml", "Bank files (*.yaml)|*.yaml", wx.FD_SAVE)
+                path = wx.FileSelector("Save Bank", pxr.bankdir, self.currentfile, "*.yaml", "Bank files (*.yaml)|*.yaml", wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT)
                 if path == '': return
                 bfile = relpath(path, start=pxr.bankdir)
             try:
@@ -332,7 +341,7 @@ class MainWindow(wx.Frame):
         if isinstance(event, wx.CloseEvent) and not event.CanVeto():
             self.Destroy()
         if self.GetTitle().endswith('*'):
-            resp = wx.MessageBox("Unsaved changes in bank - quit anyway?", "Exit", wx.ICON_QUESTION | wx.OK | wx.CANCEL)
+            resp = wx.MessageBox("Unsaved changes in bank - quit anyway?", "Exit", wx.ICON_WARNING|wx.OK|wx.CANCEL)
             if resp != wx.OK:
                 if hasattr(event, 'Veto'): event.Veto()
                 return
