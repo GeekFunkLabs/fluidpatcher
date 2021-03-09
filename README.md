@@ -19,10 +19,7 @@ curl https://geekfunklabs.com/squishbox | bash
 To see what the script does first, eliminate the final `| bash`.
 
 ### Windows
-Run the setup program in the [latest release](https://github.com/albedozero/fluidpatcher/releases/latest) of FluidPatcher. Install required Python modules with:
-```
-pip install oyaml mido wxpython
-```
+Run the setup program in the [latest release](https://github.com/albedozero/fluidpatcher/releases/latest) of FluidPatcher.
 
 ### Linux (Debian/Ubuntu)\*
 ```
