@@ -5,7 +5,7 @@ Description: model-dependent wiring and behavior
 """
 # copy and paste definitions for your model at the bottom of this file
 
-# model 0000 (prototype)
+# model 0000 (my prototype)
 BTN_R = 6 
 BTN_L = 5
 ACTIVE_HIGH = 0
@@ -16,7 +16,7 @@ LCD_D5 = 7
 LCD_D6 = 12
 LCD_D7 = 16
 
-# models 0001-0099 (v2 wiring)
+# models 0001-0009 (v2 wiring)
 # LCD pins on exterior edge of board - easier for homebrew/perfboard builds
 BTN_R = 22
 BTN_L = 27
@@ -28,8 +28,8 @@ LCD_D5 = 25
 LCD_D6 = 8
 LCD_D7 = 7
 
-# models 0100-
-# first version of PCB (v3 wiring)
+# models 0010-
+# custom PCB v1
 BTN_R = 3
 BTN_L = 2
 ACTIVE_HIGH = 0
