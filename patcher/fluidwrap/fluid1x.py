@@ -204,11 +204,11 @@ class Synth:
         rule = FL.new_fluid_midi_router_rule()
         ntype = ['note', 'cc', 'prog', 'pbend', 'cpress', 'kpress'].index(type)
         if chan:
-            FL.fluid_midi_router_rule_set_chan(rule, chan[0], chan[1], c_float(chan[2]), chan[3])
+            FL.fluid_midi_router_rule_set_chan(rule, *chan)
         if par1:
-            FL.fluid_midi_router_rule_set_param1(rule, par1[0], par1[1], c_float(par1[2]), par1[3])
+            FL.fluid_midi_router_rule_set_param1(rule, *par1)
         if par2:
-            FL.fluid_midi_router_rule_set_param2(rule, par2[0], par2[1], c_float(par2[2]), par2[3])
+            FL.fluid_midi_router_rule_set_param2(rule, *par2)
         FL.fluid_midi_router_add_rule(self.router, rule, ntype)
 
     def fxchain_clear(self):

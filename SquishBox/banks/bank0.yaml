@@ -18,8 +18,8 @@ fluidsettings:
   synth.gain: 0.6
 
 cclinks: # use CC messages to control fluidsynth parameters, for example effects
-- {target: synth.gain, link: 1/17, type: fluidsetting, xfrm: 0-127*0.08+0}
-- {target: synth.reverb.room-size, link: 1/18, type: fluidsetting, xfrm: 0-127*0.008+0}
+- {target: synth.gain, link: 1/17, type: fluidsetting, xfrm: 0-127=0-10}
+- {target: synth.reverb.room-size, link: 1/18, type: fluidsetting, xfrm: 0-127=0-1}
 
 patches: # indented list of patches
   Simple EP: # simplest form of patch - assign a voice to a MIDI channel
@@ -43,16 +43,16 @@ patches: # indented list of patches
   Weird Keys: # you can get some interesting effects with MIDI routing
     5: VintageDreamsWaves-v2.sf2:000:014
     router_rules:
-    - {type: note, chan: 1-16=5-5, par1: Eb4-G9*1+0}
-    - {type: note, chan: 1-16=5-5, par1: D#4-G9*1+5} # 5ths
-    - {type: note, chan: 1-16=5-5, par1: C0-D4*-1+A7} # reverse scale
-    - {type: pbend, chan: 1-16=5-5}
+    - {type: note, chan: 1-1=5-5, par1: Eb4-G9*1+0}
+    - {type: note, chan: 1-1=5-5, par1: D#4-G9*1+5} # 5ths
+    - {type: note, chan: 1-1=5-5, par1: C0-D4=D6-C2} # reverse scale
+    - {type: pbend, chan: 1-1=5-5}
 
   Saw Lead:
     1: ModSynth_R1.sf2:000:000
     router_rules:
     - clear # clears all previous router rules
-    - {type: note, par1: 0-127*1+0, par2: 0-127*0+127} # all notes max volume like a retro synth
+    - {type: note, par2: 0-127=127-127} # all notes max volume like a retro synth
     - {type: cc}
     - {type: pbend}
     effects: # recent versions of fluidsynth support LADSPA effects
@@ -60,7 +60,7 @@ patches: # indented list of patches
         lib: /usr/lib/ladspa/delay.so
         audioports: mono
         controls:
-        - {port: Delay, val: 0.3, link: 1/15, xfrm: 0-127*0.039+0}
-        - {port: Dry/Wet, val: 0.5, link: 1/16, xfrm: 0-127*0.0079+0}
+        - {port: Delay, val: 0.3, link: 1/15, xfrm: 0-127=0-5}
+        - {port: Dry/Wet, val: 0.5, link: 1/16, xfrm: 0-127=0-1}
       - *delayeffect # copies the contents of the anchor node here
       - *delayeffect

@@ -32,10 +32,10 @@ patches:
     effects:
       - lib: /usr/lib/ladspa/tap_rotspeak.so
         controls:
-        - {port: Rotor Freq, val: 5, link: 1/13, xfrm: 0-127*0.236+0}
-        - {port: Horn Freq, val: 8, link: 1/14, xfrm: 0-127*0.236+0}
-        - {port: Mic Dist, val: 25, link: 1/15, xfrm: 0-127*0.787+0}
-        - {port: Rotor/Horn Mix, val: 0.5, link: 1/16, xfrm: 0-127*0.00787+0}
+        - {port: Rotor Freq, val: 5, link: 1/13, xfrm: 0-127=0-30}
+        - {port: Horn Freq, val: 8, link: 1/14, xfrm: 0-127=0-30}
+        - {port: Mic Dist, val: 25, link: 1/15, xfrm: 0-127=0-100}
+        - {port: Rotor/Horn Mix, val: 0.5, link: 1/16, xfrm: 0-127=0-1}
   Compy Guitar:
     1: FluidR3_GM.sf2:000:027
   Funk Guitar:
@@ -47,8 +47,8 @@ patches:
       - lib: /usr/lib/ladspa/tap_tubewarmth.so
         audioports: mono
         controls:
-        - {port: Drive, val: 2.5, link: 1/13, xfrm: 0-127*0.078+0.1}
-        - {port: Tape, val: 10, link: 1/14, xfrm: 0-127*0.1575-10}
+        - {port: Drive, val: 2.5, link: 1/13, xfrm: 0-127=0.1-10}
+        - {port: Tape, val: 10, link: 1/14, xfrm: 0-127=-10-10}
   Bass+Oct:
     1: FluidR3_GM.sf2:000:033
     3: FluidR3_GM.sf2:000:033
@@ -105,12 +105,12 @@ patches:
     15: FluidR3_GM.sf2:000:126
     16: FluidR3_GM.sf2:000:127
     router_rules:
-    - {type: note, chan: 1-1=11-11, par1: 48-52*5-180}
-    - {type: note, chan: 1-1=12-12, par1: 53-57*5-205}
-    - {type: note, chan: 1-1=13-13, par1: 58-62*5-230}
-    - {type: note, chan: 1-1=14-14, par1: 63-67*5-255}
-    - {type: note, chan: 1-1=15-15, par1: 68-72*5-280}
-    - {type: note, chan: 1-1=16-16, par1: 73-77*5-305}
+    - {type: note, chan: 1-1=11-11, par1: C3-E3=C3-C5}
+    - {type: note, chan: 1-1=12-12, par1: F3-A3=C3-C5}
+    - {type: note, chan: 1-1=13-13, par1: A#3-D4=C3-C5}
+    - {type: note, chan: 1-1=14-14, par1: D#4-G4=C3-C5}
+    - {type: note, chan: 1-1=15-15, par1: G#4-C5=C3-C5}
+    - {type: note, chan: 1-1=16-16, par1: C#5-F5=C3-C5}
   Standard Kit:
     1: FluidR3_GM.sf2:128:001
     router_rules:

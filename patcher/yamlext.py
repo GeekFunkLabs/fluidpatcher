@@ -4,9 +4,37 @@ Copyright (c) 2020 Bill Peterson
 Description: extensions to YAML classes for patcher
 """
 import re, oyaml
-from oyaml import safe_load, safe_load_all, safe_dump, safe_dump_all, YAMLError
-          
-class SFPreset(oyaml.YAMLObject):
+from oyaml import safe_load, safe_load_all, safe_dump, safe_dump_all, YAMLError, YAMLObject
+from oyaml import SequenceNode as snode, MappingNode as mnode
+
+
+def sift(val):
+    try:
+        val = float(val)
+    except ValueError:
+        return val
+    else:
+        if val.is_integer():
+            val = int(val)
+        return val
+        
+def scinote_to_val(val):
+    if not isinstance(val, str):
+        return val
+    sci = re.findall('([+-]?)([A-G])([b#]?)([0-9])', val)[0]
+    sign = ('+ -'.find(sci[0]) - 1) * -1
+    note = 'C_D_EF_G_A_B'.find(sci[1])
+    acc = (' #b'.find(sci[2]) + 1) % 3 - 1
+    octave = int(sci[3])
+    return sign * ((octave + 1) * 12 + note + acc)
+
+
+handlers = dict(Loader=oyaml.SafeLoader, Dumper=oyaml.SafeDumper)
+
+sfpex = re.compile('^(.+):(\d+):(\d+)$')
+oyaml.add_implicit_resolver('!sfpreset', sfpex, **handlers)
+
+class SFPreset(YAMLObject):
 
     yaml_tag = '!sfpreset'
     yaml_loader = oyaml.SafeLoader
@@ -20,22 +48,22 @@ class SFPreset(oyaml.YAMLObject):
     def __repr__(self):
         return '%s:%03d:%03d' % (self.name, self.bank, self.prog)
 
-    @classmethod
-    def to_yaml(cls, dumper, data):
-        return dumper.represent_scalar('!sfpreset', '%s:%03d:%03d' % (data.name, data.bank, data.prog))
+    @staticmethod
+    def to_yaml(dumper, data):
+        return dumper.represent_scalar('!sfpreset', str(data))
 
     @classmethod
     def from_yaml(cls, loader, node):
-        vals = re.match('^(.+):(\d+):(\d+)$', loader.construct_scalar(node)).groups()
-        name = vals[0]
-        bank = int(vals[1])
-        prog = int(vals[2])
-        return SFPreset(name, bank, prog)
+        name, bank, prog = sfpex.findall(loader.construct_scalar(node))[0]
+        bank = int(bank)
+        prog = int(prog)
+        return cls(name, bank, prog)
 
-oyaml.add_implicit_resolver('!sfpreset', re.compile('^.+:\d+:\d+$'),
-                            Loader=oyaml.SafeLoader, Dumper=oyaml.SafeDumper)
 
-class CCMsg(oyaml.YAMLObject):
+ccmsgex = re.compile('^([0-9]+)/([0-9]+)=([0-9]+)$')
+oyaml.add_implicit_resolver('!ccmsg', ccmsgex, **handlers)
+
+class CCMsg(YAMLObject):
 
     yaml_tag = '!ccmsg'
     yaml_loader = oyaml.SafeLoader
@@ -45,22 +73,25 @@ class CCMsg(oyaml.YAMLObject):
         self.chan = chan
         self.cc = cc
         self.val = val
+        
+    def __repr__(self):
+        return '%d/%d=%d' % (self.chan, self.cc, self.val)
 
-    @classmethod
-    def to_yaml(cls, dumper, data):
-        return dumper.represent_scalar('!ccmsg', '%d/%d=%d' % (data.chan, data.cc, data.val))
+    @staticmethod
+    def to_yaml(dumper, data):
+        return dumper.represent_scalar('!ccmsg', str(data))
 
     @classmethod
     def from_yaml(cls, loader, node):
-        msg = re.findall('[^/=]+', loader.construct_scalar(node))
+        msg = ccmsgex.findall(loader.construct_scalar(node))[0]
         chan, cc, val = map(int, msg)
-        return CCMsg(chan, cc, val)
+        return cls(chan, cc, val)
 
-oyaml.add_implicit_resolver('!ccmsg', re.compile('^[0-9]+/[0-9]+=[0-9]+$'),
-                            Loader=oyaml.SafeLoader, Dumper=oyaml.SafeDumper)
 
 rspecex = re.compile('^([\d\.A-Gb#]+)-([\d\.A-Gb#]+)\*(-?[\d\.]+)([+-][\d\.A-Gb#]+)$')
-class RouterSpec(oyaml.YAMLObject):
+oyaml.add_implicit_resolver('!rspec', rspecex, **handlers)
+
+class RouterSpec(YAMLObject):
 
     yaml_tag = '!rspec'
     yaml_loader = oyaml.SafeLoader
@@ -71,32 +102,42 @@ class RouterSpec(oyaml.YAMLObject):
         self.max = max
         self.mul = mul
         self.add = add
+
+    def __repr__(self):
+        if isinstance(self.add, int):
+            return '%s-%s*%s%+d' % (self.min, self.max, self.mul, self.add)
+        elif isinstance(self.add, float):
+            return '%s-%s*%s%+f' % (self.min, self.max, self.mul, self.add)
+        else:
+            return '%s-%s*%s%s' % (self.min, self.max, self.mul, self.add)
+        
+    @property
+    def vals(self):
+        v = list(map(scinote_to_val, [self.min, self.max, self.mul, self.add]))
+        return int(v[0]), int(v[1]), float(v[2]), int(v[3])
         
     @classmethod
-    def to_yaml(cls, dumper, data):
-        if isinstance(data.add, int):
-            rep = '%s-%s*%s%+d' % (data.min, data.max, data.mul, data.add)
-        else:
-            rep = '%s-%s*%s%s' % (data.min, data.max, data.mul, data.add)
-        return dumper.represent_scalar('!rspec', rep)
+    def fromtospec(cls, spec):
+        from1, from2, to1, to2 = spec.vals
+        mul = (to2 - to1) / (from2 - from1)
+        add = to1 - from1 * mul
+        return cls(from1, from2, mul, add)
+
+    @staticmethod
+    def to_yaml(dumper, data):
+        return dumper.represent_scalar('!rspec', str(data))
         
     @classmethod
     def from_yaml(cls, loader, node):
-        route = list(rspecex.findall(loader.construct_scalar(node))[0])
-        for i, spec in enumerate(route):
-            try:
-                route[i] = float(spec)
-            except ValueError:
-                pass
-            else:
-                if route[i] == int(route[i]):
-                    route[i] = int(route[i])
-        return RouterSpec(*route)
+        route = rspecex.findall(loader.construct_scalar(node))[0]
+        min, max, mul, add = map(sift, route)
+        return cls(min, max, mul, add)
         
-oyaml.add_implicit_resolver('!rspec', rspecex,
-                            Loader=oyaml.SafeLoader, Dumper=oyaml.SafeDumper)
+        
+ftspecex = re.compile('^([\d\.A-Gb#]+)-([\d\.A-Gb#]+)=(-?[\d\.A-Gb#]+)-(-?[\d\.A-Gb#]+)$')
+oyaml.add_implicit_resolver('!ftspec', ftspecex, **handlers)
 
-class FromToSpec(oyaml.YAMLObject):
+class FromToSpec(YAMLObject):
 
     yaml_tag = '!ftspec'
     yaml_loader = oyaml.SafeLoader
@@ -108,21 +149,26 @@ class FromToSpec(oyaml.YAMLObject):
         self.to1 = to1
         self.to2 = to2
         
-    @classmethod
-    def to_yaml(cls, dumper, data):
-        rep = '%d-%d=%d-%d' % (data.from1, data.from2, data.to1, data.to2)
-        return dumper.represent_scalar('!ftspec', rep)
+    def __repr__(self):
+        return '%s-%s=%s-%s' % (data.from1, data.from2, data.to1, data.to2)
+        
+    @property
+    def vals(self):
+        v = list(map(scinote_to_val, [self.from1, self.from2, self.to1, self.to2]))
+        return int(v[0]), int(v[1]), float(v[2]), int(v[3])
+        
+    @staticmethod
+    def to_yaml(dumper, data):
+        return dumper.represent_scalar('!ftspec', str(data))
 
     @classmethod
     def from_yaml(cls, loader, node):
-        spec = re.findall('[^-=]+', loader.construct_scalar(node))
-        from1, from2, to1, to2 = map(int, spec)
-        return FromToSpec(from1, from2, to1, to2)
+        spec = ftspecex.findall(loader.construct_scalar(node))[0]
+        from1, from2, to1, to2 = map(sift, spec)
+        return cls(from1, from2, to1, to2)
         
-oyaml.add_implicit_resolver('!ftspec', re.compile('^\d+-\d+=\d+-\d+$'),
-                            Loader=oyaml.SafeLoader, Dumper=oyaml.SafeDumper)
 
-class FlowSeq(oyaml.YAMLObject):
+class FlowSeq(YAMLObject):
 
     yaml_tag = '!flowseq'
     yaml_loader = oyaml.SafeLoader
@@ -143,15 +189,16 @@ class FlowSeq(oyaml.YAMLObject):
     def __radd__(self, addend):
         return addend + self.items
         
-    @classmethod
-    def to_yaml(cls, dumper, data):
+    @staticmethod
+    def to_yaml(dumper, data):
         return dumper.represent_sequence('!flowseq', data, flow_style=True)
 
     @classmethod
     def from_yaml(cls, loader, node):
-        return FlowSeq(loader.construct_sequence(node))
+        return cls(loader.construct_sequence(node))
 
-class FlowMap(oyaml.YAMLObject):
+
+class FlowMap(YAMLObject):
 
     yaml_tag = '!flowmap'
     yaml_loader = oyaml.SafeLoader
@@ -164,57 +211,32 @@ class FlowMap(oyaml.YAMLObject):
     def __iter__(self):
         return iter(self.__dict__.items())
 
-    def dict(self):
-        return self.__dict__
-
-    @classmethod
-    def to_yaml(cls, dumper, data):
+    @staticmethod
+    def to_yaml(dumper, data):
         return dumper.represent_mapping('!flowmap', data, flow_style=True)
 
     @classmethod
     def from_yaml(cls, loader, node):
-        return FlowMap(**loader.construct_mapping(node))
+        return cls(**loader.construct_mapping(node))
 
-oyaml.add_path_resolver('!flowseq',
-                        [(oyaml.MappingNode, 'patches'),
-                         (oyaml.MappingNode, None),
-                         (oyaml.MappingNode, 'cc')], 
-                        kind=list, Loader=oyaml.SafeLoader, Dumper=oyaml.SafeDumper)
-oyaml.add_path_resolver('!flowmap',
-                        [(oyaml.MappingNode, 'router_rules'),
-                         (oyaml.SequenceNode, None)],
-                        kind=dict, Loader=oyaml.SafeLoader, Dumper=oyaml.SafeDumper)
-oyaml.add_path_resolver('!flowmap',
-                        [(oyaml.MappingNode, 'patches'),
-                         (oyaml.MappingNode, None),
-                         (oyaml.MappingNode, 'router_rules'),
-                         (oyaml.SequenceNode, None)],
-                        kind=dict, Loader=oyaml.SafeLoader, Dumper=oyaml.SafeDumper)
-oyaml.add_path_resolver('!flowmap',
-                        [(oyaml.MappingNode, 'effects'),
-                         (oyaml.SequenceNode, None),
-                         (oyaml.MappingNode, 'controls'),
-                         (oyaml.SequenceNode, None)],
-                        kind=dict, Loader=oyaml.SafeLoader, Dumper=oyaml.SafeDumper)
-oyaml.add_path_resolver('!flowmap',
-                        [(oyaml.MappingNode, 'patches'),
-                         (oyaml.MappingNode, None),
-                         (oyaml.MappingNode, 'effects'),
-                         (oyaml.SequenceNode, None),
-                         (oyaml.MappingNode, 'controls'),
-                         (oyaml.SequenceNode, None)],
-                        kind=dict, Loader=oyaml.SafeLoader, Dumper=oyaml.SafeDumper)
-oyaml.add_path_resolver('!flowmap',
-                        [(oyaml.MappingNode, 'cclinks'),
-                         (oyaml.SequenceNode, None)],
-                        kind=dict, Loader=oyaml.SafeLoader, Dumper=oyaml.SafeDumper)
-oyaml.add_path_resolver('!flowmap',
-                        [(oyaml.MappingNode, 'cclinks'),
-                         (oyaml.SequenceNode, None)],
-                        kind=dict, Loader=oyaml.SafeLoader, Dumper=oyaml.SafeDumper)
-oyaml.add_path_resolver('!flowmap',
-                        [(oyaml.MappingNode, 'patches'),
-                         (oyaml.MappingNode, None),
-                         (oyaml.MappingNode, 'cclinks'),
-                         (oyaml.SequenceNode, None)],
-                        kind=dict, Loader=oyaml.SafeLoader, Dumper=oyaml.SafeDumper)
+
+def resolve_as_flowmap(*path):
+    pathkeys = zip(path[::2], path[1::2])
+    oyaml.add_path_resolver('!flowmap', pathkeys, kind=dict, **handlers)
+    
+def resolve_as_flowseq(*path):
+    pathkeys = zip(path[::2], path[1::2])
+    oyaml.add_path_resolver('!flowseq', pathkeys, kind=list, **handlers)
+
+resolve_as_flowseq(mnode, 'cc')
+resolve_as_flowseq(mnode, 'init', mnode, 'cc')
+resolve_as_flowseq(mnode, 'patches', mnode, None, mnode, 'cc')
+
+resolve_as_flowmap(mnode, 'router_rules', snode, None) 
+resolve_as_flowmap(mnode, 'patches', mnode, None, mnode, 'router_rules', snode, None) 
+
+resolve_as_flowmap(mnode, 'cclinks', snode, None)
+resolve_as_flowmap(mnode, 'patches', mnode, None, mnode, 'cclinks', snode, None)
+
+resolve_as_flowmap(mnode, 'effects', snode, None, mnode, 'controls', snode, None)
+resolve_as_flowmap(mnode, 'patches', mnode, None, mnode, 'effects', snode, None, mnode, 'controls', snode, None)
