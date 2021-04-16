@@ -11,9 +11,8 @@ if hasattr(os, 'add_dll_directory'):
     os.add_dll_directory(os.getcwd())
 
 lib = find_library('fluidsynth') or \
-    find_library('libfluidsynth') or \
     find_library('libfluidsynth-1') or \
-    find_library('libfluidsynth-2')
+    find_library('libfluidsynth')
 if lib is None:
     raise ImportError("Couldn't find the FluidSynth library.")
 
