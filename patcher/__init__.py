@@ -15,7 +15,13 @@ CC_DEFAULTS = [(7, 7, 100), (11, 11, 127), (12, 31, 0), (33, 42, 0),
                (43, 43, 127), (44, 63, 0), (65, 65, 0), (70, 79, 64),
                (80, 83, 0), (84, 84, 255), (85, 95, 0), (102, 119, 0)]
                
-VERSION = '0.4.1'
+SYNTH_DEFAULTS = {'synth.chorus.depth': 8.0, 'synth.chorus.level': 2.0,
+                  'synth.chorus.nr': 3, 'synth.chorus.speed': 0.3,
+                  'synth.reverb.damp': 0.0, 'synth.reverb.level': 0.9,
+                  'synth.reverb.room-size': 0.2, 'synth.reverb.width': 0.5,
+                  'synth.gain': 0.2}
+
+VERSION = '0.4.2'
 
 def read_yaml(text):
     if '---' in text:
@@ -115,6 +121,8 @@ class Patcher:
         except:
             self._bank = {'patches': {'No Patches': {}}}
 
+        self._reset_synth_defaults()
+        self._send_cc_defaults()
         if 'init' in self._bank:
             for opt, val in self._bank['init'].get('fluidsettings', {}).items():
                 self.fluid_set(opt, val)
@@ -280,6 +288,7 @@ class Patcher:
         self._fluid.router_clear()
         self._fluid.router_default()
         self._fluid.fxchain_clear()
+        self._reset_synth_defaults()
         self._send_cc_defaults()
         self._midi_route('note', chan=yamlext.FromToSpec(2, self._max_channels, 0, 0))
         return True
@@ -449,3 +458,10 @@ class Patcher:
                 for cc in range(first, last + 1):
                     self._fluid.send_cc(channel - 1, cc, default)
         
+    def _reset_synth_defaults(self):
+        cfg_fset = self.cfg.get('fluidsettings', {})
+        for opt, val in SYNTH_DEFAULTS.items():
+            if opt in cfg_fset:
+                self.fluid_set(opt, cfg_fset[opt])
+            else:
+                self.fluid_set(opt, val)
