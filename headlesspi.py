@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 """
-Copyright (c) 2020 Bill Peterson
-
 Description: an implementation of patcher.py for a headless Raspberry Pi
 """
 import time, glob, subprocess

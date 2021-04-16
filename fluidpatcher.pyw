@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Copyright (c) 2020 Bill Peterson
-
-Description: a wxpython-based implementation of patcher.py for live editing/playing of bank files
+Description: a wxpython-based implementation of patcher.py
+              for live editing/playing of bank files
+              or remotely connecting to a squishbox/headlesspi for editing
 """
 
 import wx

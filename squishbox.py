@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 """
-Copyright (c) 2020 Bill Peterson
-
 Description: an implementation of patcher.py for a Raspberry Pi in a stompbox
 """
 import sys, os, re, glob, subprocess

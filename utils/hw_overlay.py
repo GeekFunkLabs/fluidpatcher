@@ -1,6 +1,4 @@
 """
-Copyright (c) 2020 Bill Peterson
-
 Description: model-dependent wiring and behavior
 """
 # copy and paste definitions for your model at the bottom of this file

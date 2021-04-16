@@ -1,6 +1,4 @@
 """
-Copyright (c) 2020 Bill Peterson
-
 Description: tools for controlling patcher over a network
 """
 import socket, select

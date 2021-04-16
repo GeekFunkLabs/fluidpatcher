@@ -1,6 +1,4 @@
 """
-Copyright (c) 2020 Bill Peterson
-
 Description: ctypes bindings for fluidsynth 2.x
 """
 from ctypes import *

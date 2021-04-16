@@ -1,6 +1,4 @@
 """
-Copyright (c) 2020 Bill Peterson
-
 Description: a performance-oriented patch interface for fluidsynth
 """
 import re, mido

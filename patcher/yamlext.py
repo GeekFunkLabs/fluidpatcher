@@ -1,6 +1,4 @@
 """
-Copyright (c) 2020 Bill Peterson
-
 Description: extensions to YAML classes for patcher
 """
 import re, oyaml

@@ -1,6 +1,4 @@
 """
-Copyright (c) 2020 Bill Peterson
-
 Description: monitors a CC message for change and links it to a fluid setting or effects control
 """
 
