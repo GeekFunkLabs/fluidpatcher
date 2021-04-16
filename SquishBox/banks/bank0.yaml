@@ -15,7 +15,6 @@ fluidsettings:
   synth.reverb.level: 0.9
   synth.reverb.room-size: 0.8
   synth.reverb.width: 0.5
-  synth.gain: 0.6
 
 cclinks: # use CC messages to control fluidsynth parameters, for example effects
 - {target: synth.gain, link: 1/17, type: fluidsetting, xfrm: 0-127=0-10}
