@@ -5,8 +5,12 @@ Description: extensions to YAML classes for patcher
 """
 import re, oyaml
 from oyaml import safe_load, safe_load_all, safe_dump, safe_dump_all, YAMLError, YAMLObject
-from oyaml import SequenceNode as snode, MappingNode as mnode
 
+
+sfpex = re.compile('^(.+):(\d+):(\d+)$')
+ccmsgex = re.compile('^([0-9]+)/([0-9]+)=([0-9]+)$')
+rspecex = re.compile('^([\d\.A-Gb#]+)-([\d\.A-Gb#]+)\*(-?[\d\.]+)([+-][\d\.A-Gb#]+)$')        
+ftspecex = re.compile('^([\d\.A-Gb#]+)-([\d\.A-Gb#]+)=(-?[\d\.A-Gb#]+)-(-?[\d\.A-Gb#]+)$')
 
 def sift(val):
     try:
@@ -29,11 +33,6 @@ def scinote_to_val(val):
     return sign * ((octave + 1) * 12 + note + acc)
 
 
-handlers = dict(Loader=oyaml.SafeLoader, Dumper=oyaml.SafeDumper)
-
-sfpex = re.compile('^(.+):(\d+):(\d+)$')
-oyaml.add_implicit_resolver('!sfpreset', sfpex, **handlers)
-
 class SFPreset(YAMLObject):
 
     yaml_tag = '!sfpreset'
@@ -48,10 +47,6 @@ class SFPreset(YAMLObject):
     def __repr__(self):
         return '%s:%03d:%03d' % (self.name, self.bank, self.prog)
 
-    @staticmethod
-    def to_yaml(dumper, data):
-        return dumper.represent_scalar('!sfpreset', str(data))
-
     @classmethod
     def from_yaml(cls, loader, node):
         name, bank, prog = sfpex.findall(loader.construct_scalar(node))[0]
@@ -59,9 +54,10 @@ class SFPreset(YAMLObject):
         prog = int(prog)
         return cls(name, bank, prog)
 
+    @staticmethod
+    def to_yaml(dumper, data):
+        return dumper.represent_scalar('!sfpreset', str(data))
 
-ccmsgex = re.compile('^([0-9]+)/([0-9]+)=([0-9]+)$')
-oyaml.add_implicit_resolver('!ccmsg', ccmsgex, **handlers)
 
 class CCMsg(YAMLObject):
 
@@ -77,19 +73,16 @@ class CCMsg(YAMLObject):
     def __repr__(self):
         return '%d/%d=%d' % (self.chan, self.cc, self.val)
 
-    @staticmethod
-    def to_yaml(dumper, data):
-        return dumper.represent_scalar('!ccmsg', str(data))
-
     @classmethod
     def from_yaml(cls, loader, node):
         msg = ccmsgex.findall(loader.construct_scalar(node))[0]
         chan, cc, val = map(int, msg)
         return cls(chan, cc, val)
 
+    @staticmethod
+    def to_yaml(dumper, data):
+        return dumper.represent_scalar('!ccmsg', str(data))
 
-rspecex = re.compile('^([\d\.A-Gb#]+)-([\d\.A-Gb#]+)\*(-?[\d\.]+)([+-][\d\.A-Gb#]+)$')
-oyaml.add_implicit_resolver('!rspec', rspecex, **handlers)
 
 class RouterSpec(YAMLObject):
 
@@ -123,19 +116,16 @@ class RouterSpec(YAMLObject):
         add = to1 - from1 * mul
         return cls(from1, from2, mul, add)
 
-    @staticmethod
-    def to_yaml(dumper, data):
-        return dumper.represent_scalar('!rspec', str(data))
-        
     @classmethod
     def from_yaml(cls, loader, node):
         route = rspecex.findall(loader.construct_scalar(node))[0]
         min, max, mul, add = map(sift, route)
         return cls(min, max, mul, add)
         
+    @staticmethod
+    def to_yaml(dumper, data):
+        return dumper.represent_scalar('!rspec', str(data))
         
-ftspecex = re.compile('^([\d\.A-Gb#]+)-([\d\.A-Gb#]+)=(-?[\d\.A-Gb#]+)-(-?[\d\.A-Gb#]+)$')
-oyaml.add_implicit_resolver('!ftspec', ftspecex, **handlers)
 
 class FromToSpec(YAMLObject):
 
@@ -157,16 +147,16 @@ class FromToSpec(YAMLObject):
         v = list(map(scinote_to_val, [self.from1, self.from2, self.to1, self.to2]))
         return int(v[0]), int(v[1]), float(v[2]), int(v[3])
         
-    @staticmethod
-    def to_yaml(dumper, data):
-        return dumper.represent_scalar('!ftspec', str(data))
-
     @classmethod
     def from_yaml(cls, loader, node):
         spec = ftspecex.findall(loader.construct_scalar(node))[0]
         from1, from2, to1, to2 = map(sift, spec)
         return cls(from1, from2, to1, to2)
         
+    @staticmethod
+    def to_yaml(dumper, data):
+        return dumper.represent_scalar('!ftspec', str(data))
+
 
 class FlowSeq(YAMLObject):
 
@@ -189,13 +179,13 @@ class FlowSeq(YAMLObject):
     def __radd__(self, addend):
         return addend + self.items
         
-    @staticmethod
-    def to_yaml(dumper, data):
-        return dumper.represent_sequence('!flowseq', data, flow_style=True)
-
     @classmethod
     def from_yaml(cls, loader, node):
         return cls(loader.construct_sequence(node))
+
+    @staticmethod
+    def to_yaml(dumper, data):
+        return dumper.represent_sequence('!flowseq', data, flow_style=True)
 
 
 class FlowMap(YAMLObject):
@@ -211,22 +201,32 @@ class FlowMap(YAMLObject):
     def __iter__(self):
         return iter(self.__dict__.items())
 
-    @staticmethod
-    def to_yaml(dumper, data):
-        return dumper.represent_mapping('!flowmap', data, flow_style=True)
-
     @classmethod
     def from_yaml(cls, loader, node):
         return cls(**loader.construct_mapping(node))
 
+    @staticmethod
+    def to_yaml(dumper, data):
+        return dumper.represent_mapping('!flowmap', data, flow_style=True)
+
+
+handlers = dict(Loader=oyaml.SafeLoader, Dumper=oyaml.SafeDumper)
+
+oyaml.add_implicit_resolver('!sfpreset', sfpex, **handlers)
+oyaml.add_implicit_resolver('!ccmsg', ccmsgex, **handlers)
+oyaml.add_implicit_resolver('!rspec', rspecex, **handlers)
+oyaml.add_implicit_resolver('!ftspec', ftspecex, **handlers)
 
 def resolve_as_flowmap(*path):
-    pathkeys = zip(path[::2], path[1::2])
+    pathkeys = list(zip(path[::2], path[1::2]))
     oyaml.add_path_resolver('!flowmap', pathkeys, kind=dict, **handlers)
     
 def resolve_as_flowseq(*path):
-    pathkeys = zip(path[::2], path[1::2])
+    pathkeys = list(zip(path[::2], path[1::2]))
     oyaml.add_path_resolver('!flowseq', pathkeys, kind=list, **handlers)
+
+snode = oyaml.SequenceNode
+mnode = oyaml.MappingNode
 
 resolve_as_flowseq(mnode, 'cc')
 resolve_as_flowseq(mnode, 'init', mnode, 'cc')
