@@ -4,25 +4,22 @@ Copyright (c) 2020 Bill Peterson
 
 Description: an implementation of patcher.py for a headless Raspberry Pi
 """
-import glob, subprocess
+import time, glob, subprocess
 from re import findall
-from time import sleep
 from os import umask
 from os.path import relpath, join as joinpath
 from sys import argv
+
 import patcher
 from utils import netlink
 
 # change these values to correspond to buttons/pads on your MIDI keyboard/controller
-PATCH_INC_CHANNEL = 10
-DEC_CC = 25
-INC_CC = 26
-# uncomment and modify these if using a knob/slider to select patch
-#PATCH_SELECT_CHANNEL = 1
-#SELECT_CC = 17
-# uncomment and modify if you want to be able to switch banks
-#BANK_INC_CHANNEL = 10
-#BANK_INC_CC = 28
+# or reprogram your controller to use the corresponding functions
+CTRLS_MIDI_CHANNEL = 1
+DEC_PATCH = 21          # decrement the patch number
+INC_PATCH = 22          # increment the patch number
+SELECT_PATCH = 23       # choose a patch using a knob or slider
+BANK_INC = 24           # load the next bank
 
 
 POLL_TIME = 0.025
@@ -39,35 +36,49 @@ def scan_midiports():
             midiports[client] = port
     return midiports
 
+def safe_shutdown():
+    onboardled_blink(1, 5)
+    onboardled_set(0, 1, trigger='mmc0')
+    onboardled_set(1, 1, trigger='input')
+    subprocess.run('sudo shutdown -h now'.split())
+
 try:
     subprocess.run(('cat', '/sys/class/leds/led1/brightness'), stdout=subprocess.DEVNULL)
 except:
-    def onboardled_set(state=1):
+    def onboardled_set(led, state=None, trigger=None):
         pass
         
-    def onboardled_blink():
+    def onboardled_blink(led, n=0):
         pass
         
     def error_blink(n, e=None):
         if e: raise e    
-else:
-    def onboardled_set(state=1):
-        e = subprocess.Popen(('echo', str(state)), stdout=subprocess.PIPE)
-        subprocess.run(('sudo', 'tee', '/sys/class/leds/led1/brightness'), stdin=e.stdout, stdout=subprocess.DEVNULL)
+else:        
+    def onboardled_set(led, state=None, trigger=None):
+        if trigger:
+            e = subprocess.Popen(('echo', trigger), stdout=subprocess.PIPE)
+            subprocess.run(('sudo', 'tee', '/sys/class/leds/led%s/trigger' % led), stdin=e.stdout, stdout=subprocess.DEVNULL)
+        if state != None:
+            e = subprocess.Popen(('echo', str(state)), stdout=subprocess.PIPE)
+            subprocess.run(('sudo', 'tee', '/sys/class/leds/led%s/brightness' % led), stdin=e.stdout, stdout=subprocess.DEVNULL)
 
-    def onboardled_blink():
-        onboardled_set(1)
-        sleep(0.1)
-        onboardled_set(0)
-        
+    def onboardled_blink(led, n=1):
+        while True:            
+            onboardled_set(led, 1)
+            time.sleep(0.1)
+            onboardled_set(led, 0)
+            n -= 1
+            if n < 1: break
+            time.sleep(0.1)
+            
     def error_blink(n, e=None):
-        # indicate a problem by blinking one of the onboard LEDs and block forever
+        # indicate a problem by blinking the PWR led and block forever
         while True:
-            for i in range(n):
-                onboardled_blink()
-                sleep(0.1)
-            sleep(1)            
+            onboardled_blink(1, n)
+            time.sleep(1)
 
+    onboardled_set(0, 0, trigger='none') # green ACT led off
+    onboardled_set(1, 1, trigger='none') # red PWR led on
 
 def headless_synth(cfgfile):
     # start the patcher
@@ -76,6 +87,14 @@ def headless_synth(cfgfile):
     except patcher.PatcherError as e:
         # problem with config file
         error_blink(2, e)
+
+    def list_banks():
+        bpaths = sorted(glob.glob(joinpath(pxr.bankdir, '**', '*.yaml'), recursive=True), key=str.lower)
+        return [relpath(x, start=pxr.bankdir) for x in bpaths]
+
+    def list_soundfonts():
+        sfpaths = sorted(glob.glob(joinpath(pxr.sfdir, '**', '*.sf2'), recursive=True), key=str.lower)
+        return [relpath(x, start=pxr.sfdir) for x in sfpaths]
 
     # hack to connect MIDI devices to old versions of fluidsynth
     midiports = scan_midiports()
@@ -98,38 +117,41 @@ def headless_synth(cfgfile):
         # problem with bank file
         error_blink(3, e)
 
-    pxr.link_cc('incpatch', type='patch', chan=PATCH_INC_CHANNEL, cc=INC_CC, xfrm='1-127*0+1')
-    pxr.link_cc('incpatch', type='patch', chan=PATCH_INC_CHANNEL, cc=DEC_CC, xfrm='1-127*0-1')
-    if 'PATCH_SELECT_CHANNEL' in globals():
-        pxr.link_cc('selectpatch', type='patch', chan=PATCH_SELECT_CHANNEL, cc=SELECT_CC)
-    if 'BANK_INC_CHANNEL' in globals():
-        pxr.link_cc('incbank', type='bank', chan=BANK_INC_CHANNEL, cc=BANK_INC_CC, xfrm='1-127*0+1')
     pno = 0
+    shutdowntimer = 0
     pxr.select_patch(pno)
 
-    def list_banks():
-        bpaths = sorted(glob.glob(joinpath(pxr.bankdir, '**', '*.yaml'), recursive=True), key=str.lower)
-        return [relpath(x, start=pxr.bankdir) for x in bpaths]
+    # set up the patch/bank controls
+    pxr.link_cc('incpatch', type='user', chan=CTRLS_MIDI_CHANNEL, cc=INC_PATCH, xfrm='1-127*0+1')
+    pxr.link_cc('incpatch', type='user', chan=CTRLS_MIDI_CHANNEL, cc=DEC_PATCH, xfrm='1-127*0-1')
+    pxr.link_cc('shutdowncancel', type='user', chan=CTRLS_MIDI_CHANNEL, cc=INC_PATCH, xfrm='0-0*1+0')
+    pxr.link_cc('shutdowncancel', type='user', chan=CTRLS_MIDI_CHANNEL, cc=DEC_PATCH, xfrm='0-0*1+0')
+    pxr.link_cc('selectpatch', type='user', chan=CTRLS_MIDI_CHANNEL, cc=SELECT_PATCH)
+    pxr.link_cc('incbank', type='user', chan=CTRLS_MIDI_CHANNEL, cc=BANK_INC, xfrm='1-127*0+1')
 
-    def list_soundfonts():
-        sfpaths = sorted(glob.glob(joinpath(pxr.sfdir, '**', '*.sf2'), recursive=True), key=str.lower)
-        return [relpath(x, start=pxr.sfdir) for x in sfpaths]
-
+    onboardled_blink(0, 5) # ready to play
 
     # main loop
     while True:
-        sleep(POLL_TIME)
+        time.sleep(POLL_TIME)
+        t=time.time()
+        if shutdowntimer:
+            if t - shutdowntimer > 7:
+                safe_shutdown()
         changed = pxr.poll_cc()
         if 'incpatch' in changed:
+            shutdowntimer = t
             pno = (pno + changed['incpatch']) % pxr.patches_count()
             pxr.select_patch(pno)
-            onboardled_blink()
+            onboardled_blink(0)
+        elif 'shutdowncancel' in changed:
+            shutdowntimer = 0
         elif 'selectpatch' in changed:
             x = int(changed['selectpatch'] * min(pxr.patches_count(), 128) / 128)
             if x != pno:
                 pno = x
                 pxr.select_patch(pno)
-                onboardled_blink()
+                onboardled_blink(0)
         elif 'incbank' in changed:
             banks = list_banks()
             if pxr.currentbank in banks:
@@ -138,9 +160,9 @@ def headless_synth(cfgfile):
                 bno = 0
             bno = (bno + changed['incbank']) % len(banks)
             try:
-                onboardled_set(1)
+                onboardled_set(0, 1)
                 pxr.load_bank(banks[bno])
-                onboardled_set(0)
+                onboardled_set(0, 0)
                 pno = 0
                 pxr.select_patch(pno)
             except patcher.PatcherError as e:
@@ -204,7 +226,7 @@ def headless_synth(cfgfile):
                     remote_link.reply(req, str(e), netlink.REQ_ERROR)
                 else:
                     remote_link.reply(req, warn)
-                    onboardled_blink()
+                    onboardled_blink(0)
                     
             elif req.type == netlink.LIST_SOUNDFONTS:
                 sf = list_soundfonts()
@@ -223,7 +245,7 @@ def headless_synth(cfgfile):
                 pno = int(req.body)
                 warn = pxr.select_sfpreset(pno)
                 remote_link.reply(req, warn)
-                onboardled_blink()
+                onboardled_blink(0)
 
             elif req.type == netlink.LIST_PLUGINS:
                 try:
@@ -251,13 +273,18 @@ def headless_synth(cfgfile):
 
 
 if __name__ == "__main__":
-    onboardled_set(0)
     umask(0o002)
 
     if '--interactive' in argv:
         argv.remove('--interactive')
         def error_blink(n, e=None):
-            if e: raise e    
+            if e: raise e
+            
+        def safe_shutdown():
+            print('bye!')
+            onboardled_set(0, 0, trigger='mmc0')
+            onboardled_set(1, 1, trigger='input')
+            exit()
 
     if len(argv) > 1:
         cfgfile = argv[1]
