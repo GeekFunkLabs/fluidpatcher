@@ -35,7 +35,6 @@ def scan_midiports():
     return midiports
 
 def safe_shutdown():
-    onboardled_blink(1, 5)
     onboardled_set(0, 1, trigger='mmc0')
     onboardled_set(1, 1, trigger='input')
     subprocess.run('sudo shutdown -h now'.split())
@@ -136,6 +135,9 @@ def headless_synth(cfgfile):
         if shutdowntimer:
             if t - shutdowntimer > 7:
                 safe_shutdown()
+            if t - shutdowntimer > 5:
+                onboardled_blink(1, 10)
+                onboardled_set(1, 1)
         changed = pxr.poll_cc()
         if 'incpatch' in changed:
             shutdowntimer = t
