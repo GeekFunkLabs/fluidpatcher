@@ -79,7 +79,6 @@ def list_soundfonts():
 def select_patch(n):
     pxr.select_patch(n)
     onboardled_blink(ACT_LED)
-    play_sound('patch_change')
     print("Selected patch %d/%d: %s" % (n + 1, pxr.patches_count(), pxr.patch_name(n)))
     
 def load_bank(bfile):
@@ -163,6 +162,7 @@ while True:
     if 'incpatch' in changed:
         shutdowntimer = t
         pno = (pno + changed['incpatch']) % pxr.patches_count()
+        play_sound('patch_change')
         select_patch(pno)
     elif 'shutdowncancel' in changed:
         shutdowntimer = 0
