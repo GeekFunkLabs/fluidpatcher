@@ -79,15 +79,21 @@ def list_soundfonts():
 def select_patch(n):
     pxr.select_patch(n)
     onboardled_blink(ACT_LED)
+    play_sound('patch_change')
     print("Selected patch %d/%d: %s" % (n + 1, pxr.patches_count(), pxr.patch_name(n)))
     
 def load_bank(bfile):
     onboardled_set(ACT_LED, 1)
+    play_sound('bank_loading')
     print("Loading bank '%s' .. " % bfile, end='')
     pxr.load_bank(bfile)
     onboardled_set(ACT_LED, 0)
+    play_sound('bank_loaded')
     print("done!")
 
+def play_sound(sound):
+    if pxr.cfg.get('audio_feedback', 1):
+        subprocess.Popen(['aplay', f'assets/sounds/{sound}.wav'], stderr=subprocess.DEVNULL)
 
 os.umask(0o002)
 if len(sys.argv) > 1:
@@ -136,6 +142,7 @@ pxr.link_cc('selectpatch', type='user', chan=CTRLS_MIDI_CHANNEL, cc=SELECT_PATCH
 pxr.link_cc('incbank', type='user', chan=CTRLS_MIDI_CHANNEL, cc=BANK_INC, xfrm='1-127*0+1')
 
 onboardled_blink(ACT_LED, 5) # ready to play
+play_sound('boot_up')
 
 # main loop
 while True:
@@ -145,11 +152,13 @@ while True:
         if t - shutdowntimer > 7:
             onboardled_set(ACT_LED, 1, trigger='mmc0')
             onboardled_set(PWR_LED, 1, trigger='input')
+            play_sound('shut_down')
             print("Shutting down..")
             subprocess.run('sudo shutdown -h now'.split())
         if t - shutdowntimer > 5:
             onboardled_blink(PWR_LED, 10)
             onboardled_set(PWR_LED, 1)
+            play_sound('will_shut_down')
     changed = pxr.poll_cc()
     if 'incpatch' in changed:
         shutdowntimer = t
