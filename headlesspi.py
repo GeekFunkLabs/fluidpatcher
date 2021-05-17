@@ -130,6 +130,7 @@ except patcher.PatcherError as e:
 
 pno = 0
 shutdowntimer = 0
+shutting_down = 0
 select_patch(pno)
 
 # set up the patch/bank controls
@@ -151,13 +152,16 @@ while True:
         if t - shutdowntimer > 7:
             onboardled_set(ACT_LED, 1, trigger='mmc0')
             onboardled_set(PWR_LED, 1, trigger='input')
-            play_sound('shut_down')
             print("Shutting down..")
+            play_sound('shut_down')
+            time.sleep(0.5)
             subprocess.run('sudo shutdown -h now'.split())
         if t - shutdowntimer > 5:
+            if shutting_down == 0:
+                play_sound('will_shut_down')
+                shutting_down = 1
             onboardled_blink(PWR_LED, 10)
             onboardled_set(PWR_LED, 1)
-            play_sound('will_shut_down')
     changed = pxr.poll_cc()
     if 'incpatch' in changed:
         shutdowntimer = t
@@ -166,6 +170,7 @@ while True:
         select_patch(pno)
     elif 'shutdowncancel' in changed:
         shutdowntimer = 0
+        shutting_down = 0
     elif 'selectpatch' in changed:
         x = int(changed['selectpatch'] * min(pxr.patches_count(), 128) / 128)
         if x != pno:
