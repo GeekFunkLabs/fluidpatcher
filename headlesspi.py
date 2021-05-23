@@ -5,7 +5,7 @@ Description: an implementation of patcher.py for a headless Raspberry Pi
     patches/banks are changed using pads/buttons/knobs on the controller
     should work on other platforms as well
 """
-import time, re, sys, os, traceback, glob, subprocess, mido
+import time, re, sys, os, traceback, glob, subprocess, mido, simpleaudio
 import patcher
 from utils import netlink
 
@@ -91,8 +91,9 @@ def load_bank(bfile):
     print("done!")
 
 def play_sound(sound):
-    if pxr.cfg.get('audio_feedback', 1):
-        subprocess.Popen(['aplay', f'assets/sounds/{sound}.wav'], stderr=subprocess.DEVNULL)
+    if pxr.cfg.get('audiofeedback', 0):
+        simpleaudio.WaveObject.from_wave_file(f'audiofeedback/{sound}.wav')
+                              .play()
 
 os.umask(0o002)
 if len(sys.argv) > 1:
