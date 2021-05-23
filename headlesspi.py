@@ -81,7 +81,7 @@ def select_patch(n):
     onboardled_blink(ACT_LED)
     print("Selected patch %d/%d: %s" % (n + 1, pxr.patches_count(), pxr.patch_name(n)))
 
-def load_bank(bfile, quiet = false):
+def load_bank(bfile, quiet = False):
     onboardled_set(ACT_LED, 1)
     if not quiet: play_sound('bank_loading')
     print("Loading bank '%s' .. " % bfile, end='')
@@ -123,7 +123,7 @@ else:
 
 # load bank
 try:
-    load_bank(pxr.currentbank, true)
+    load_bank(pxr.currentbank, True)
 except patcher.PatcherError as e:
     print("Error(s) in " + pxr.currentbank, file=sys.stderr)
     error_blink(3)
