@@ -92,8 +92,7 @@ def load_bank(bfile):
 
 def play_sound(sound):
     if pxr.cfg.get('audiofeedback', 0):
-        simpleaudio.WaveObject.from_wave_file(f'audiofeedback/{sound}.wav')
-                              .play()
+        simpleaudio.WaveObject.from_wave_file(f'audiofeedback/{sound}.wav').play()
 
 os.umask(0o002)
 if len(sys.argv) > 1:
