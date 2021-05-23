@@ -154,7 +154,7 @@ while True:
             onboardled_set(PWR_LED, 1, trigger='input')
             print("Shutting down..")
             play_sound('shut_down')
-            time.sleep(0.5)
+            time.sleep(0.75)
             subprocess.run('sudo shutdown -h now'.split())
         if t - shutdowntimer > 5:
             if shutting_down == 0:
