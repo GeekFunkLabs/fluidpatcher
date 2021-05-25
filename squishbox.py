@@ -296,9 +296,8 @@ while True:
                         sb.lcd_clear()
                         sb.lcd_write(networks[j], 0)
                         sb.lcd_write("adding network..", 1)
-                        f = open('/etc/wpa_supplicant/wpa_supplicant.conf', 'a')
-                        f.write('network={\n  ssid="%s"\n  psk="%s"\n}\n' % (networks[j], newpsk))
-                        f.close()
+                        e = subprocess.Popen(('echo', f'network={{\n  ssid="{networks[j]}"\n  psk="{newpsk}"\n}}\n'), stdout=subprocess.PIPE)
+                        subprocess.run(('sudo', 'tee', '-a', '/etc/wpa_supplicant/wpa_supplicant.conf'), stdin=e.stdout, stdout=subprocess.DEVNULL)
                         subprocess.run('sudo service networking restart'.split())
                         break
                 
