@@ -5,6 +5,11 @@ from ctypes import *
 from ctypes.util import find_library
 import os
 
+def specfunc(func, restype, *argtypes):
+    func.restype = restype
+    func.argtypes = argtypes
+    return func
+
 if hasattr(os, 'add_dll_directory'):
     os.add_dll_directory(os.getcwd())
 
@@ -17,98 +22,233 @@ if lib is None:
 
 FL = CDLL(lib)
 
-FL.new_fluid_settings.argtypes = []
-FL.new_fluid_settings.restype = c_void_p
-
-FL.new_fluid_synth.argtypes = [c_void_p]
-FL.new_fluid_synth.restype = c_void_p
-
-FL.new_fluid_audio_driver.argtypes = [c_void_p, c_void_p]
-FL.new_fluid_audio_driver.restype = c_void_p
+specfunc(FL.new_fluid_settings, c_void_p)
+specfunc(FL.fluid_settings_getint, c_int, c_void_p, c_char_p, POINTER(c_int))
+specfunc(FL.fluid_settings_getnum, c_int, c_void_p, c_char_p, POINTER(c_double))
+specfunc(FL.fluid_settings_copystr, c_int, c_void_p, c_char_p, c_char_p, c_int)
+specfunc(FL.fluid_settings_setint, c_int, c_void_p, c_char_p, c_int)
+specfunc(FL.fluid_settings_setnum, c_int, c_void_p, c_char_p, c_double)
+specfunc(FL.fluid_settings_setstr, c_int, c_void_p, c_char_p, c_char_p)
 
 fl_callback = CFUNCTYPE(c_void_p, c_void_p, c_void_p)
-FL.new_fluid_midi_router.argtypes = [c_void_p, fl_callback, c_void_p]
-FL.new_fluid_midi_router.restype = c_void_p
+specfunc(FL.new_fluid_synth, c_void_p, c_void_p)
+specfunc(FL.new_fluid_audio_driver, c_void_p, c_void_p, c_void_p)
+specfunc(FL.new_fluid_midi_router, c_void_p, c_void_p, fl_callback, c_void_p)
+specfunc(FL.new_fluid_midi_driver, c_void_p, c_void_p, fl_callback, c_void_p)
+specfunc(FL.fluid_synth_handle_midi_event, c_int, c_void_p, c_void_p)
+specfunc(FL.fluid_midi_router_handle_midi_event, c_int, c_void_p, c_void_p)
 
-FL.new_fluid_midi_driver.argtypes = [c_void_p, fl_callback, c_void_p]
-FL.new_fluid_midi_driver.restype = c_void_p
+specfunc(FL.fluid_synth_sfload, c_int, c_void_p, c_char_p, c_int)
+specfunc(FL.fluid_synth_sfunload, c_int, c_void_p, c_int, c_int)
+specfunc(FL.fluid_synth_program_select, c_int, c_void_p, c_int, c_int, c_int, c_int)
+specfunc(FL.fluid_synth_unset_program, c_int, c_void_p, c_int)
+specfunc(FL.fluid_synth_get_program, c_int, c_void_p, c_int, POINTER(c_int), POINTER(c_int), POINTER(c_int))
+specfunc(FL.fluid_synth_cc, c_int, c_void_p, c_int, c_int, c_int)
+specfunc(FL.fluid_synth_get_cc, c_int, c_void_p, c_int, c_int, POINTER(c_int))
 
-FL.new_fluid_midi_router_rule.argtypes = []
-FL.new_fluid_midi_router_rule.restype = c_void_p
+specfunc(FL.new_fluid_midi_router_rule, c_void_p)
+specfunc(FL.fluid_midi_router_rule_set_chan, None, c_void_p, c_int, c_int, c_float, c_int)
+specfunc(FL.fluid_midi_router_rule_set_param1, None, c_void_p, c_int, c_int, c_float, c_int)
+specfunc(FL.fluid_midi_router_rule_set_param2, None, c_void_p, c_int, c_int, c_float, c_int)
+specfunc(FL.fluid_midi_router_add_rule, c_int, c_void_p, c_void_p, c_int)
+specfunc(FL.fluid_midi_router_clear_rules, c_int, c_void_p)
+specfunc(FL.fluid_midi_router_set_default_rules, c_int, c_void_p)
 
-FL.fluid_settings_setint.argtypes = [c_void_p, c_char_p, c_int]
-FL.fluid_settings_setint.restype = c_int
-FL.fluid_settings_setnum.argtypes = [c_void_p, c_char_p, c_double]
-FL.fluid_settings_setnum.restype = c_int
-FL.fluid_settings_setstr.argtypes = [c_void_p, c_char_p, c_char_p]
-FL.fluid_settings_setstr.restype = c_int
-FL.fluid_settings_getint.argtypes = [c_void_p, c_char_p, POINTER(c_int)]
-FL.fluid_settings_getint.restype = c_int
-FL.fluid_settings_getnum.argtypes = [c_void_p, c_char_p, POINTER(c_double)]
-FL.fluid_settings_getnum.restype = c_int
-FL.fluid_settings_copystr.argtypes = [c_void_p, c_char_p, c_char_p, c_int]
-FL.fluid_settings_copystr.restype = c_int
-
-FL.fluid_synth_handle_midi_event.argtypes = [c_void_p, c_void_p]
-FL.fluid_synth_handle_midi_event.restype = c_int
-FL.fluid_synth_sfload.argtypes = [c_void_p, c_char_p, c_int]
-FL.fluid_synth_sfload.restype = c_int
-FL.fluid_synth_sfunload.argtypes = [c_void_p, c_int, c_int]
-FL.fluid_synth_sfunload.restype = c_int
-FL.fluid_synth_program_select.argtypes = [c_void_p, c_int, c_int, c_int, c_int]
-FL.fluid_synth_program_select.restype = c_int
-FL.fluid_synth_unset_program.argtypes = [c_void_p, c_int]
-FL.fluid_synth_unset_program.restype = c_int
-FL.fluid_synth_get_program.argtypes = [c_void_p, c_int, POINTER(c_int), POINTER(c_int), POINTER(c_int)]
-FL.fluid_synth_get_program.restype = c_int
-FL.fluid_synth_cc.argtypes = [c_void_p, c_int, c_int, c_int]
-FL.fluid_synth_cc.restype = c_int
-FL.fluid_synth_get_cc.argtypes = [c_void_p, c_int, c_int, POINTER(c_int)]
-FL.fluid_synth_get_cc.restype = c_int
-FL.fluid_synth_noteon.argtypes = [c_void_p, c_int, c_int, c_int]
-FL.fluid_synth_noteon.restype = c_int
-FL.fluid_synth_noteoff.argtypes = [c_void_p, c_int, c_int]
-FL.fluid_synth_noteoff.restype = c_int
-
-FL.fluid_midi_router_handle_midi_event.argtypes = [c_void_p, c_void_p]
-FL.fluid_midi_router_handle_midi_event.restype = c_int
-FL.fluid_midi_router_clear_rules.argtypes = [c_void_p]
-FL.fluid_midi_router_clear_rules.restype = c_int
-FL.fluid_midi_router_set_default_rules.argtypes = [c_void_p]
-FL.fluid_midi_router_set_default_rules.restype = c_int
-FL.fluid_midi_router_rule_set_chan.argtypes = [c_void_p, c_int, c_int, c_float, c_int]
-FL.fluid_midi_router_rule_set_chan.restype = None
-FL.fluid_midi_router_rule_set_param1.argtypes = [c_void_p, c_int, c_int, c_float, c_int]
-FL.fluid_midi_router_rule_set_param1.restype = None
-FL.fluid_midi_router_rule_set_param2.argtypes = [c_void_p, c_int, c_int, c_float, c_int]
-FL.fluid_midi_router_rule_set_param2.restype = None
-FL.fluid_midi_router_add_rule.argtypes = [c_void_p, c_void_p, c_int]
-FL.fluid_midi_router_add_rule.restype = c_int
+specfunc(FL.new_fluid_midi_event, c_void_p)
+specfunc(FL.fluid_midi_event_get_type, c_int, c_void_p)
+specfunc(FL.fluid_midi_event_get_channel, c_int, c_void_p)
+fl_midi_event_get_par1 = specfunc(FL.fluid_midi_event_get_key, c_int, c_void_p)
+fl_midi_event_get_par2 = specfunc(FL.fluid_midi_event_get_velocity, c_int, c_void_p)
+specfunc(FL.fluid_midi_event_set_type, c_int, c_void_p, c_int)
+specfunc(FL.fluid_midi_event_set_channel, c_int, c_void_p, c_int)
+fl_midi_event_set_par1 = specfunc(FL.fluid_midi_event_set_key, c_int, c_void_p, c_int)
+fl_midi_event_set_par2 = specfunc(FL.fluid_midi_event_set_velocity, c_int, c_void_p, c_int)
 
 # fluidsynth 2.x
-FL.fluid_synth_get_sfont_by_id.argtypes = [c_void_p, c_int]
-FL.fluid_synth_get_sfont_by_id.restype = c_void_p
-FL.fluid_sfont_get_preset.argtypes = [c_void_p, c_int, c_int]
-FL.fluid_sfont_get_preset.restype = c_void_p
-FL.fluid_preset_get_name.argtypes = [c_void_p]
-FL.fluid_preset_get_name.restype = c_char_p
+specfunc(FL.fluid_synth_get_sfont_by_id, c_void_p, c_void_p, c_int)
+specfunc(FL.fluid_sfont_get_preset, c_void_p, c_void_p, c_int, c_int)
+specfunc(FL.fluid_preset_get_name, c_char_p, c_void_p)
 
-FL.fluid_synth_get_ladspa_fx.argtypes = [c_void_p]
-FL.fluid_synth_get_ladspa_fx.restype = c_void_p
-FL.fluid_ladspa_activate.argtypes = [c_void_p]
-FL.fluid_ladspa_activate.restype = c_void_p
-FL.fluid_ladspa_reset.argtypes = [c_void_p]
-FL.fluid_ladspa_reset.restype = c_int
-FL.fluid_ladspa_effect_set_control.argtypes = [c_void_p, c_char_p, c_char_p, c_float]
-FL.fluid_ladspa_effect_set_control.restype = c_int
-FL.fluid_ladspa_add_effect.argtypes = [c_void_p, c_char_p, c_char_p, c_char_p]
-FL.fluid_ladspa_add_effect.restype = c_int
-FL.fluid_ladspa_effect_link.argtypes = [c_void_p, c_char_p, c_char_p, c_char_p]
-FL.fluid_ladspa_effect_link.restype = c_int
+specfunc(FL.fluid_synth_get_ladspa_fx, c_void_p, c_void_p)
+specfunc(FL.fluid_ladspa_activate, c_void_p, c_void_p)
+specfunc(FL.fluid_ladspa_reset, c_int, c_void_p)
+specfunc(FL.fluid_ladspa_effect_set_control, c_int, c_void_p, c_char_p, c_char_p, c_float)
+specfunc(FL.fluid_ladspa_add_effect, c_int, c_void_p, c_char_p, c_char_p, c_char_p)
+specfunc(FL.fluid_ladspa_effect_link, c_int, c_void_p, c_char_p, c_char_p, c_char_p)
 
 FLUID_OK = 0
 FLUID_FAILED = -1
 FLUIDSETTING_EXISTS = FLUID_OK
+
+MIDI_NOTEOFF = 0x80
+MIDI_NOTEON = 0x90
+MIDI_KPRESS = 0xa0
+MIDI_CONTROL = 0xb0
+MIDI_PROG = 0xc0
+MIDI_CPRESS = 0xd0
+MIDI_PBEND = 0xe0
+RULE_NAMES = 'note', 'cc', 'prog', 'pbend', 'cpress', 'kpress'
+MIDI_RULES = MIDI_NOTEON, MIDI_CONTROL, MIDI_PROG, MIDI_PBEND, MIDI_CPRESS, MIDI_KPRESS
+
+
+class MidiEvent:
+
+    def __init__(self, event):
+        self.event = event
+
+    @property
+    def type(self): return FL.fluid_midi_event_get_type(self.event)        
+    @type.setter
+    def type(self, v): FL.fluid_midi_event_set_type(self.event, v)
+
+    @property
+    def chan(self): return FL.fluid_midi_event_get_channel(self.event)        
+    @chan.setter
+    def chan(self, v): FL.fluid_midi_event_set_channel(self.event, v)
+    
+    @property
+    def par1(self): return fl_midi_event_get_par1(self.event)
+    @par1.setter
+    def par1(self, v): fl_midi_event_set_par1(self.event, v)
+
+    @property
+    def par2(self): return fl_midi_event_get_par2(self.event)
+    @par2.setter
+    def par2(self, v): fl_midi_event_set_par2(self.event, v)
+        
+    def __repr__(self):
+        return "type: %s, chan: %d, par1: %d, par2: %d" % (self.type, self.chan, self.par1, self.par2)
+
+
+class MidiMessage:
+
+    def __init__(self, mevent):
+        self.type = mevent.type
+        self.chan = mevent.chan
+        self.par1 = mevent.par1
+        self.par2 = mevent.par2
+        
+    def __repr__(self):
+        return str(self.__dict__)
+
+
+class ExtMidiMessage(MidiMessage):
+
+    def __init__(self, mevent, val=None, extrule=None):
+        if extrule: self.__dict__.update(extrule.__dict__)
+        super().__init__(mevent)
+        self.val = val
+
+
+class Route:
+
+    def __init__(self, *args):
+        self.min = args[0]
+        self.max = args[1]
+        self.mul = args[2]
+        self.add = args[3]
+
+    def __repr__(self):
+        return str(self.__dict__)
+
+
+class TransRule:
+
+    def __init__(self, type, chan, par1, par2, target):
+        self.type = type
+        self.chan = Route(*chan) if chan else None
+        self.par1 = Route(*par1) if par1 else None
+        self.par2 = Route(*par2) if par2 else None
+        self.target = target
+
+    def applies(self, mevent):
+        if mevent.type == MIDI_NOTEOFF and self.type != 'note':
+            return False
+        if MIDI_RULES.index(mevent.type) != RULE_NAMES.index(self.type):
+            return False
+        if self.chan:
+            if self.chan.min > self.chan.max:
+                if self.chan.min < mevent.chan < self.chan.max:
+                    return False
+            else:
+                if not (self.chan.min <= mevent.chan <= self.chan.max):
+                    return False
+        if self.par1:
+            if self.par1.min > self.par1.max:
+                if self.par1.min < mevent.par1 < self.par1.max:
+                    return False
+            else:
+                if not (self.par1.min <= mevent.par1 <= self.par1.max):
+                    return False
+        if self.par2:
+            if self.par2.min > self.par2.max:
+                if self.par2.min < mevent.par2 < self.par2.max:
+                    return False
+            else:
+                if not (self.par2.min <= mevent.par2 <= self.par2.max):
+                    return False
+        return True
+
+    def apply(self, mevent):
+        newevent = MidiEvent(FL.new_fluid_midi_event())
+        newevent.type = MIDI_RULES[RULE_NAMES.index(self.target)]
+        if self.chan:
+            newevent.chan = int(mevent.chan * self.chan.mul + self.chan.add + 0.5)
+        else:
+            newevent.chan = mevent.chan
+            
+        if self.type in ('note', 'cc', 'kpress'):
+            if self.target in ('note', 'cc', 'kpress'): # 2-parameter events
+                if self.par1:
+                    newevent.par1 = int(mevent.par1 * self.par1.mul + self.par1.add + 0.5)
+                else:
+                    newevent.par1 = mevent.par1
+                if self.par2:
+                    newevent.par2 = int(mevent.par2 * self.par2.mul + self.par2.add + 0.5)
+                else:
+                    newevent.par2 = mevent.par2
+            else:
+                if self.par2:
+                    newevent.par1 = int(mevent.par2 * self.par2.mul + self.par2.add + 0.5)
+                else:
+                    newevent.par1 = mevent.par2
+        else:
+            if self.target in ('pbend', 'prog', 'cpress'): # 1-parameter events
+                if self.par1:
+                    newevent.par1 = int(mevent.par1 * self.par1.mul + self.par1.add + 0.5)
+                else:
+                    newevent.par1 = mevent.par1
+            else:
+                if self.par1:
+                    newevent.par2 = int(mevent.par1 * self.par1.mul + self.par1.add + 0.5)
+                else:
+                    newevent.par2 = mevent.par1
+                if self.par2:
+                    newevent.par1 = self.par2.min
+                else: newevent.par1 = 1 # hack
+        return newevent
+
+
+class ExtRule(TransRule):
+
+    def __init__(self, type, chan, par1, par2, target, **kwargs):
+        super().__init__(type, chan, par1, par2, target)
+        for attr, val in kwargs.items():
+            setattr(self, attr, val)
+
+    def apply(self, msg):
+        if self.type in ('note', 'cc', 'kpress'):
+            if self.par2:
+                val = msg.par2 * self.par2.mul + self.par2.add
+            else:
+                val = msg.par2
+        else:
+            if self.par1:
+                val = msg.par1 * self.par1.mul + self.par1.add
+            else:
+                val = msg.par1
+        return ExtMidiMessage(msg, val, self)
+
 
 class Synth:
 
@@ -122,10 +262,31 @@ class Synth:
         self.fx = FL.fluid_synth_get_ladspa_fx(self.synth)
         self.synth_eventhandle = fl_callback(FL.fluid_synth_handle_midi_event)
         self.router = FL.new_fluid_midi_router(self.st, self.synth_eventhandle, self.synth)
-        self.driver_eventhandle = fl_callback(FL.fluid_midi_router_handle_midi_event)
+        self.driver_eventhandle = fl_callback(self.handle_midi_event)
         FL.new_fluid_midi_driver(self.st, self.driver_eventhandle, self.router)
 
         self.sfid = {}
+        self.xrules = []
+        self.callback = None
+
+    def handle_midi_event(self, router, event):
+        mevent = MidiEvent(event)
+        for rule in self.xrules:
+            if rule.applies(mevent):
+                res = rule.apply(mevent)
+                if isinstance(res, MidiEvent):
+                    self.synth_eventhandle(self.synth, res.event)
+                else:
+                    if res.target == 'fluid':
+                        self.setting(res.setting, res.val)
+                    elif res.target == 'ladspafx':
+                        self.fx_setcontrol(res.label, res.port, res.val)
+                    else:
+                        if self.callback != None:
+                            self.callback(res)
+        if self.callback != None:
+            self.callback(MidiMessage(mevent))
+        return FL.fluid_midi_router_handle_midi_event(router, event)
 
     def setting(self, opt, val):
         if isinstance(val, str):
@@ -188,36 +349,37 @@ class Synth:
         sfont = {v: k for k, v in self.sfid.items()}[id.value]
         return sfont, bank.value, prog.value
 
-    def noteon(self, chan, key, vel):
-        FL.fluid_synth_noteon(self.synth, chan, key, vel)
-
-    def noteoff(self, chan, key):
-        FL.fluid_synth_noteoff(self.synth, chan, key)
-
     def send_cc(self, chan, ctrl, val):
         FL.fluid_synth_cc(self.synth, chan, ctrl, val)
 
-    def get_cc(self, chan, num):
-        i=c_int()
-        FL.fluid_synth_get_cc(self.synth, chan, num, byref(i))
-        return i.value
+    def get_cc(self, chan, ctrl):
+        val = c_int()
+        FL.fluid_synth_get_cc(self.synth, chan, ctrl, byref(val))
+        return val.value
 
     def router_clear(self):
         FL.fluid_midi_router_clear_rules(self.router)
+        self.xrules = []
 
     def router_default(self):
         FL.fluid_midi_router_set_default_rules(self.router)
+        self.xrules = []
 
-    def router_addrule(self, type, chan, par1, par2):
-        rule = FL.new_fluid_midi_router_rule()
-        ntype = ['note', 'cc', 'prog', 'pbend', 'cpress', 'kpress'].index(type)
-        if chan:
-            FL.fluid_midi_router_rule_set_chan(rule, *chan)
-        if par1:
-            FL.fluid_midi_router_rule_set_param1(rule, *par1)
-        if par2:
-            FL.fluid_midi_router_rule_set_param2(rule, *par2)
-        FL.fluid_midi_router_add_rule(self.router, rule, ntype)
+    def router_addrule(self, type, chan, par1, par2, target=None, **kwargs):
+        if target in RULE_NAMES:
+            self.xrules.append(TransRule(type, chan, par1, par2, target))
+        elif target:
+            self.xrules.append(ExtRule(type, chan, par1, par2, target, **kwargs))
+        else:
+            rule = FL.new_fluid_midi_router_rule()
+            ntype = RULE_NAMES.index(type)
+            if chan:
+                FL.fluid_midi_router_rule_set_chan(rule, *chan)
+            if par1:
+                FL.fluid_midi_router_rule_set_param1(rule, *par1)
+            if par2:
+                FL.fluid_midi_router_rule_set_param2(rule, *par2)
+            FL.fluid_midi_router_add_rule(self.router, rule, ntype)
 
     def fxchain_clear(self):
         FL.fluid_ladspa_reset(self.fx)
@@ -239,4 +401,3 @@ class Synth:
         
     def fx_setcontrol(self, label, port, val):
         FL.fluid_ladspa_effect_set_control(self.fx, label.encode(), port.encode(), c_float(val))
-        
