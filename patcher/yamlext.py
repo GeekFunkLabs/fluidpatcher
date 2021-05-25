@@ -4,11 +4,11 @@ Description: extensions to YAML classes for patcher
 import re, oyaml
 from oyaml import safe_load, safe_load_all, safe_dump, safe_dump_all, YAMLError, YAMLObject
 
-
 sfpex = re.compile('^(.+):(\d+):(\d+)$')
-ccmsgex = re.compile('^([0-9]+)/([0-9]+)=([0-9]+)$')
-rspecex = re.compile('^([\d\.A-Gb#]+)-([\d\.A-Gb#]+)\*(-?[\d\.]+)([+-][\d\.A-Gb#]+)$')        
-ftspecex = re.compile('^([\d\.A-Gb#]+)-([\d\.A-Gb#]+)=(-?[\d\.A-Gb#]+)-(-?[\d\.A-Gb#]+)$')
+ccmsgex = re.compile('^(\d+)/(\d+)=(\d+)$')
+nn = '[A-G]?[b#]?\d+'
+rspecex = re.compile(f'^({nn})-({nn})\*(-?[\d\.]+)([+-]{nn})$')
+ftspecex = re.compile(f'^({nn})-?({nn})?=?(-?{nn})?-?(-?{nn})?$')
 
 def sift(val):
     try:
@@ -108,13 +108,6 @@ class RouterSpec(YAMLObject):
         return int(v[0]), int(v[1]), float(v[2]), int(v[3])
         
     @classmethod
-    def fromtospec(cls, spec):
-        from1, from2, to1, to2 = spec.vals
-        mul = (to2 - to1) / (from2 - from1)
-        add = to1 - from1 * mul
-        return cls(from1, from2, mul, add)
-
-    @classmethod
     def from_yaml(cls, loader, node):
         route = rspecex.findall(loader.construct_scalar(node))[0]
         min, max, mul, add = map(sift, route)
@@ -132,18 +125,41 @@ class FromToSpec(YAMLObject):
     yaml_dumper = oyaml.SafeDumper
     
     def __init__(self, from1, from2, to1, to2):
-        self.from1 = from1
-        self.from2 = from2
-        self.to1 = to1
-        self.to2 = to2
+        self._from1 = from1
+        self._from2 = from2
+        self._to1 = to1
+        self._to2 = to2
         
     def __repr__(self):
-        return '%s-%s=%s-%s' % (data.from1, data.from2, data.to1, data.to2)
+        rep = f"{self.from1}"
+        if self._from2 != '': rep += f"-{self._from2}"
+        if self._to1 != '': rep += f"={self._to1}"
+        if self._to2 != '': rep += f"-{self._to2}"
+        return rep
+
+    @property
+    def from1(self):
+        return scinote_to_val(self._from1)
+
+    @property
+    def from2(self):
+        if self._from2 != '':
+            return scinote_to_val(self._from2)
+        return scinote_to_val(self._from1)
+
+    @property
+    def to1(self):
+        if self._to1 != '':
+            return scinote_to_val(self._to1)
+        return self.from1
         
     @property
-    def vals(self):
-        v = list(map(scinote_to_val, [self.from1, self.from2, self.to1, self.to2]))
-        return int(v[0]), int(v[1]), float(v[2]), int(v[3])
+    def to2(self):
+        if self._to2 != '':
+            return scinote_to_val(self._to2)
+        if self._to1 == '':
+            return scinote_to_val(self._from2)
+        return scinote_to_val(self._to1)
         
     @classmethod
     def from_yaml(cls, loader, node):
@@ -154,6 +170,14 @@ class FromToSpec(YAMLObject):
     @staticmethod
     def to_yaml(dumper, data):
         return dumper.represent_scalar('!ftspec', str(data))
+        
+    def routerspec(self):
+        if self.from1 == self.from2:
+            mul = 1
+        else:
+            mul = (self.to2 - self.to1) / (self.from2 - self.from1)
+        add = self.to1 - self.from1 * mul
+        return RouterSpec(self.from1, self.from2, mul, add)
 
 
 class FlowSeq(YAMLObject):
@@ -198,7 +222,7 @@ class FlowMap(YAMLObject):
 
     def __iter__(self):
         return iter(self.__dict__.items())
-
+        
     @classmethod
     def from_yaml(cls, loader, node):
         return cls(**loader.construct_mapping(node))
@@ -208,33 +232,32 @@ class FlowMap(YAMLObject):
         return dumper.represent_mapping('!flowmap', data, flow_style=True)
 
 
+class RouterRule(FlowMap):
+    
+    yaml_tag = '!rrule'
+    
+class CCMsgList(FlowSeq):
+
+    yaml_tag = '!cclist'
+
+
 handlers = dict(Loader=oyaml.SafeLoader, Dumper=oyaml.SafeDumper)
 
 oyaml.add_implicit_resolver('!sfpreset', sfpex, **handlers)
-oyaml.add_implicit_resolver('!ccmsg', ccmsgex, **handlers)
+oyaml.add_implicit_resolver('!cclist', ccmsgex, **handlers)
 oyaml.add_implicit_resolver('!rspec', rspecex, **handlers)
-oyaml.add_implicit_resolver('!ftspec', ftspecex, **handlers)
+oyaml.add_implicit_resolver('!ftspec', ftsmatch, **handlers)
 
-def resolve_as_flowmap(*path):
+def resolve_path(tag, kind, *path):
     pathkeys = list(zip(path[::2], path[1::2]))
-    oyaml.add_path_resolver('!flowmap', pathkeys, kind=dict, **handlers)
-    
-def resolve_as_flowseq(*path):
-    pathkeys = list(zip(path[::2], path[1::2]))
-    oyaml.add_path_resolver('!flowseq', pathkeys, kind=list, **handlers)
+    oyaml.add_path_resolver(tag, pathkeys, kind=kind, **handlers)
 
 snode = oyaml.SequenceNode
 mnode = oyaml.MappingNode
-
-resolve_as_flowseq(mnode, 'cc')
-resolve_as_flowseq(mnode, 'init', mnode, 'cc')
-resolve_as_flowseq(mnode, 'patches', mnode, None, mnode, 'cc')
-
-resolve_as_flowmap(mnode, 'router_rules', snode, None) 
-resolve_as_flowmap(mnode, 'patches', mnode, None, mnode, 'router_rules', snode, None) 
-
-resolve_as_flowmap(mnode, 'cclinks', snode, None)
-resolve_as_flowmap(mnode, 'patches', mnode, None, mnode, 'cclinks', snode, None)
-
-resolve_as_flowmap(mnode, 'effects', snode, None, mnode, 'controls', snode, None)
-resolve_as_flowmap(mnode, 'patches', mnode, None, mnode, 'effects', snode, None, mnode, 'controls', snode, None)
+resolve_path('!cclist', list, mnode, 'cc')
+resolve_path('!cclist', list, mnode, 'init', mnode, 'cc')
+resolve_path('!cclist', list, mnode, 'patches', mnode, None, mnode, 'cc')
+resolve_path('!rrule', dict, mnode, 'router_rules', snode, None) 
+resolve_path('!rrule', dict, mnode, 'patches', mnode, None, mnode, 'router_rules', snode, None)
+resolve_path('!flowmap', dict, mnode, 'ladspafx', snode, None, mnode, 'controls', snode, None)
+resolve_path('!flowmap', dict, mnode, 'patches', mnode, None, mnode, 'ladspafx', snode, None, mnode, 'controls', snode, None)
