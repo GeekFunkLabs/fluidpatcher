@@ -41,7 +41,7 @@ class Patcher:
         self.cfg = {}
         self.read_config()
         fluidsettings.update(self.cfg.get('fluidsettings', {}))
-        self._fluid = fluidwrap.Synth(**fluidsettings)        
+        self._fluid = fluidwrap.Synth(**fluidsettings)
         self._max_channels = fluidsettings.get('synth.midi-channels', 16)
         self._bank = {'patches': {'No Patches': {}}}
         self._soundfonts = set()
@@ -67,6 +67,12 @@ class Patcher:
     @property
     def currentbank(self):
         return self.cfg.get('currentbank', '')
+
+    def set_midimessage_callback(self, func):
+        self._fluid.callback = func
+    
+    def clear_midimessage_callback(self):
+        self._fluid.callback = None
 
     def read_config(self):
         if self._cfgfile == '':
@@ -182,12 +188,6 @@ class Patcher:
             if not self._fluid.program_select(channel - 1, joinpath(self.sfdir, preset.name), preset.bank, preset.prog):
                 warnings.append('Unable to select preset %s on channel %d' % (preset, channel))
 
-        # link CC messages to parameters
-        for type in ['effect', 'fluidsetting']:
-            self.cclinks_clear(type)
-        for link in self._bank.get('cclinks', []) + patch.get('cclinks', []):
-            self.link_cc(**link.__dict__)
-
         # activate LADSPA effects
         self._fluid.fxchain_clear()
         n = 1
@@ -288,7 +288,7 @@ class Patcher:
         self._fluid.fxchain_clear()
         self._reset_synth_defaults()
         self._send_cc_defaults()
-        self._midi_route('note', chan=yamlext.FromToSpec(2, self._max_channels, 0, 0))
+        self._midi_route('note', chan=yamlext.FromToSpec(2, self._max_channels + 1, 0, 1))
         return True
         
     def select_sfpreset(self, presetnum):
@@ -314,38 +314,14 @@ class Patcher:
                 if opt in patch.get('fluidsettings', {}):
                     patch['fluidsettings'].remove(opt)
 
-    def link_cc(self, target, link='', type='fluidsetting', xfrm=yamlext.RouterSpec(0, 127, 1, 0), **kwargs):
-        if 'chan' in kwargs:
-            link = '%s/%s' % (kwargs['chan'], kwargs['cc'])
-        if not isinstance(xfrm, yamlext.YAMLObject):
+    def add_router_rule(self, rule):
+        if not isinstance(rule, dict):
             try:
-                xfrm = read_yaml(xfrm)
-            except yamlext.YAMLError:
-                raise PatcherError("Badly formatted xfrm for CCLink")
-        if isinstance(xfrm, yamlext.FromToSpec):
-            xfrm = yamlext.RouterSpec.fromtospec(xfrm)        
-        self._cc_links.append(cclink.CCLink(self._fluid, target, link, type, xfrm, **kwargs))
-                
-    def poll_cc(self):
-        retvals = {}
-        for link in self._cc_links:
-            if link.haschanged():
-                if link.xfrm.min <= link.val <= link.xfrm.max:
-                    val = link.val * link.xfrm.mul + link.xfrm.add
-                    if link.type == 'fluidsetting':
-                        self.fluid_set(link.target, val)
-                    elif link.type == 'effect':
-                        self._fluid.fx_setcontrol(link.target, link.port, val)
-                    else:
-                        retvals[link.target] = val
-        return retvals
-        
-    def cclinks_clear(self, type=''):
-        if type:
-            self._cc_links = [link for link in self._cc_links if link.type != type]
-        else:
-            self._cc_links = []
-        
+                rule = read_yaml(rule)
+            except (yamlext.YAMLError, IOError):
+                raise PatcherError("Improperly formatted router rule")
+        self._midi_route(**rule)
+
     # private functions
     def _reload_bankfonts(self):
         sfneeded = set()
@@ -423,32 +399,36 @@ class Patcher:
             self._fluid.fxchain_link(names[1], audioports[1], 'Main:R')
 
     def _midi_route(self, type, chan=None, par1=None, par2=None, **kwargs):
-    # send midi message routing rules to fluidsynth
+    # translate user router rules based on midi message and parameter type
+    # into (min, max, mul, add) sequences and send to fluidsynth
         if isinstance(chan, yamlext.FromToSpec):
             for chto in range(chan.to1, chan.to2 + 1):
-                ch = yamlext.RouterSpec(chan.from1, chan.from2, 0, chto)
+                ch = yamlext.RouterSpec(chan.from1, chan.from2, 0.0, chto)
                 self._midi_route(type, ch, par1, par2, **kwargs)
             return
         if isinstance(chan, yamlext.RouterSpec):
             for chfrom in range(chan.min, chan.max + 1):
-                ch = [chfrom - 1, chfrom - 1, 0, chfrom * chan.mul + chan.add - 1]
-                self._midi_route(type, ch, par1, par2)
+                ch = chfrom - 1, chfrom - 1, 0.0, chfrom * chan.mul + chan.add - 1
+                self._midi_route(type, ch, par1, par2, **kwargs)
             return
         if isinstance(par1, yamlext.FromToSpec):
-            if type == 'cc':
-                for ccto in range(par1.to1, par1.to2 + 1):
-                    p = yamlext.RouterSpec(par1.from1, par1.from2, 0, ccto)
+            if type in ('prog', 'cc', 'kpress'):
+                for t in range(par1.to1, par1.to2 + 1):
+                    p = yamlext.RouterSpec(par1.from1, par1.from2, 0.0, t)
                     self._midi_route(type, chan, p, par2, **kwargs)
                 return
             else:
-                par1 = yamlext.RouterSpec.fromtospec(par1)
+                par1 = par1.routerspec()
         if isinstance(par1, yamlext.RouterSpec):
             par1 = par1.vals
         if isinstance(par2, yamlext.FromToSpec):
-            par2 = yamlext.RouterSpec.fromtospec(par2)
+            par2 = par2.routerspec()
         if isinstance(par2, yamlext.RouterSpec):
             par2 = par2.vals
-        self._fluid.router_addrule(type, chan, par1, par2)
+        if isinstance(chan, int): chan = chan - 1, chan - 1, 1.0, 0
+        if isinstance(par1, int): par1 = par1, par1, 1.0, 0
+        if isinstance(par2, int): par2 = par2, par2, 1.0, 0
+        self._fluid.router_addrule(type, chan, par1, par2, **kwargs)
 
     def _send_cc_defaults(self, channels=[]):
         for channel in channels or range(1, self._max_channels + 1):
