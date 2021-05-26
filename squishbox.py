@@ -257,49 +257,50 @@ while True:
                 sb.waitforrelease(0)
                 
             elif k == 2: # wifi settings
-                ssid = subprocess.check_output(['iwgetid', 'wlan0', '--raw']).strip().decode('ascii')
-                ip = re.sub(b'\s.*', b'', subprocess.check_output(['hostname', '-I'])).decode('ascii')
-                sb.lcd_clear()
-                if ssid == "":
-                    sb.lcd_write("Not connected", 0)
-                else:
+                while True:
+                    x = re.search("SSID: ([^\n]+)", subprocess.check_output('iw dev wlan0 link'.split()).decode())                
+                    ssid = x[1] if x else "Not connected"
+                    ip = subprocess.check_output(['hostname', '-I']).decode().strip()
+                    sb.lcd_clear()
                     sb.lcd_write(ssid, 0)
                     sb.lcd_write("%-16s" % ip, 1)
-                if not sb.waitfortap(10): break
-                sb.lcd_write("Connections:    ", 0)
-                while True:
-                    if remote_link:
-                        opts = networks + ['Rescan...', 'Block RemoteLink']
-                    else:
-                        opts = networks + ['Rescan...', 'Allow RemoteLink']
-                    j = sb.choose_opt(opts, 1, timeout=0)
-                    if j < 0: break
-                    if j == len(opts) - 1:
+                    if not sb.waitfortap(10): break
+                    sb.lcd_write("Connections:    ", 0)
+                    while True:
                         if remote_link:
-                            remote_link = None
-                            pxr.cfg['remotelink_active'] = 0
+                            opts = networks + ['Rescan...', 'Block RemoteLink']
                         else:
-                            port = pxr.cfg.get('remotelink_port', netlink.DEFAULT_PORT)
-                            passkey = pxr.cfg.get('remotelink_passkey', netlink.DEFAULT_PASSKEY)
-                            remote_link = netlink.Server(port, passkey)
-                            pxr.cfg['remotelink_active'] = 1
-                        pxr.write_config()
-                        break
-                    if j == len(opts) - 2:
-                        sb.lcd_write("scanning..      ", 1)
-                        x = subprocess.check_output('sudo iwlist wlan0 scan'.split(), timeout=20).decode()
-                        networks = re.findall('ESSID:"([^\n]*)"', x)
-                    else:
-                        sb.lcd_write("Password:       ", 0)
-                        newpsk = sb.char_input(charset = SB.PRNCHARS)
-                        if newpsk == '': break
-                        sb.lcd_clear()
-                        sb.lcd_write(networks[j], 0)
-                        sb.lcd_write("adding network..", 1)
-                        e = subprocess.Popen(('echo', f'network={{\n  ssid="{networks[j]}"\n  psk="{newpsk}"\n}}\n'), stdout=subprocess.PIPE)
-                        subprocess.run(('sudo', 'tee', '-a', '/etc/wpa_supplicant/wpa_supplicant.conf'), stdin=e.stdout, stdout=subprocess.DEVNULL)
-                        subprocess.run('sudo service networking restart'.split())
-                        break
+                            opts = networks + ['Rescan...', 'Allow RemoteLink']
+                        j = sb.choose_opt(opts, 1, timeout=0)
+                        if j < 0: break
+                        if j == len(opts) - 1:
+                            if remote_link:
+                                remote_link = None
+                                pxr.cfg['remotelink_active'] = 0
+                            else:
+                                port = pxr.cfg.get('remotelink_port', netlink.DEFAULT_PORT)
+                                passkey = pxr.cfg.get('remotelink_passkey', netlink.DEFAULT_PASSKEY)
+                                remote_link = netlink.Server(port, passkey)
+                                pxr.cfg['remotelink_active'] = 1
+                            pxr.write_config()
+                            break
+                        if j == len(opts) - 2:
+                            sb.lcd_write("scanning..      ", 1)
+                            x = subprocess.check_output('sudo iw wlan0 scan'.split()).decode()
+                            networks = [s for s in re.findall('SSID: ([^\n]*)', x) if s]
+                        else:
+                            sb.lcd_write("Password:       ", 0)
+                            newpsk = sb.char_input(charset = SB.PRNCHARS)
+                            if newpsk == '': break
+                            sb.lcd_clear()
+                            sb.lcd_write(networks[j], 0)
+                            sb.lcd_write("adding network..", 1)
+                            e = subprocess.Popen(('echo', f'network={{\n  ssid="{networks[j]}"\n  psk="{newpsk}"\n}}\n'), stdout=subprocess.PIPE)
+                            subprocess.run(('sudo', 'tee', '-a', '/etc/wpa_supplicant/wpa_supplicant.conf'), stdin=e.stdout, stdout=subprocess.DEVNULL)
+                            subprocess.run('sudo systemctl restart dhcpcd'.split())
+                            j = -2
+                            break
+                    if j > -2: break
                 
             elif k == 3: # add soundfonts from a flash drive
                 sb.lcd_clear()
