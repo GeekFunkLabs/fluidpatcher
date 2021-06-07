@@ -1,8 +1,7 @@
 """
-Description: extensions to YAML classes for patcher
+Description: yaml extensions for fluidpatcher
 """
 import re, oyaml
-from oyaml import safe_load, safe_load_all, safe_dump, safe_dump_all, YAMLError, YAMLObject
 
 sfpex = re.compile('^(.+):(\d+):(\d+)$')
 ccmsgex = re.compile('^(\d+)/(\d+)=(\d+)$')
@@ -30,8 +29,18 @@ def scinote_to_val(val):
     octave = int(sci[3])
     return sign * ((octave + 1) * 12 + note + acc)
 
+def parse(text):
+    if '---' in text:
+        return oyaml.safe_load_all(text)
+    return oyaml.safe_load(text)
 
-class SFPreset(YAMLObject):
+def render(*args):
+    if len(args) > 1:
+        return oyaml.safe_dump_all(args)
+    return oyaml.safe_dump(args[0])
+
+
+class SFPreset(oyaml.YAMLObject):
 
     yaml_tag = '!sfpreset'
     yaml_loader = oyaml.SafeLoader
@@ -57,7 +66,7 @@ class SFPreset(YAMLObject):
         return dumper.represent_scalar('!sfpreset', str(data))
 
 
-class CCMsg(YAMLObject):
+class CCMsg(oyaml.YAMLObject):
 
     yaml_tag = '!ccmsg'
     yaml_loader = oyaml.SafeLoader
@@ -82,7 +91,7 @@ class CCMsg(YAMLObject):
         return dumper.represent_scalar('!ccmsg', str(data))
 
 
-class RouterSpec(YAMLObject):
+class RouterSpec(oyaml.YAMLObject):
 
     yaml_tag = '!rspec'
     yaml_loader = oyaml.SafeLoader
@@ -118,7 +127,7 @@ class RouterSpec(YAMLObject):
         return dumper.represent_scalar('!rspec', str(data))
         
 
-class FromToSpec(YAMLObject):
+class FromToSpec(oyaml.YAMLObject):
 
     yaml_tag = '!ftspec'
     yaml_loader = oyaml.SafeLoader
@@ -180,7 +189,7 @@ class FromToSpec(YAMLObject):
         return RouterSpec(self.from1, self.from2, mul, add)
 
 
-class FlowSeq(YAMLObject):
+class FlowSeq(oyaml.YAMLObject):
 
     yaml_tag = '!flowseq'
     yaml_loader = oyaml.SafeLoader
@@ -210,7 +219,7 @@ class FlowSeq(YAMLObject):
         return dumper.represent_sequence('!flowseq', data, flow_style=True)
 
 
-class FlowMap(YAMLObject):
+class FlowMap(oyaml.YAMLObject):
 
     yaml_tag = '!flowmap'
     yaml_loader = oyaml.SafeLoader
@@ -244,9 +253,9 @@ class CCMsgList(FlowSeq):
 handlers = dict(Loader=oyaml.SafeLoader, Dumper=oyaml.SafeDumper)
 
 oyaml.add_implicit_resolver('!sfpreset', sfpex, **handlers)
-oyaml.add_implicit_resolver('!cclist', ccmsgex, **handlers)
+oyaml.add_implicit_resolver('!ccmsg', ccmsgex, **handlers)
 oyaml.add_implicit_resolver('!rspec', rspecex, **handlers)
-oyaml.add_implicit_resolver('!ftspec', ftsmatch, **handlers)
+oyaml.add_implicit_resolver('!ftspec', ftspecex, **handlers)
 
 def resolve_path(tag, kind, *path):
     pathkeys = list(zip(path[::2], path[1::2]))
@@ -259,5 +268,3 @@ resolve_path('!cclist', list, mnode, 'init', mnode, 'cc')
 resolve_path('!cclist', list, mnode, 'patches', mnode, None, mnode, 'cc')
 resolve_path('!rrule', dict, mnode, 'router_rules', snode, None) 
 resolve_path('!rrule', dict, mnode, 'patches', mnode, None, mnode, 'router_rules', snode, None)
-resolve_path('!flowmap', dict, mnode, 'ladspafx', snode, None, mnode, 'controls', snode, None)
-resolve_path('!flowmap', dict, mnode, 'patches', mnode, None, mnode, 'ladspafx', snode, None, mnode, 'controls', snode, None)
