@@ -1,5 +1,6 @@
 # default bank w/ a range of useful patches
-# FluidGM_R3.sf2 required
+# requiring only small included fonts plus fluid's GM font
+# obtaining FluidGM_R3.sf2:
 #  -download from archive.org/details/fluidr3-gm-gs
 #  -or link to copy installed w/fluidsynth:
 #   `ln -s /usr/share/sounds/sf2/FluidR3_GM.sf2 SquishBox/sf2/`
@@ -9,11 +10,11 @@
 # assign toggle CCs 27-28 to pads
 
 router_rules:
-  - {type: cc, chan: 1-1=2-16, par1: 7-7*1+0}
-  - {type: cc, chan: 1-1=2-6, par1: 1-1*1+0}
-  - {type: cc, chan: 1-1=2-6, par1: 64-64*1+0}
-  - {type: cc, chan: 1-1=2-6, par1: 91-93*1+0}
-  - {type: pbend, chan: 1-1=2-6}
+  - {type: cc, chan: 1=2-16, par1: 7}
+  - {type: cc, chan: 1=2-6, par1: 1}
+  - {type: cc, chan: 1=2-6, par1: 64}
+  - {type: cc, chan: 1=2-6, par1: 91}
+  - {type: pbend, chan: 1=2-6}
 
 patches:
   Piano: 
@@ -29,13 +30,18 @@ patches:
   Tonewheel:
     1: FluidR3_GM.sf2:000:017
     # CC 13-16 controls the leslie effect
-    effects:
-      - lib: /usr/lib/ladspa/tap_rotspeak.so
-        controls:
-        - {port: Rotor Freq, val: 5, link: 1/13, xfrm: 0-127=0-30}
-        - {port: Horn Freq, val: 8, link: 1/14, xfrm: 0-127=0-30}
-        - {port: Mic Dist, val: 25, link: 1/15, xfrm: 0-127=0-100}
-        - {port: Rotor/Horn Mix, val: 0.5, link: 1/16, xfrm: 0-127=0-1}
+    ladspafx:
+      Rotary Speaker:
+        lib: /usr/lib/ladspa/tap_rotspeak.so
+        vals:
+          Rotor Freq: 5
+          Horn Freq: 8
+          Rotor/Horn Mix: 0.5
+    router_rules:
+    - {type: cc, chan: 1, par1: 13, par2: 0-127=0-30, ladspafx: Rotary Speaker, port: Rotor Freq}
+    - {type: cc, chan: 1, par1: 14, par2: 0-127=0-30, ladspafx: Rotary Speaker, port: Horn Freq}
+    - {type: cc, chan: 1, par1: 15, par2: 0-127=0-100, ladspafx: Rotary Speaker, port: Mic Dist}
+    - {type: cc, chan: 1, par1: 16, par2: 0-127=0-1, ladspafx: Rotary Speaker, port: Rotor/Horn Mix}
   Compy Guitar:
     1: FluidR3_GM.sf2:000:027
   Funk Guitar:
@@ -44,18 +50,20 @@ patches:
     1: FluidR3_GM.sf2:000:030
     # CC 13, 14 control tube drive, tape/tube mix
     effects:
-      - lib: /usr/lib/ladspa/tap_tubewarmth.so
-        audioports: mono
-        controls:
-        - {port: Drive, val: 2.5, link: 1/13, xfrm: 0-127=0.1-10}
-        - {port: Tape, val: 10, link: 1/14, xfrm: 0-127=-10-10}
+      Tube Warmth:
+        lib: /usr/lib/ladspa/tap_tubewarmth.so
+        audio: mono
+        vals: {Drive: 2.5, Tape: 10}
+    router_rules:
+    - {type: cc, chan: 1, par1: 13, par2: 0-127=0.1-10, ladspafx: Tube Warmth, port: Drive}
+    - {type: cc, chan: 1, par1: 14, par2: 0-127=-10-10, ladspafx: Tube Warmth, port: Tape}
   Bass+Oct:
     1: FluidR3_GM.sf2:000:033
     3: FluidR3_GM.sf2:000:033
     # CC 27 switches the octave doubling on/off
     router_rules:
-    - {type: note, chan: 1-1=3-3, par1: 0-127*1-12}
-    - {type: cc, chan: 10-10=3-3, par1: 27-27*0+7, par2: 0-127*127+0}
+    - {type: note, chan: 1=3, par1: 0-127*1-12}
+    - {type: cc, chan: 10=3, par1: 27=7, par2: 0-127*127+0}
   Synth Bass:
     1: FluidR3_GM.sf2:000:038
   Sweep Bass:
@@ -72,10 +80,10 @@ patches:
     4: FluidR3_GM.sf2:000:073
     router_rules:
     # CC 13, 28 control porta time, on/off
-    - {type: note, chan: 1-1=4-4}
-    - {type: cc, chan: 10-10=4-4, par1: 28-28*0+65, par2: 0-127*127+0}
-    - {type: cc, chan: 10-10=4-4, par1: 28-28*0+68, par2: 0-127*127+0}
-    - {type: cc, chan: 1-1=4-4, par1: 13-13*0+37, par2: 0-127*1+0}
+    - {type: note, chan: 1=4}
+    - {type: cc, chan: 10=4, par1: 28=65, par2: 0-127*127+0}
+    - {type: cc, chan: 10=4, par1: 28=68, par2: 0-127*127+0}
+    - {type: cc, chan: 1=4, par1: 13=37, par2: 0-127*1+0}
   Dragon Sweep:
     1: VintageDreamsWaves-v2.sf2:000:006
   Stacked Lead:
@@ -85,10 +93,10 @@ patches:
     6: ModSynth_R1.sf2:000:005
     router_rules:
     - {type: note, chan: 1-2*1+4}
-    - {type: cc, chan: 1-1=5-6, par1: 13-13*0+74} # filter cutoff
-    - {type: cc, chan: 1-1=5-6, par1: 14-14*0+78} # modenv attack
-    - {type: cc, chan: 1-1=5-6, par1: 15-15*0+79} # modenv decay
-    - {type: cc, chan: 1-1=5-6, par1: 16-16*0+82} # modenv -> filter
+    - {type: cc, chan: 1=5-6, par1: 13=74} # filter cutoff
+    - {type: cc, chan: 1=5-6, par1: 14=78} # modenv attack
+    - {type: cc, chan: 1=5-6, par1: 15=79} # modenv decay
+    - {type: cc, chan: 1=5-6, par1: 16=82} # modenv -> filter
   Warm Pad:
     1: FluidR3_GM.sf2:000:089
   Sweep Pad:
@@ -105,20 +113,20 @@ patches:
     15: FluidR3_GM.sf2:000:126
     16: FluidR3_GM.sf2:000:127
     router_rules:
-    - {type: note, chan: 1-1=11-11, par1: C3-E3=C3-C5}
-    - {type: note, chan: 1-1=12-12, par1: F3-A3=C3-C5}
-    - {type: note, chan: 1-1=13-13, par1: A#3-D4=C3-C5}
-    - {type: note, chan: 1-1=14-14, par1: D#4-G4=C3-C5}
-    - {type: note, chan: 1-1=15-15, par1: G#4-C5=C3-C5}
-    - {type: note, chan: 1-1=16-16, par1: C#5-F5=C3-C5}
+    - {type: note, chan: 1=11, par1: C3-E3=C3-C5}
+    - {type: note, chan: 1=12, par1: F3-A3=C3-C5}
+    - {type: note, chan: 1=13, par1: A#3-D4=C3-C5}
+    - {type: note, chan: 1=14, par1: D#4-G4=C3-C5}
+    - {type: note, chan: 1=15, par1: G#4-C5=C3-C5}
+    - {type: note, chan: 1=16, par1: C#5-F5=C3-C5}
   Standard Kit:
     1: FluidR3_GM.sf2:128:001
     router_rules:
-    - {type: note, chan: 10-10=1-1}
+    - {type: note, chan: 10=1}
   Power Kit:
     1: FluidR3_GM.sf2:128:016
     router_rules:
-    - {type: note, chan: 10-10=1-1}
+    - {type: note, chan: 10=1}
 
 init:
   cc: [4/37=60,            # initial porta time

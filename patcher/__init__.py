@@ -4,7 +4,7 @@ Description: a performance-oriented patch interface for fluidsynth
 import re, mido
 from copy import deepcopy
 from os.path import relpath, join as joinpath
-from . import yamlext, cclink, fluidwrap
+from . import fluidwrap, fpyaml
 
 MAX_SF_BANK = 129
 MAX_SF_PROGRAM = 128
@@ -19,20 +19,27 @@ SYNTH_DEFAULTS = {'synth.chorus.depth': 8.0, 'synth.chorus.level': 2.0,
                   'synth.reverb.room-size': 0.2, 'synth.reverb.width': 0.5,
                   'synth.gain': 0.2}
 
-VERSION = '0.4.2'
+VERSION = '0.5'
 
-def read_yaml(text):
+YAMLError = fpyaml.oyaml.YAMLError
+
+list_midi_outputs = mido.get_output_names
+list_midi_inputs = mido.get_input_names
+
+def parse_fpyaml(text):
     if '---' in text:
-        return yamlext.safe_load_all(text)
-    return yamlext.safe_load(text)
+        return fpyaml.oyaml.safe_load_all(text)
+    return fpyaml.oyaml.safe_load(text)
 
-def write_yaml(*args):
+def render_fpyaml(*args):
     if len(args) > 1:
-        return yamlext.safe_dump_all(args)
-    return yamlext.safe_dump(args[0])
+        return fpyaml.oyaml.safe_dump_all(args)
+    return fpyaml.oyaml.safe_dump(args[0])
+
 
 class PatcherError(Exception):
     pass
+
 
 class Patcher:
 
@@ -65,6 +72,10 @@ class Patcher:
         return self.cfg.get('plugindir', '')
         
     @property
+    def sysexdir(self):
+        return self.cfg.get('sysexdir', '')
+        
+    @property
     def currentbank(self):
         return self.cfg.get('currentbank', '')
 
@@ -76,13 +87,13 @@ class Patcher:
 
     def read_config(self):
         if self._cfgfile == '':
-            return write_yaml(self.cfg)
+            return render_fpyaml(self.cfg)
         f = open(self._cfgfile)
         raw = f.read()
         f.close()
         try:
-            self.cfg = read_yaml(raw)
-        except (yamlext.YAMLError, IOError):
+            self.cfg = parse_fpyaml(raw)
+        except (YAMLError, IOError):
             raise PatcherError("Bad configuration file")
         return raw
 
@@ -92,13 +103,13 @@ class Patcher:
         f = open(self._cfgfile, 'w')
         if raw:
             try:
-                c = read_yaml(raw)
-            except (yamlext.YAMLError, IOError):
+                c = parse_fpyaml(raw)
+            except (YAMLError, IOError):
                 raise PatcherError("Invalid config data")
             self.cfg = c
             f.write(raw)
         else:
-            f.write(write_yaml(self.cfg))
+            f.write(render_fpyaml(self.cfg))
         f.close()
 
     def load_bank(self, bank=None):
@@ -116,8 +127,8 @@ class Patcher:
         except (OSError, FileNotFoundError):
             pass
         try:
-            b = read_yaml(bank)
-        except yamlext.YAMLError:
+            b = parse_fpyaml(bank)
+        except YAMLError:
             raise PatcherError("Unable to parse bank data")
         self._bank = b
         try:
@@ -146,13 +157,13 @@ class Patcher:
         f = open(joinpath(self.bankdir, bankfile), 'w')
         if raw:
             try:
-                b = read_yaml(raw)
-            except (yamlext.YAMLError, IOError):
+                b = parse_fpyaml(raw)
+            except (YAMLError, IOError):
                 raise PatcherError("Invalid bank data")
             self._bank = b
             f.write(raw)
         else:
-            f.write(write_yaml(self._bank))
+            f.write(render_fpyaml(self._bank))
         f.close()
         self.cfg['currentbank'] = bankfile
 
@@ -166,7 +177,7 @@ class Patcher:
         
     def patch_index(self, patch_name):
         if patch_name not in self._bank['patches']:
-            raise PatcherError("Patch not found: %s" % patch_name)
+            raise PatcherError(f"Patch not found: {patch_name}")
         return list(self._bank['patches']).index(patch_name)
 
     def patches_count(self):
@@ -186,17 +197,16 @@ class Patcher:
             if preset.name not in self._soundfonts:
                 self._reload_bankfonts()
             if not self._fluid.program_select(channel - 1, joinpath(self.sfdir, preset.name), preset.bank, preset.prog):
-                warnings.append('Unable to select preset %s on channel %d' % (preset, channel))
+                warnings.append(f"Unable to select preset {preset} on channel {channel}")
 
         # activate LADSPA effects
         self._fluid.fxchain_clear()
-        n = 1
-        for effect in self._bank.get('effects', []) + patch.get('effects', []):
-            name = 'e%s' % n
-            warn = self._fxplugin_connect(name, **effect)
+        effects = self._bank.get('ladspafx', {})
+        effects.update(**patch.get('ladspafx', {}))
+        for name, info in effects.items():
+            warn = self._fxplugin_connect(name, **info)
             if warn: warnings.append(warn)
-            else: n += 1
-        if n > 1: self._fluid.fxchain_activate()
+        if effects: self._fluid.fxchain_activate()
 
         # apply fluidsettings
         for opt, val in self._bank.get('fluidsettings', {}).items():
@@ -210,8 +220,7 @@ class Patcher:
         for rule in self._bank.get('router_rules', []) +  patch.get('router_rules', []):
             if rule == 'clear': self._fluid.router_clear()
             elif rule == 'default': self._fluid.router_default()
-            else:
-                self._midi_route(**rule.__dict__)
+            else: self._midi_route(**rule.__dict__)
 
         # send CC messages
         for msg in self._bank.get('cc', []) + patch.get('cc', []):
@@ -253,13 +262,13 @@ class Patcher:
                     del patch[channel]
                 continue
             sfont, bank, prog = info
-            patch[channel] = yamlext.SFPreset(relpath(sfont, start=self.sfdir), bank, prog)
+            patch[channel] = fpyaml.SFPreset(relpath(sfont, start=self.sfdir), bank, prog)
             cc_messages = []
             for first, last, default in CC_DEFAULTS:
                 for cc in range(first, last + 1):
                     val = self._fluid.get_cc(channel - 1, cc)
                     if val != default:
-                        cc_messages.append(yamlext.CCMsg(channel, cc, val))
+                        cc_messages.append(fpyaml.CCMsg(channel, cc, val))
         if cc_messages:
             patch['cc'] = cc_messages
 
@@ -279,7 +288,7 @@ class Patcher:
                 name = self._fluid.get_preset_name(joinpath(self.sfdir, soundfont), bank, prog)
                 if not name:
                     continue
-                self.sfpresets.append(yamlext.SFPreset(name, bank, prog))
+                self.sfpresets.append(fpyaml.SFPreset(name, bank, prog))
         if not self.sfpresets: return False
         for channel in range(0, self._max_channels):
             self._fluid.program_unset(channel)
@@ -288,7 +297,7 @@ class Patcher:
         self._fluid.fxchain_clear()
         self._reset_synth_defaults()
         self._send_cc_defaults()
-        self._midi_route('note', chan=yamlext.FromToSpec(2, self._max_channels + 1, 0, 1))
+        self._midi_route('note', chan=fpyaml.FromToSpec(2, self._max_channels + 1, 0, 1))
         return True
         
     def select_sfpreset(self, presetnum):
@@ -297,7 +306,7 @@ class Patcher:
             p = self.sfpresets[presetnum]
             soundfont = list(self._soundfonts)[0]
             if not self._fluid.program_select(0, joinpath(self.sfdir, soundfont), p.bank, p.prog):
-                warnings.append('Unable to select preset %s' % p)
+                warnings.append(f"Unable to select preset {p}")
         else:
             warnings.append('Preset out of range')
         return warnings
@@ -308,18 +317,23 @@ class Patcher:
     def fluid_set(self, opt, val, updatebank=False, patch=None):
         self._fluid.setting(opt, val)
         if updatebank:
-            self._bank['fluidsettings'][opt] = val
+            if 'fluidsettings' not in self._bank:
+                self._bank['fluidsettings'] = {}
+            self._bank['fluidsettings'].update(opt=val)
             if patch:
                 patch = self._resolve_patch(patch)
-                if opt in patch.get('fluidsettings', {}):
+                if 'fluidsettings' in patch and opt in patch['fluidsettings']:
                     patch['fluidsettings'].remove(opt)
 
-    def add_router_rule(self, rule):
-        if not isinstance(rule, dict):
+    def add_router_rule(ruletext=None, **rule):
+        if ruletext:
             try:
-                rule = read_yaml(rule)
-            except (yamlext.YAMLError, IOError):
+                rule = parse_fpyaml(ruletext)
+            except (YAMLError, IOError):
                 raise PatcherError("Improperly formatted router rule")
+        else:
+            for par, val in rule.items():
+                rule[par] = parse_fpyaml(str(val))
         self._midi_route(**rule)
 
     # private functions
@@ -346,89 +360,74 @@ class Patcher:
         elif isinstance(patch, str):
             name = patch
             if name not in self._bank['patches']:
-                raise PatcherError("Patch not found: %s" % name)
+                raise PatcherError(f"Patch not found: {name}")
             patch = self._bank['patches'][name]
         return patch
         
-    def _parse_sysex(self, messages):
-        ports = {}
-        try:
-            for msg in messages:
-                if msg[0] not in ports:
-                    ports[msg[0]] = mido.open_output(msg[0])
-                if isinstance(msg[1], int):
-                    messages = [msg[1:]]
-                else:
-                    messages = mido.read_syx_file(msg[1])
-                for msgdata in messages:
-                    ports[msg[0]].send(mido.Message('sysex', data = msgdata))
-            for x in ports.keys():
-                ports[x].close()
-        except:
-            return "Failed to parse or send SYSEX"
-
-    def _fxplugin_connect(self, name, lib, plugin=None, audioports='stereo', controls=[]):
-        libpath = joinpath(self.plugindir, lib)
-        if audioports == 'mono':
-            audioports = ('Input', 'Output')
-        elif audioports == 'stereo':
-            audioports = ('Input L', 'Input R', 'Output L', 'Output R')
-
-        if len(audioports) == 4:
-            names = (name, )
-        elif len(audioports) == 2:
-            names = (name + 'L', name + 'R')
-        for x in names:
-            if not self._fluid.fxchain_add(x, libpath, plugin):
-                return "Could not connect plugin %s" % lib
-            for ctrl in controls:
-                if hasattr(ctrl, 'val'):
-                    self._fluid.fx_setcontrol(x, ctrl.port, ctrl.val)
-                if hasattr(ctrl, 'link'):
-                    self.link_cc(x, type='effect', **ctrl.__dict__)
-
-        if len(names) == 1:
-            self._fluid.fxchain_link(names[0], audioports[0], 'Main:L')
-            self._fluid.fxchain_link(names[0], audioports[2], 'Main:L')
-            self._fluid.fxchain_link(names[0], audioports[1], 'Main:R')
-            self._fluid.fxchain_link(names[0], audioports[3], 'Main:R')
-        elif len(names) == 2:
-            self._fluid.fxchain_link(names[0], audioports[0], 'Main:L')
-            self._fluid.fxchain_link(names[0], audioports[1], 'Main:L')
-            self._fluid.fxchain_link(names[1], audioports[0], 'Main:R')
-            self._fluid.fxchain_link(names[1], audioports[1], 'Main:R')
-
     def _midi_route(self, type, chan=None, par1=None, par2=None, **kwargs):
     # translate user router rules based on midi message and parameter type
     # into (min, max, mul, add) sequences and send to fluidsynth
-        if isinstance(chan, yamlext.FromToSpec):
+        if isinstance(chan, fpyaml.FromToSpec):
             for chto in range(chan.to1, chan.to2 + 1):
-                ch = yamlext.RouterSpec(chan.from1, chan.from2, 0.0, chto)
+                ch = fpyaml.RouterSpec(chan.from1, chan.from2, 0.0, chto)
                 self._midi_route(type, ch, par1, par2, **kwargs)
             return
-        if isinstance(chan, yamlext.RouterSpec):
+        elif isinstance(chan, fpyaml.RouterSpec):
             for chfrom in range(chan.min, chan.max + 1):
-                ch = chfrom - 1, chfrom - 1, 0.0, chfrom * chan.mul + chan.add - 1
+                ch = chfrom - 1, chfrom - 1, 0.0, int(chfrom * chan.mul) + chan.add - 1
                 self._midi_route(type, ch, par1, par2, **kwargs)
             return
-        if isinstance(par1, yamlext.FromToSpec):
-            if type in ('prog', 'cc', 'kpress'):
-                for t in range(par1.to1, par1.to2 + 1):
-                    p = yamlext.RouterSpec(par1.from1, par1.from2, 0.0, t)
-                    self._midi_route(type, chan, p, par2, **kwargs)
-                return
-            else:
-                par1 = par1.routerspec()
-        if isinstance(par1, yamlext.RouterSpec):
+        elif isinstance(chan, int): chan = chan - 1, chan - 1, 1.0, 0
+        if isinstance(par1, fpyaml.FromToSpec):
+            par1 = par1.routerspec()
+        if isinstance(par1, fpyaml.RouterSpec):
             par1 = par1.vals
-        if isinstance(par2, yamlext.FromToSpec):
+        elif isinstance(par1, int): par1 = par1, par1, 1.0, 0
+        if isinstance(par2, fpyaml.FromToSpec):
             par2 = par2.routerspec()
-        if isinstance(par2, yamlext.RouterSpec):
+        if isinstance(par2, fpyaml.RouterSpec):
             par2 = par2.vals
-        if isinstance(chan, int): chan = chan - 1, chan - 1, 1.0, 0
-        if isinstance(par1, int): par1 = par1, par1, 1.0, 0
-        if isinstance(par2, int): par2 = par2, par2, 1.0, 0
+        elif isinstance(par2, int): par2 = par2, par2, 1.0, 0
         self._fluid.router_addrule(type, chan, par1, par2, **kwargs)
+
+    def _fxplugin_connect(self, name, lib, plugin=None, audio='stereo', vals={}, mix=None):
+        libpath = joinpath(self.plugindir, lib)
+        if audio == 'mono':
+            audio = 'Input', 'Output'
+        elif audio == 'stereo':
+            audio = 'Input L', 'Input R', 'Output L', 'Output R'
+        if len(audio) == 2:
+            audio = audio[0], audio[0], audio[1], audio[1]
+            names = name + 'L', name + 'R'
+        elif len(audio) == 4:
+            names = name,
+        for x in names:
+            if not self._fluid.fxchain_add(x, libpath, plugin):
+                return f"Could not connect plugin {lib}"
+            for ctrl in vals:
+                self._fluid.fx_setcontrol(x, ctrl, vals[ctrl])
+            if mix is not None:
+                self._fluid.fx_setmix(x, mix)
+        for name, port, hostport in zip(names * 4, audio, ('Main:L', 'Main:R') * 2):
+            self._fluid.fxchain_link(name, port, hostport)
+
+    def _parse_sysex(self, messages):
+        outports = list_midi_outputs()
+        openports = {}
+        try:
+            for port, data in [(x[0], x[1:]) for x in messages]:
+                for name in [p for p in outports if port in p]:
+                    if name not in openports:
+                        openports[name] = mido.open_output(name)
+                    if isinstance(data[0], str):
+                        msg = mido.read_syx_file(joinpath(self.sysexdir, data[0]))
+                    else:
+                        msg = mido.Message('sysex', data=data)
+                    openports[name].send(msg)
+            for name in openports:
+                openports[name].close()
+        except:
+            return "Failed to parse or send SYSEX"
 
     def _send_cc_defaults(self, channels=[]):
         for channel in channels or range(1, self._max_channels + 1):
