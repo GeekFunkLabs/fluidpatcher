@@ -61,12 +61,21 @@ class StompBox():
         self.state = {button: UP for button in BUTTONS}
         self.timer = {button: 0 for button in BUTTONS}
 
-    def button(self, button):
-        return self.state[button]
-        
+    @property
     def buttons(self):
         return self.state.values()
 
+    @property
+    def left(self):
+        return self.state['left']
+
+    @property
+    def right(self):
+        return self.state['right']
+
+    def button(self, button):
+        return self.state[button]
+        
     def update(self):
         time.sleep(POLL_TIME)
 
@@ -193,13 +202,13 @@ class StompBox():
                             self.state[b] = HELD
                     return -1
 
-    def choose_val(self, val, inc, minval, maxval, format="%16s"):
+    def choose_val(self, val, inc, minval, maxval, fmt='>16'):
         """
         lets the user change a numeric parameter
         returns the user's choice on timeout
         """
         while True:
-            self.lcd_write('%16s' % (format % val), 1)
+            self.lcd_write(format(val, fmt).rjust(16), 1)
             tstop = time.time() + MENU_TIMEOUT
             while time.time() < tstop:
                 self.update()

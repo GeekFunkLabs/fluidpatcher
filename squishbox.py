@@ -2,23 +2,9 @@
 """
 Description: an implementation of patcher.py for a Raspberry Pi in a stompbox
 """
-import sys, os, re, glob, subprocess
+import sys, os, re, glob, subprocess, tempfile, mido
 import patcher
 from utils import netlink, stompboxpi as SB
-
-SQUISHBOX_VERSION = '3.3'
-
-def scan_midiports():
-    midiports = {}
-    x = subprocess.check_output(['aconnect', '-o']).decode()
-    for port, client in re.findall(" (\d+): '([^\n]*)'", x):
-        if client == 'System': continue
-        if client == 'Midi Through': continue
-        if 'FLUID Synth' in client:
-            midiports['FLUID Synth'] = port
-        else:
-            midiports[client] = port
-    return midiports
 
 def list_banks():
     bpaths = sorted(glob.glob(os.path.join(pxr.bankdir, '**', '*.yaml'), recursive=True), key=str.lower)
@@ -48,13 +34,19 @@ def load_bank_menu():
     sb.waitforrelease(1)
     return True
 
+def midimessage_listener(msg):
+    global last_midimessage
+    if hasattr(msg, 'val'):
+        pass # handle triggers for midi/mp3 player/looper, etc.
+    else:
+        last_midimessage = msg
 
+
+os.umask(0o002)
 
 sb = SB.StompBox()
 sb.lcd_clear()
-sb.lcd_write("Squishbox v%s" % SQUISHBOX_VERSION, 0)
-
-os.umask(0o002)
+sb.lcd_write("   SquishBox    ", 0)
 
 # start the patcher
 if len(sys.argv) > 1:
@@ -67,12 +59,6 @@ except patcher.PatcherError:
     sb.lcd_write("bad config file!", 1)
     sys.exit("bad config file")
 
-# hack to connect MIDI devices to old versions of fluidsynth
-midiports = scan_midiports()
-for client in midiports:
-    if client == 'FLUID Synth': continue
-    subprocess.run(['aconnect', midiports[client], midiports['FLUID Synth']])
-        
 # initialize network link
 if pxr.cfg.get('remotelink_active', 0):
     port = pxr.cfg.get('remotelink_port', netlink.DEFAULT_PORT)
@@ -91,21 +77,24 @@ except patcher.PatcherError:
         sb.waitfortap(10)
         if load_bank_menu():
             break
+
+networks = []
+fxmenu_info = (                    
+('Reverb Size', 'synth.reverb.room-size', '4.1f', 0.1, 0.0, 1.0),
+('Reverb Damp', 'synth.reverb.damp', '4.1f', 0.1, 0.0, 1.0),
+('Rev. Width', 'synth.reverb.width', '5.1f', 1.0, 0.0, 100.0),
+('Rev. Level', 'synth.reverb.level', '5.2f', 0.01, 0.00, 1.00),
+('Chorus Voices', 'synth.chorus.nr', '2d', 1, 0, 99),
+('Chor. Level', 'synth.chorus.level', '4.1f', 0.1, 0.0, 10.0),
+('Chor. Speed', 'synth.chorus.speed', '4.1f', 0.1, 0.1, 21.0),
+('Chorus Depth', 'synth.chorus.depth', '3.1f', 0.1, 0.3, 5.0),
+('Gain', 'synth.gain', '11.1f', 0.1, 0.0, 5.0)
+)
+
+last_midimessage = None
+pxr.set_midimessage_callback(midimessage_listener)
 pno = 0
 warn = pxr.select_patch(pno)
-networks = []
-
-fxmenu_info = (                    
-('Reverb Size', 'synth.reverb.room-size', '%4.1f', 0.1, 0.0, 1.0),
-('Reverb Damp', 'synth.reverb.damp', '%4.1f', 0.1, 0.0, 1.0),
-('Rev. Width', 'synth.reverb.width', '%5.1f', 1.0, 0.0, 100.0),
-('Rev. Level', 'synth.reverb.level', '%5.2f', 0.01, 0.00, 1.00),
-('Chorus Voices', 'synth.chorus.nr', '%2d', 1, 0, 99),
-('Chor. Level', 'synth.chorus.level', '%4.1f', 0.1, 0.0, 10.0),
-('Chor. Speed', 'synth.chorus.speed', '%4.1f', 0.1, 0.1, 21.0),
-('Chorus Depth', 'synth.chorus.depth', '%3.1f', 0.1, 0.3, 5.0),
-('Gain', 'synth.gain', '%11.1f', 0.1, 0.0, 5.0)
-)
 
 # update LCD
 while True:
@@ -114,28 +103,27 @@ while True:
         ptot = len(pxr.sfpresets)
         p = pxr.sfpresets[pno]
         sb.lcd_write(p.name, 0)
-        sb.lcd_write("%16s" % ("preset %03d:%03d" % (p.bank, p.prog)), 1)
+        sb.lcd_write(f"  preset {p.bank:03}:{p.prog:03}", 1)
     else:
         ptot = pxr.patches_count()
         patchname = pxr.patch_name(pno)
         sb.lcd_write(patchname, 0)
-        sb.lcd_write("%16s" % ("patch: %d/%d" % (pno + 1, ptot)), 1)
+        sb.lcd_write(f"patch: {pno + 1}/{ptot}".rjust(16), 1)
     if warn:
         sb.lcd_write(';'.join(warn), 1)
 
     # input loop
     while True:
         sb.update()
-        pxr.poll_cc()
 
         # patch/preset switching
-        if SB.TAP in sb.buttons():
+        if SB.TAP in sb.buttons:
             if warn:
                 warn = []
                 break
-            if sb.button('right') == SB.TAP:
+            if sb.right == SB.TAP:
                 pno = (pno + 1) % ptot
-            elif sb.button('left') == SB.TAP:
+            elif sb.left == SB.TAP:
                 pno = (pno - 1) % ptot
             if pxr.sfpresets:
                 warn = pxr.select_sfpreset(pno)
@@ -144,7 +132,7 @@ while True:
             break
 
         # right button menu
-        if sb.button('right') == SB.HOLD:
+        if sb.right == SB.HOLD:
             k = sb.choose_opt(['Save Patch', 'Delete Patch', 'Load Bank', 'Save Bank', 'Load Soundfont', 'Effects..'], row=1, passlong=True)
             
             if k == 0: # save the current patch or save preset to a patch
@@ -221,100 +209,125 @@ while True:
                     args = []
                     for name, opt, fmt, inc, min, max in fxmenu_info[i:] + fxmenu_info[0:i]:
                         curval = pxr.fluid_get(opt)
-                        fxopts.append('%s:%s' % (name, fmt % curval))
+                        fxopts.append(name + ':' + format(curval, fmt))
                         args.append((curval, inc, min, max, fmt, opt))
                     sb.lcd_write("Effects:        ", row=0)
                     j = sb.choose_opt(fxopts, row=1)
                     if j < 0: break
                     sb.lcd_write(fxopts[j], row=0)
                     newval = sb.choose_val(*args[j][0:5])
-                    if sb.choose_opt(['set?%12s' % (args[j][4] % newval)], row=1) > -1:
+                    if sb.choose_opt(["set?" + format(newval, args[j][4]).rjust(12)], row=1) > -1:
                         pxr.fluid_set(args[j][5], newval, updatebank=True, patch=pno)
                     i = (i + j) % len(fxmenu_info)
             break
 
             
         # left button menu - system-related tasks
-        if sb.button('left') == SB.HOLD:
+        if sb.left == SB.HOLD:
             sb.lcd_write("Options:        ", 0)
-            k = sb.choose_opt(['Power Down', 'MIDI Devices', 'Wifi Settings', 'Add From USB'], row=1, passlong=True)
+            k = sb.choose_opt(['Power Down', 'MIDI Devices', 'Wifi Settings', 'Add From USB', 'Update Device'], row=1, passlong=True)
             
             if k == 0: # power down
                 sb.lcd_write("Shutting down...", 0)
                 sb.lcd_write("Wait 30s, unplug", 1)
                 subprocess.run('sudo shutdown -h now'.split())
                 
-            elif k == 1: # reconnect midi devices
-                ports = scan_midiports()
-                clients = list(ports.keys())
-                clients.remove('FLUID Synth')
+            elif k == 1: # midi device list/monitor
                 sb.lcd_write("MIDI Devices:   ", 0)
-                if clients == []:
-                    sb.lcd_write("no devices found", 1)
-                    sb.waitforrelease(2)
-                m = sb.choose_opt(clients, row=1, timeout=0)
-                subprocess.run(['aconnect', ports[clients[m]], ports['FLUID Synth']])
-                sb.waitforrelease(0)
-                
-            elif k == 2: # wifi settings
-                ssid = subprocess.check_output(['iwgetid', 'wlan0', '--raw']).strip().decode('ascii')
-                ip = re.sub(b'\s.*', b'', subprocess.check_output(['hostname', '-I'])).decode('ascii')
-                sb.lcd_clear()
-                if ssid == "":
-                    sb.lcd_write("Not connected", 0)
+                outports = patcher.list_midi_outputs()
+                op = sb.choose_opt(outports + ["MIDI monitor.."], row=1)
+                if op < 0: break
+                if op < len(outports):
+                    sb.lcd_write("Connect to:     ", 0)
+                    inports = patcher.list_midi_inputs()
+                    ip = sb.choose_opt(inports, row=1)
+                    if ip < 0: break
+                    outport = re.search("\d+:\d+$", inports[ip])
+                    inport = re.search("\d+:\d+$", inports[ip])
+                    subprocess.run(['aconnect', inport, outport])
                 else:
-                    sb.lcd_write(ssid, 0)
-                    sb.lcd_write("%-16s" % ip, 1)
-                if not sb.waitfortap(10): break
-                sb.lcd_write("Connections:    ", 0)
+                    msg = last_midimessage
+                    sb.lcd_clear()
+                    sb.lcd_write("MIDI monitor:   ", 0)
+                    while True:
+                        if sb.waitfortap(0.1): break
+                        if last_midimessage == msg: continue
+                        msg = last_midimessage
+                        if msg.type == 'note':
+                            sb.lcd_write(f"Ch{msg.chan + 1:<3} nte{msg.par1:3}={msg.par2:<3}", 1)
+                        if msg.type == 'noteoff':
+                            sb.lcd_write(f"Ch{msg.chan + 1:<3} nof{msg.par1:3}={msg.par2:<3}", 1)
+                        if msg.type == 'cc':
+                            sb.lcd_write(f"Ch{msg.chan + 1:<3} cc{msg.par1:3}={msg.par2:<4}", 1)
+                        if msg.type == 'kpress':
+                            sb.lcd_write(f"Ch{msg.chan + 1:<3} pr{msg.par1:3}={msg.par2:<4}", 1)
+                        if msg.type == 'pbend':
+                            sb.lcd_write(f"Ch{msg.chan + 1:<3} pbend={msg.par1:<4}", 1)
+                        if msg.type == 'cpress':
+                            sb.lcd_write(f"Ch{msg.chan + 1:<3} atouch={msg.par1:<3}", 1)
+                        if msg.type == 'prog':
+                            sb.lcd_write(f"Ch{msg.chan + 1:<3} progrm={msg.par1:<3}", 1)
+
+            elif k == 2: # wifi settings
                 while True:
-                    if remote_link:
-                        opts = networks + ['Rescan...', 'Block RemoteLink']
-                    else:
-                        opts = networks + ['Rescan...', 'Allow RemoteLink']
-                    j = sb.choose_opt(opts, 1, timeout=0)
-                    if j < 0: break
-                    if j == len(opts) - 1:
+                    x = re.search("SSID: ([^\n]+)", subprocess.check_output('iw dev wlan0 link'.split()).decode())
+                    ssid = x[1] if x else "Not connected"
+                    ip = subprocess.check_output(['hostname', '-I']).decode().strip()
+                    sb.lcd_clear()
+                    sb.lcd_write(ssid, 0)
+                    sb.lcd_write(ip.rjust(16), 1)
+                    if not sb.waitfortap(10):
+                        j = -2
+                        break
+                    sb.lcd_write("Connections:    ", 0)
+                    while True:
                         if remote_link:
-                            remote_link = None
-                            pxr.cfg['remotelink_active'] = 0
+                            opts = networks + ['Rescan...', 'Block RemoteLink']
                         else:
-                            port = pxr.cfg.get('remotelink_port', netlink.DEFAULT_PORT)
-                            passkey = pxr.cfg.get('remotelink_passkey', netlink.DEFAULT_PASSKEY)
-                            remote_link = netlink.Server(port, passkey)
-                            pxr.cfg['remotelink_active'] = 1
-                        pxr.write_config()
-                        break
-                    if j == len(opts) - 2:
-                        sb.lcd_write("scanning..      ", 1)
-                        x = subprocess.check_output('sudo iwlist wlan0 scan'.split(), timeout=20).decode()
-                        networks = re.findall('ESSID:"([^\n]*)"', x)
-                    else:
-                        sb.lcd_write("Password:       ", 0)
-                        newpsk = sb.char_input(charset = SB.PRNCHARS)
-                        if newpsk == '': break
-                        sb.lcd_clear()
-                        sb.lcd_write(networks[j], 0)
-                        sb.lcd_write("adding network..", 1)
-                        f = open('/etc/wpa_supplicant/wpa_supplicant.conf', 'a')
-                        f.write('network={\n  ssid="%s"\n  psk="%s"\n}\n' % (networks[j], newpsk))
-                        f.close()
-                        subprocess.run('sudo service networking restart'.split())
-                        break
-                
+                            opts = networks + ['Rescan...', 'Allow RemoteLink']
+                        j = sb.choose_opt(opts, 1, timeout=0)
+                        if j < 0: break
+                        if j == len(opts) - 1:
+                            if remote_link:
+                                remote_link = None
+                                pxr.cfg['remotelink_active'] = 0
+                            else:
+                                port = pxr.cfg.get('remotelink_port', netlink.DEFAULT_PORT)
+                                passkey = pxr.cfg.get('remotelink_passkey', netlink.DEFAULT_PASSKEY)
+                                remote_link = netlink.Server(port, passkey)
+                                pxr.cfg['remotelink_active'] = 1
+                            pxr.write_config()
+                            break
+                        if j == len(opts) - 2:
+                            sb.lcd_write("scanning..      ", 1)
+                            x = subprocess.check_output('sudo iw wlan0 scan'.split()).decode()
+                            networks = [s for s in re.findall('SSID: ([^\n]*)', x) if s]
+                        else:
+                            sb.lcd_write("Password:       ", 0)
+                            newpsk = sb.char_input(charset = SB.PRNCHARS)
+                            if newpsk == '': break
+                            sb.lcd_clear()
+                            sb.lcd_write(networks[j], 0)
+                            sb.lcd_write("adding network..", 1)
+                            e = subprocess.Popen(('echo', f'network={{\n  ssid="{networks[j]}"\n  psk="{newpsk}"\n}}\n'), stdout=subprocess.PIPE)
+                            subprocess.run(('sudo', 'tee', '-a', '/etc/wpa_supplicant/wpa_supplicant.conf'), stdin=e.stdout, stdout=subprocess.DEVNULL)
+                            subprocess.run('sudo systemctl restart dhcpcd'.split())
+                            j = -2
+                            break
+                    if j > -2: break
+
             elif k == 3: # add soundfonts from a flash drive
                 sb.lcd_clear()
                 sb.lcd_write("looking for USB ", row=0)
                 b = subprocess.check_output('sudo blkid'.split())
-                x = re.findall('/dev/sd[a-z]\d*', b.decode('ascii'))
+                x = re.findall('/dev/sd[a-z]\d*', b.decode())
                 if not x:
                     sb.lcd_write("USB not found!  ", row=1)
                     sb.waitforrelease(1)
                     break
                 sb.lcd_write("copying files.. ", row=1)
                 try:
-                    if not os.path.exists('/mnt/usbdrv/'):
-                        os.mkdir('/mnt/usbdrv')
+                    subprocess.run(['sudo', 'mkdir', '-p', '/mnt/usbdrv'])
                     for usb in x:
                         subprocess.run(['sudo', 'mount', usb, '/mnt/usbdrv/'], timeout=30)
                         for sf in glob.glob(os.path.join('/mnt/usbdrv', '**', '*.sf2'), recursive=True):
@@ -325,17 +338,54 @@ while True:
                             subprocess.run(['sudo', 'cp', '-f', sf, dest], timeout=30)
                         subprocess.run(['sudo', 'umount', usb], timeout=30)
                 except Exception as e:
-                    sb.lcd_write("halted - errors:", 0)
-                    sb.lcd_write(str(e).replace('\n', ' '), 1)
+                    sb.lcd_write("halted - errors:", row=0)
+                    sb.lcd_write(str(e).replace('\n', ' '), row=1)
                     while not sb.waitfortap(10):
                         pass
-                sb.lcd_write("copying files.. done!           ")
+                sb.lcd_write("copying files.. ", row=0)
+                sb.lcd_write("           done!", row=1)
                 sb.waitforrelease(1)
+
+            elif k == 4: # update firmware and/or system
+                sb.lcd_write("Update Device:  ", row=0)
+                sb.lcd_write("      checking..", row=1)
+                x = subprocess.check_output(['curl', 'https://raw.githubusercontent.com/albedozero/fluidpatcher/master/patcher/__init__.py'])
+                newver = re.search("VERSION = '([0-9\.]+)'", x.decode())[1]
+                subprocess.run(['sudo', 'apt-get', 'update'])
+                u = subprocess.check_output(['sudo', 'apt-get', 'upgrade', '-sy'])
+                fup, sysup = 0, 0
+                if [int(x) for x in newver.split('.')] > [int(x) for x in patcher.VERSION.split('.')]:
+                    sb.lcd_write(format(f"{patcher.VERSION}->{newver}", '16'), row=0)
+                    fup = True if sb.choose_opt(['update firmware', 'cancel'], row=1) == 0 else False
+                else:
+                    sb.lcd_write(patcher.VERSION.rjust(16), row=0)
+                    sb.lcd_write(" latest version!", row=1)
+                    sb.waitfortap(3)
+                if not re.search('0 upgraded, 0 newly installed', u.decode()):
+                    sb.lcd_write("Upgrade OS?     ", row=0)
+                    sysup = True if sb.choose_opt(['confirm', 'cancel'], row=1) == 0 else False
+                if not (fup or sysup):
+                    break
+                sb.lcd_write("updating..      ", row=0)
+                sb.lcd_write("     please wait", row=1)
+                if fup:
+                    tmp = tempfile.mkdtemp()
+                    subprocess.run(['git', 'clone', 'https://github.com/albedozero/fluidpatcher', tmp])
+                    for src in glob.glob(os.path.join(tmp, '**', '*'), recursive=True):
+                        if os.path.splitext(src) == ".yaml": continue
+                        if os.path.split(src) == "hw_overlay.py": continue
+                        dest = os.path.relpath(src, start=os.getcwd())
+                        subprocess.run(['sudo', 'cp', '-f', src, dest])
+                    subprocess.run(['rm', '-rf', tmp])
+                if sysup:
+                    subprocess.run(['sudo', 'apt-get', 'upgrade', '-y'])
+                subprocess.run(['sudo', 'reboot'])
 
             break
 
+
         # long-hold right button = reload bank
-        if sb.button('right') == SB.LONG:
+        if sb.right == SB.LONG:
             sb.lcd_clear()
             sb.lcd_blink("Reloading Bank  ", row=0)
             lastpatch = pxr.patch_name(pno)
@@ -349,12 +399,14 @@ while True:
             sb.waitforrelease(1)
             break
 
+
         # long-hold left button = panic
-        if sb.button('left') == SB.LONG:
+        if sb.left == SB.LONG:
             sb.lcd_clear()
             sb.lcd_blink("Panic Restart   ", row=0)
             sb.waitforrelease(1)
             sys.exit(1)
+
 
         # check remote link for requests
         if remote_link and remote_link.pending():
@@ -369,14 +421,14 @@ while True:
                 except patcher.PatcherError as e:
                     remote_link.reply(req, str(e), netlink.REQ_ERROR)
                 else:
-                    remote_link.reply(req, patcher.write_yaml(pxr.patch_names()))
+                    remote_link.reply(req, patcher.render_fpyaml(pxr.patch_names()))
                     
             elif req.type == netlink.LIST_BANKS:
                 banks = list_banks()
                 if not banks:
                     remote_link.reply(req, "no banks found!", netlink.REQ_ERROR)
                 else:
-                    remote_link.reply(req, patcher.write_yaml(banks))
+                    remote_link.reply(req, patcher.render_fpyaml(banks))
                 
             elif req.type == netlink.LOAD_BANK:
                 sb.lcd_write(req.body, 0)
@@ -391,12 +443,12 @@ while True:
                     sb.lcd_write("bank load error!", 1)
                     sb.waitforrelease(2)
                 else:
-                    info = patcher.write_yaml(pxr.currentbank, rawbank, pxr.patch_names())
+                    info = patcher.render_fpyaml(pxr.currentbank, rawbank, pxr.patch_names())
                     remote_link.reply(req, info)
                     pxr.write_config()
                     
             elif req.type == netlink.SAVE_BANK:
-                bfile, rawbank = patcher.read_yaml(req.body)
+                bfile, rawbank = patcher.parse_fpyaml(req.body)
                 try:
                     pxr.save_bank(bfile, rawbank)
                 except patcher.PatcherError as e:
@@ -421,18 +473,18 @@ while True:
             elif req.type == netlink.LIST_SOUNDFONTS:
                 sf = list_soundfonts()
                 if not sf:
-                    remote_link.reply(req, "no soundfonts!", netlink.REQ_ERROR)
+                    remote_link.reply(req, "No soundfonts!", netlink.REQ_ERROR)
                 else:
-                    remote_link.reply(req, patcher.write_yaml(sf))
+                    remote_link.reply(req, patcher.render_fpyaml(sf))
             
             elif req.type == netlink.LOAD_SOUNDFONT:
                 sb.lcd_write(req.body, 0)
                 sb.lcd_write("loading...      ", 1)
                 if not pxr.load_soundfont(req.body):
                     sb.lcd_write("unable to load! ", 1)
-                    remote_link.reply(req, "Unable to load %s" % req.body, netlink.REQ_ERROR)
+                    remote_link.reply(req, "Unable to load " + req.body, netlink.REQ_ERROR)
                 else:
-                    remote_link.reply(req, patcher.write_yaml(pxr.sfpresets))
+                    remote_link.reply(req, patcher.render_fpyaml(pxr.sfpresets))
             
             elif req.type == netlink.SELECT_SFPRESET:
                 pno = int(req.body)
@@ -446,14 +498,14 @@ while True:
                 except:
                     remote_link.reply(req, 'No plugins installed')
                 else:
-                    remote_link.reply(req, patcher.write_yaml(info))
+                    remote_link.reply(req, patcher.render_fpyaml(info))
 
             elif req.type == netlink.LIST_PORTS:
-                ports = list(scan_midiports().keys())
-                remote_link.reply(req, patcher.write_yaml(ports))
+                ports = patcher.list_midi_inputs()
+                remote_link.reply(req, patcher.render_fpyaml(ports))
 
             elif req.type == netlink.READ_CFG:
-                info = patcher.write_yaml(pxr.cfgfile, pxr.read_config())
+                info = patcher.render_fpyaml(pxr.cfgfile, pxr.read_config())
                 remote_link.reply(req, info)
 
             elif req.type == netlink.SAVE_CFG:
