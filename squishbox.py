@@ -2,7 +2,7 @@
 """
 Description: an implementation of patcher.py for a Raspberry Pi in a stompbox
 """
-import sys, os, re, glob, subprocess, tempfile, mido
+import sys, os, re, glob, subprocess, tempfile, shutil
 import patcher
 from utils import netlink, stompboxpi as SB
 
@@ -20,10 +20,10 @@ def load_bank_menu():
         sb.lcd_write("no banks found! ", 1)
         sb.waitforrelease(2)
         return False
-    sb.lcd_write("Load Bank:      ", row=0)
+    sb.lcd_write("Load Bank:      ", 0)
     i = sb.choose_opt(banks, row=1, timeout=0)
     if i < 0: return False
-    sb.lcd_write("loading patches ", 1)
+    sb.lcd_write(" loading patches", 1)
     try:
         pxr.load_bank(banks[i])
     except patcher.PatcherError:
@@ -46,7 +46,7 @@ os.umask(0o002)
 
 sb = SB.StompBox()
 sb.lcd_clear()
-sb.lcd_write("   SquishBox    ", 0)
+sb.lcd_write(f"SquishBox {patcher.VERSION}".ljust(16), 0)
 
 # start the patcher
 if len(sys.argv) > 1:
@@ -68,7 +68,7 @@ else:
     remote_link = None
 
 # load bank
-sb.lcd_write("loading patches ", 1)
+sb.lcd_write(" loading patches", 1)
 try:
     pxr.load_bank(pxr.currentbank)
 except patcher.PatcherError:
@@ -192,10 +192,10 @@ while True:
                     sb.lcd_write("no soundfonts!  ", 1)
                     sb.waitforrelease(2)
                     break
-                sb.lcd_write("Load Soundfont: ", row=0)
+                sb.lcd_write("Load Soundfont: ", 0)
                 s = sb.choose_opt(sf, row=1, timeout=0)
                 if s < 0: break
-                sb.lcd_write("loading...      ", row=1)
+                sb.lcd_write("loading...      ", 1)
                 if not pxr.load_soundfont(sf[s]):
                     sb.lcd_write("unable to load! ", 1)
                 sb.waitforrelease(2)
@@ -211,10 +211,10 @@ while True:
                         curval = pxr.fluid_get(opt)
                         fxopts.append(name + ':' + format(curval, fmt))
                         args.append((curval, inc, min, max, fmt, opt))
-                    sb.lcd_write("Effects:        ", row=0)
+                    sb.lcd_write("Effects:        ", 0)
                     j = sb.choose_opt(fxopts, row=1)
                     if j < 0: break
-                    sb.lcd_write(fxopts[j], row=0)
+                    sb.lcd_write(fxopts[j], 0)
                     newval = sb.choose_val(*args[j][0:5])
                     if sb.choose_opt(["set?" + format(newval, args[j][4]).rjust(12)], row=1) > -1:
                         pxr.fluid_set(args[j][5], newval, updatebank=True, patch=pno)
@@ -235,15 +235,15 @@ while True:
             elif k == 1: # midi device list/monitor
                 sb.lcd_write("MIDI Devices:   ", 0)
                 outports = patcher.list_midi_outputs()
-                op = sb.choose_opt(outports + ["MIDI monitor.."], row=1)
+                op = sb.choose_opt(outports + ["MIDI monitor.."], row=1, timeout=0)
                 if op < 0: break
                 if op < len(outports):
                     sb.lcd_write("Connect to:     ", 0)
                     inports = patcher.list_midi_inputs()
                     ip = sb.choose_opt(inports, row=1)
                     if ip < 0: break
-                    outport = re.search("\d+:\d+$", inports[ip])
-                    inport = re.search("\d+:\d+$", inports[ip])
+                    outport = re.search("\d+:\d+$", outports[op])[0]
+                    inport = re.search("\d+:\d+$", inports[ip])[0]
                     subprocess.run(['aconnect', inport, outport])
                 else:
                     msg = last_midimessage
@@ -254,19 +254,19 @@ while True:
                         if last_midimessage == msg: continue
                         msg = last_midimessage
                         if msg.type == 'note':
-                            sb.lcd_write(f"Ch{msg.chan + 1:<3} nte{msg.par1:3}={msg.par2:<3}", 1)
+                            sb.lcd_write(f"Ch{msg.chan + 1:<3}note{msg.par1:3}={msg.par2:<3}", 1)
                         if msg.type == 'noteoff':
-                            sb.lcd_write(f"Ch{msg.chan + 1:<3} nof{msg.par1:3}={msg.par2:<3}", 1)
+                            sb.lcd_write(f"Ch{msg.chan + 1:<3}noff{msg.par1:3}={msg.par2:<3}", 1)
                         if msg.type == 'cc':
-                            sb.lcd_write(f"Ch{msg.chan + 1:<3} cc{msg.par1:3}={msg.par2:<4}", 1)
+                            sb.lcd_write(f"Ch{msg.chan + 1:<3}  cc{msg.par1:3}={msg.par2:<3}", 1)
                         if msg.type == 'kpress':
-                            sb.lcd_write(f"Ch{msg.chan + 1:<3} pr{msg.par1:3}={msg.par2:<4}", 1)
+                            sb.lcd_write(f"Ch{msg.chan + 1:<3}keyp{msg.par1:3}={msg.par2:<3}", 1)
                         if msg.type == 'pbend':
-                            sb.lcd_write(f"Ch{msg.chan + 1:<3} pbend={msg.par1:<4}", 1)
+                            sb.lcd_write(f"Ch{msg.chan + 1:<3}pbend={msg.par1:<5}", 1)
                         if msg.type == 'cpress':
-                            sb.lcd_write(f"Ch{msg.chan + 1:<3} atouch={msg.par1:<3}", 1)
+                            sb.lcd_write(f"Ch{msg.chan + 1:<3}atouch={msg.par1:<4}", 1)
                         if msg.type == 'prog':
-                            sb.lcd_write(f"Ch{msg.chan + 1:<3} progrm={msg.par1:<3}", 1)
+                            sb.lcd_write(f"Ch{msg.chan + 1:<3}program={msg.par1:<3}", 1)
 
             elif k == 2: # wifi settings
                 while True:
@@ -347,39 +347,44 @@ while True:
                 sb.waitforrelease(1)
 
             elif k == 4: # update firmware and/or system
-                sb.lcd_write("Update Device:  ", row=0)
-                sb.lcd_write("      checking..", row=1)
+                sb.lcd_write(f"Firmware {patcher.VERSION}".ljust(16), 0)
+                sb.lcd_write("      checking..", 1)
                 x = subprocess.check_output(['curl', 'https://raw.githubusercontent.com/albedozero/fluidpatcher/master/patcher/__init__.py'])
                 newver = re.search("VERSION = '([0-9\.]+)'", x.decode())[1]
                 subprocess.run(['sudo', 'apt-get', 'update'])
                 u = subprocess.check_output(['sudo', 'apt-get', 'upgrade', '-sy'])
                 fup, sysup = 0, 0
                 if [int(x) for x in newver.split('.')] > [int(x) for x in patcher.VERSION.split('.')]:
-                    sb.lcd_write(format(f"{patcher.VERSION}->{newver}", '16'), row=0)
-                    fup = True if sb.choose_opt(['update firmware', 'cancel'], row=1) == 0 else False
+                    fup = True if sb.choose_opt([f"install {newver}?"], row=1, timeout=0) == 0 else False
                 else:
-                    sb.lcd_write(patcher.VERSION.rjust(16), row=0)
-                    sb.lcd_write(" latest version!", row=1)
-                    sb.waitfortap(3)
+                    sb.lcd_write("     Up to date!", 1)
+                    sb.waitfortap(10)
                 if not re.search('0 upgraded, 0 newly installed', u.decode()):
-                    sb.lcd_write("Upgrade OS?     ", row=0)
-                    sysup = True if sb.choose_opt(['confirm', 'cancel'], row=1) == 0 else False
+                    sb.lcd_write("OS out of date  ", 0)
+                    sysup = True if sb.choose_opt(['upgrade?'], row=1, timeout=0) == 0 else False
                 if not (fup or sysup):
                     break
-                sb.lcd_write("updating..      ", row=0)
-                sb.lcd_write("     please wait", row=1)
-                if fup:
-                    tmp = tempfile.mkdtemp()
-                    subprocess.run(['git', 'clone', 'https://github.com/albedozero/fluidpatcher', tmp])
-                    for src in glob.glob(os.path.join(tmp, '**', '*'), recursive=True):
-                        if os.path.splitext(src) == ".yaml": continue
-                        if os.path.split(src) == "hw_overlay.py": continue
-                        dest = os.path.relpath(src, start=os.getcwd())
-                        subprocess.run(['sudo', 'cp', '-f', src, dest])
-                    subprocess.run(['rm', '-rf', tmp])
-                if sysup:
-                    subprocess.run(['sudo', 'apt-get', 'upgrade', '-y'])
-                subprocess.run(['sudo', 'reboot'])
+                sb.lcd_write("updating..      ", 0)
+                sb.lcd_write("     please wait", 1)
+                try:
+                    if fup:
+                        with tempfile.TemporaryDirectory() as tmp:
+                            subprocess.run(['git', 'clone', 'https://github.com/albedozero/fluidpatcher', tmp])
+                            for src in glob.glob(os.path.join(tmp, '**', '*'), recursive=True):
+                                if not os.path.isfile(src): continue
+                                if os.path.splitext(src) == ".yaml": continue
+                                if os.path.split(src) == "hw_overlay.py": continue
+                                dest = os.path.join(os.getcwd(), os.path.relpath(src, start=tmp))
+                                if not os.path.exists(os.path.dirname(dest)):
+                                    os.makedirs(os.path.dirname(dest))
+                                shutil.copyfile(src, dest)
+                    if sysup:
+                        subprocess.run(['sudo', 'apt-get', 'upgrade', '-y'])
+                    subprocess.run(['sudo', 'reboot'])
+                except Exception as e:
+                    sb.lcd_write("halted - errors:", 0)
+                    sb.lcd_write(str(e).replace('\n', ' '), 1)
+                    while not sb.waitfortap(10): pass
 
             break
 
@@ -387,7 +392,7 @@ while True:
         # long-hold right button = reload bank
         if sb.right == SB.LONG:
             sb.lcd_clear()
-            sb.lcd_blink("Reloading Bank  ", row=0)
+            sb.lcd_blink("Reloading Bank  ", 0)
             lastpatch = pxr.patch_name(pno)
             pxr.load_bank(pxr.currentbank)
             try:
@@ -403,7 +408,7 @@ while True:
         # long-hold left button = panic
         if sb.left == SB.LONG:
             sb.lcd_clear()
-            sb.lcd_blink("Panic Restart   ", row=0)
+            sb.lcd_blink("Panic Restart   ", 0)
             sb.waitforrelease(1)
             sys.exit(1)
 
@@ -432,7 +437,7 @@ while True:
                 
             elif req.type == netlink.LOAD_BANK:
                 sb.lcd_write(req.body, 0)
-                sb.lcd_write("loading patches ", 1)
+                sb.lcd_write(" loading patches", 1)
                 try:
                     if req.body == '':
                         rawbank = pxr.load_bank()
