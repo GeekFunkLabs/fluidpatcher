@@ -4,7 +4,7 @@ Description: a performance-oriented patch interface for fluidsynth
 import re, mido
 from copy import deepcopy
 from os.path import relpath, join as joinpath
-from . import fluidwrap, fpyaml
+from . import fswrap, fpyaml
 
 MAX_SF_BANK = 129
 MAX_SF_PROGRAM = 128
@@ -48,7 +48,7 @@ class Patcher:
         self.cfg = {}
         self.read_config()
         fluidsettings.update(self.cfg.get('fluidsettings', {}))
-        self._fluid = fluidwrap.Synth(**fluidsettings)
+        self._fluid = fswrap.Synth(**fluidsettings)
         self._max_channels = fluidsettings.get('synth.midi-channels', 16)
         self._bank = {'patches': {'No Patches': {}}}
         self._soundfonts = set()
