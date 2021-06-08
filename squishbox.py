@@ -316,35 +316,35 @@ while True:
                             break
                     if j > -2: break
 
-            elif k == 3: # add soundfonts from a flash drive
+            elif k == 3: # copy files from a flash drive into SquishBox directory
                 sb.lcd_clear()
-                sb.lcd_write("looking for USB ", row=0)
-                b = subprocess.check_output('sudo blkid'.split())
-                x = re.findall('/dev/sd[a-z]\d*', b.decode())
+                sb.lcd_write("looking for USB ", 0)
+                b = subprocess.check_output(['sudo', 'blkid']).decode()
+                x = re.findall('/dev/sd[a-z]\d+', b)
                 if not x:
-                    sb.lcd_write("USB not found!  ", row=1)
+                    sb.lcd_write("USB not found!  ", 1)
                     sb.waitforrelease(1)
                     break
-                sb.lcd_write("copying files.. ", row=1)
+                sb.lcd_write("copying files.. ", 1)
                 try:
                     subprocess.run(['sudo', 'mkdir', '-p', '/mnt/usbdrv'])
                     for usb in x:
                         subprocess.run(['sudo', 'mount', usb, '/mnt/usbdrv/'], timeout=30)
-                        for sf in glob.glob(os.path.join('/mnt/usbdrv', '**', '*.sf2'), recursive=True):
-                            sfrel = os.path.relpath(sf, start='/mnt/usbdrv')
-                            dest = os.path.join(pxr.sfdir, sfrel)
+                        for src in glob.glob(os.path.join('/mnt/usbdrv', '**', '*'), recursive=True):
+                            if not os.path.isfile(src): continue
+                            dest = os.path.join('SquishBox', os.path.relpath(src, start='/mnt/usbdrv'))
                             if not os.path.exists(os.path.dirname(dest)):
                                 os.makedirs(os.path.dirname(dest))
-                            subprocess.run(['sudo', 'cp', '-f', sf, dest], timeout=30)
+                            shutil.copyfile(src, dest)
                         subprocess.run(['sudo', 'umount', usb], timeout=30)
                 except Exception as e:
-                    sb.lcd_write("halted - errors:", row=0)
-                    sb.lcd_write(str(e).replace('\n', ' '), row=1)
-                    while not sb.waitfortap(10):
-                        pass
-                sb.lcd_write("copying files.. ", row=0)
-                sb.lcd_write("           done!", row=1)
-                sb.waitforrelease(1)
+                    sb.lcd_write("halted - errors:", 0)
+                    sb.lcd_write(str(e).replace('\n', ' '), 1)
+                    while not sb.waitfortap(10): pass
+                else:
+                    sb.lcd_write("copying files.. ", 0)
+                    sb.lcd_write("           done!", 1)
+                    sb.waitforrelease(1)
 
             elif k == 4: # update firmware and/or system
                 sb.lcd_write(f"Firmware {patcher.VERSION}".ljust(16), 0)
