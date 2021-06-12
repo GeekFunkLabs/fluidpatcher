@@ -5,8 +5,8 @@ Description: an implementation of patcher.py for a headless Raspberry Pi
     patches/banks are changed using pads/buttons/knobs on the controller
     should work on other platforms as well
 """
-import time, re, sys, os, traceback, glob, subprocess
-import patcher
+import time, re, sys, os, traceback, subprocess
+from patcher import Patcher, PatcherError, VERSION
 from utils import netlink
 
 # change these values to correspond to buttons/pads on your MIDI keyboard/controller
@@ -20,7 +20,7 @@ BANK_INC = 24           # load the next bank
 
 def connect_controls():
 	pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=DEC_PATCH, patch=-1)
-	pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=INC_PATCH, patch=-1)
+	pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=INC_PATCH, patch=1)
 	pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=SELECT_PATCH, patch='select')
 	pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=BANK_INC, par2='1-127', bank=1)
 
@@ -80,21 +80,13 @@ else:
     onboardled_set(PWR_LED, 1, trigger='none') # red PWR led on
     onboardled_set(ACT_LED, 0, trigger='none') # green ACT led off
 
-def list_banks():
-    bpaths = sorted(glob.glob(os.path.join(pxr.bankdir, '**', '*.yaml'), recursive=True), key=str.lower)
-    return [os.path.relpath(x, start=pxr.bankdir) for x in bpaths]
-
-def list_soundfonts():
-    sfpaths = sorted(glob.glob(os.path.join(pxr.sfdir, '**', '*.sf2'), recursive=True), key=str.lower)
-    return [os.path.relpath(x, start=pxr.sfdir) for x in sfpaths]
-
 def load_bank(bfile):
     onboardled_set(ACT_LED, 1)
     print(f"Loading bank '{bfile}' .. ", end='')
     try:
         pxr.load_bank(bfile)
-    except patcher.PatcherError as e:
-        print("Error(s) in " + pxr.currentbank)
+    except PatcherError as e:
+        print(f"Error(s) in {bfile}")
         error_blink(3)
     print("done!")
     onboardled_set(ACT_LED, 0)
@@ -113,11 +105,13 @@ class App():
         self.shutdowntimer = 0
         load_bank(pxr.currentbank)
         select_patch(self.pno)
+        self.lastpoll = time.time()
 
     def mainloop(self):
         while True:
-            time.sleep(POLL_TIME)
             t=time.time()
+            if t - self.lastpoll < POLL_TIME:
+                continue
             self.poll_remotelink()
             if self.shutdowntimer:
                 if t - self.shutdowntimer > 7:
@@ -144,12 +138,11 @@ class App():
                 else:
                     shutdowntimer = 0
         elif hasattr(msg, 'bank'):
-            banks = list_banks()
-            if pxr.currentbank in banks:
-                bno = (banks.index(pxr.currentbank) + 1 ) % len(banks)
+            if pxr.currentbank in pxr.banks:
+                bno = (pxr.banks.index(pxr.currentbank) + 1 ) % len(pxr.banks)
             else:
                 bno = 0
-            load_bank(banks[bno])
+            load_bank(pxr.banks[bno])
             self.pno = 0
             select_patch(self.pno)
             pxr.write_config()    
@@ -160,22 +153,21 @@ class App():
             req = remote_link.requests.pop(0)
 
             if req.type == netlink.SEND_VERSION:
-                remote_link.reply(req, patcher.VERSION)
+                remote_link.reply(req, VERSION)
             
             elif req.type == netlink.RECV_BANK:
                 try:
                     pxr.load_bank(req.body)
-                except patcher.PatcherError as e:
+                except PatcherError as e:
                     remote_link.reply(req, str(e), netlink.REQ_ERROR)
                 else:
-                    remote_link.reply(req, patcher.render_fpyaml(pxr.patch_names()))
+                    remote_link.reply(req, pxr.render_fpyaml(pxr.patch_names()))
                     
             elif req.type == netlink.LIST_BANKS:
-                banks = list_banks()
-                if not banks:
+                if not pxr.banks:
                     remote_link.reply(req, "no banks found!", netlink.REQ_ERROR)
                 else:
-                    remote_link.reply(req, patcher.render_fpyaml(banks))
+                    remote_link.reply(req, pxr.render_fpyaml(pxr.banks))
                 
             elif req.type == netlink.LOAD_BANK:
                 try:
@@ -185,18 +177,18 @@ class App():
                     else:
                         rawbank = pxr.load_bank(req.body)
                     onboardled_set(ACT_LED, 0)
-                except patcher.PatcherError as e:
+                except PatcherError as e:
                     remote_link.reply(req, str(e), netlink.REQ_ERROR)
                 else:
-                    info = patcher.render_fpyaml(pxr.currentbank, rawbank, pxr.patch_names())
+                    info = pxr.render_fpyaml(pxr.currentbank, rawbank, pxr.patch_names())
                     remote_link.reply(req, info)
                     pxr.write_config()
                     
             elif req.type == netlink.SAVE_BANK:
-                bfile, rawbank = patcher.parse_fpyaml(req.body)
+                bfile, rawbank = pxr.parse_fpyaml(req.body)
                 try:
                     pxr.save_bank(bfile, rawbank)
-                except patcher.PatcherError as e:
+                except PatcherError as e:
                     remote_link.reply(req, str(e), netlink.REQ_ERROR)
                 else:
                     remote_link.reply(req)
@@ -209,24 +201,23 @@ class App():
                     else:
                         self.pno = pxr.patch_index(req.body)
                     warn = pxr.select_patch(self.pno)
-                except patcher.PatcherError as e:
+                except PatcherError as e:
                     remote_link.reply(req, str(e), netlink.REQ_ERROR)
                 else:
                     remote_link.reply(req, warn)
                     onboardled_blink(ACT_LED)
                     
             elif req.type == netlink.LIST_SOUNDFONTS:
-                sf = list_soundfonts()
-                if not sf:
+                if not pxr.soundfonts:
                     remote_link.reply(req, "No soundfonts!", netlink.REQ_ERROR)
                 else:
-                    remote_link.reply(req, patcher.render_fpyaml(sf))
+                    remote_link.reply(req, pxr.render_fpyaml(pxr.soundfonts))
             
             elif req.type == netlink.LOAD_SOUNDFONT:
                 if not pxr.load_soundfont(req.body):
                     remote_link.reply(req, "Unable to load " + req.body, netlink.REQ_ERROR)
                 else:
-                    remote_link.reply(req, patcher.render_fpyaml(pxr.sfpresets))
+                    remote_link.reply(req, pxr.render_fpyaml(pxr.sfpresets))
             
             elif req.type == netlink.SELECT_SFPRESET:
                 self.pno = int(req.body)
@@ -240,20 +231,20 @@ class App():
                 except:
                     remote_link.reply(req, 'No plugins installed')
                 else:
-                    remote_link.reply(req, patcher.render_fpyaml(info))
+                    remote_link.reply(req, pxr.render_fpyaml(info))
 
             elif req.type == netlink.LIST_PORTS:
-                ports = patcher.list_midi_inputs()
-                remote_link.reply(req, patcher.render_fpyaml(ports))
+                ports = pxr.list_midi_inputs()
+                remote_link.reply(req, pxr.render_fpyaml(ports))
                 
             elif req.type == netlink.READ_CFG:
-                info = patcher.render_fpyaml(pxr.cfgfile, pxr.read_config())
+                info = pxr.render_fpyaml(pxr.cfgfile, pxr.read_config())
                 remote_link.reply(req, info)
 
             elif req.type == netlink.SAVE_CFG:
                 try:
                     pxr.write_config(req.body)
-                except patcher.PatcherError as e:
+                except PatcherError as e:
                     remote_link.reply(req, str(e), netlink.REQ_ERROR)
                 else:
                     remote_link.reply(req)
@@ -268,8 +259,8 @@ else:
 
 # start the patcher
 try:
-    pxr = patcher.Patcher(cfgfile)
-except patcher.PatcherError as e:
+    pxr = Patcher(cfgfile)
+except PatcherError as e:
     print("Error(s) in " + cfgfile)
     error_blink(2)
 

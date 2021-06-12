@@ -2,31 +2,23 @@
 """
 Description: an implementation of patcher.py for a Raspberry Pi in a stompbox
 """
-import sys, os, re, glob, subprocess, tempfile, shutil
-import patcher
+import re, sys, os, subprocess, shutil, tempfile
+from pathlib import Path
+from patcher import Patcher, PatcherError, VERSION
 from utils import netlink, stompboxpi as SB
 
-def list_banks():
-    bpaths = sorted(glob.glob(os.path.join(pxr.bankdir, '**', '*.yaml'), recursive=True), key=str.lower)
-    return [os.path.relpath(x, start=pxr.bankdir) for x in bpaths]
-
-def list_soundfonts():
-    sfpaths = sorted(glob.glob(os.path.join(pxr.sfdir, '**', '*.sf2'), recursive=True), key=str.lower)
-    return [os.path.relpath(x, start=pxr.sfdir) for x in sfpaths]
-
 def load_bank_menu():
-    banks = list_banks()
-    if not banks:
-        sb.lcd_write("no banks found! ", 1)
+    if not pxr.banks:
+        sb.lcd_write("no banks found!", 1)
         sb.waitforrelease(2)
         return False
-    sb.lcd_write("Load Bank:      ", 0)
-    i = sb.choose_opt(banks, row=1, timeout=0)
+    sb.lcd_write("Load Bank:", 0)
+    i = sb.choose_opt([str(b) for b in pxr.banks], row=1, scroll=True, timeout=0)
     if i < 0: return False
     sb.lcd_write(" loading patches", 1)
     try:
-        pxr.load_bank(banks[i])
-    except patcher.PatcherError:
+        pxr.load_bank(pxr.banks[i])
+    except PatcherError:
         sb.lcd_write("bank load error!", 1)
         sb.waitforrelease(2)
         return False
@@ -41,12 +33,11 @@ def midimessage_listener(msg):
     else:
         last_midimessage = msg
 
-
 os.umask(0o002)
 
 sb = SB.StompBox()
 sb.lcd_clear()
-sb.lcd_write(f"SquishBox {patcher.VERSION}".ljust(16), 0)
+sb.lcd_write(f"SquishBox {VERSION}", 0)
 
 # start the patcher
 if len(sys.argv) > 1:
@@ -54,8 +45,8 @@ if len(sys.argv) > 1:
 else:
     cfgfile = '/home/pi/SquishBox/squishboxconf.yaml'
 try:
-    pxr = patcher.Patcher(cfgfile)
-except patcher.PatcherError:
+    pxr = Patcher(cfgfile)
+except PatcherError:
     sb.lcd_write("bad config file!", 1)
     sys.exit("bad config file")
 
@@ -68,10 +59,10 @@ else:
     remote_link = None
 
 # load bank
-sb.lcd_write(" loading patches", 1)
+sb.lcd_write("loading patches", 1, rjust=True)
 try:
     pxr.load_bank(pxr.currentbank)
-except patcher.PatcherError:
+except PatcherError:
     while True:
         sb.lcd_write("bank load error!", 1)
         sb.waitfortap(10)
@@ -79,7 +70,7 @@ except patcher.PatcherError:
             break
 
 networks = []
-fxmenu_info = (                    
+fxmenu_info = (
 ('Reverb Size', 'synth.reverb.room-size', '4.1f', 0.1, 0.0, 1.0),
 ('Reverb Damp', 'synth.reverb.damp', '4.1f', 0.1, 0.0, 1.0),
 ('Rev. Width', 'synth.reverb.width', '5.1f', 1.0, 0.0, 100.0),
@@ -90,7 +81,6 @@ fxmenu_info = (
 ('Chorus Depth', 'synth.chorus.depth', '3.1f', 0.1, 0.3, 5.0),
 ('Gain', 'synth.gain', '11.1f', 0.1, 0.0, 5.0)
 )
-
 last_midimessage = None
 pxr.set_midimessage_callback(midimessage_listener)
 pno = 0
@@ -102,15 +92,15 @@ while True:
     if pxr.sfpresets:
         ptot = len(pxr.sfpresets)
         p = pxr.sfpresets[pno]
-        sb.lcd_write(p.name, 0)
-        sb.lcd_write(f"  preset {p.bank:03}:{p.prog:03}", 1)
+        sb.lcd_write(p.name, 0, scroll=True)
+        sb.lcd_write(f"preset {p.bank:03}:{p.prog:03}", 1, rjust=True)
     else:
         ptot = pxr.patches_count()
         patchname = pxr.patch_name(pno)
-        sb.lcd_write(patchname, 0)
-        sb.lcd_write(f"patch: {pno + 1}/{ptot}".rjust(16), 1)
+        sb.lcd_write(patchname, 0, scroll=True)
+        sb.lcd_write(f"patch: {pno + 1}/{ptot}", 1, rjust=True)
     if warn:
-        sb.lcd_write(';'.join(warn), 1)
+        sb.lcd_write(';'.join(warn), 1, scroll=True)
 
     # input loop
     while True:
@@ -136,7 +126,7 @@ while True:
             k = sb.choose_opt(['Save Patch', 'Delete Patch', 'Load Bank', 'Save Bank', 'Load Soundfont', 'Effects..'], row=1, passlong=True)
             
             if k == 0: # save the current patch or save preset to a patch
-                sb.lcd_write("Save patch:     ", 0)
+                sb.lcd_write("Save patch:", 0)
                 if pxr.sfpresets:
                     newname = sb.char_input(pxr.sfpresets[pno].name)
                     if newname == '': break
@@ -153,8 +143,8 @@ while True:
                 
             elif k == 1: # delete patch if it's not last one or a preset; ask confirm
                 if pxr.sfpresets or ptot < 2:
-                    sb.lcd_write("cannot delete   ", 1)
-                    sb.waitforrelease(1)
+                    sb.lcd_write("cannot delete", 1)
+                    sb.waitforrelease(2)
                     break
                 j = sb.choose_opt(['confirm delete?', 'cancel'], row=1)
                 if j == 0:
@@ -170,34 +160,33 @@ while True:
                 
             elif k == 3: # save bank, prompt for name
                 if pxr.sfpresets:
-                    sb.lcd_write("cannot save     ", 1)
-                    sb.waitforrelease(1)
+                    sb.lcd_write("cannot save", 1)
+                    sb.waitforrelease(2)
                     break
-                sb.lcd_write("Save bank:      ", 0)
+                sb.lcd_write("Save bank:", 0)
                 bankfile = sb.char_input(pxr.currentbank)
                 if bankfile == '': break
                 try:
                     pxr.save_bank(bankfile)
-                except patcher.PatcherError:
+                except PatcherError:
                     sb.lcd_write("bank save error!", 1)
                     sb.waitforrelease(2)
                     break
                 pxr.write_config()
-                sb.lcd_write("bank saved.     ", 1)
+                sb.lcd_write("bank saved.", 1)
                 sb.waitforrelease(1)
                 
             elif k == 4: # load soundfont
-                sf = list_soundfonts()
-                if not sf:
-                    sb.lcd_write("no soundfonts!  ", 1)
+                if not pxr.soundfonts:
+                    sb.lcd_write("no soundfonts!", 1)
                     sb.waitforrelease(2)
                     break
-                sb.lcd_write("Load Soundfont: ", 0)
-                s = sb.choose_opt(sf, row=1, timeout=0)
+                sb.lcd_write("Load Soundfont:", 0)
+                s = sb.choose_opt([str(sf) for sf in pxr.soundfonts], row=1, scroll=True, timeout=0)
                 if s < 0: break
-                sb.lcd_write("loading...      ", 1)
-                if not pxr.load_soundfont(sf[s]):
-                    sb.lcd_write("unable to load! ", 1)
+                sb.lcd_write("loading...", 1)
+                if not pxr.load_soundfont(pxr.soundfonts[s]):
+                    sb.lcd_write("unable to load!", 1)
                 sb.waitforrelease(2)
                 pno = 0
                 warn = pxr.select_sfpreset(pno)
@@ -211,7 +200,7 @@ while True:
                         curval = pxr.fluid_get(opt)
                         fxopts.append(name + ':' + format(curval, fmt))
                         args.append((curval, inc, min, max, fmt, opt))
-                    sb.lcd_write("Effects:        ", 0)
+                    sb.lcd_write("Effects:", 0)
                     j = sb.choose_opt(fxopts, row=1)
                     if j < 0: break
                     sb.lcd_write(fxopts[j], 0)
@@ -224,7 +213,7 @@ while True:
             
         # left button menu - system-related tasks
         if sb.left == SB.HOLD:
-            sb.lcd_write("Options:        ", 0)
+            sb.lcd_write("Options:", 0)
             k = sb.choose_opt(['Power Down', 'MIDI Devices', 'Wifi Settings', 'Add From USB', 'Update Device'], row=1, passlong=True)
             
             if k == 0: # power down
@@ -233,13 +222,13 @@ while True:
                 subprocess.run('sudo shutdown -h now'.split())
                 
             elif k == 1: # midi device list/monitor
-                sb.lcd_write("MIDI Devices:   ", 0)
-                outports = patcher.list_midi_outputs()
-                op = sb.choose_opt(outports + ["MIDI monitor.."], row=1, timeout=0)
+                sb.lcd_write("MIDI Devices:", 0)
+                outports = pxr.list_midi_outputs()
+                op = sb.choose_opt(outports + ["MIDI monitor.."], row=1, scroll=True, timeout=0)
                 if op < 0: break
                 if op < len(outports):
-                    sb.lcd_write("Connect to:     ", 0)
-                    inports = patcher.list_midi_inputs()
+                    sb.lcd_write("Connect to:", 0)
+                    inports = pxr.list_midi_inputs()
                     ip = sb.choose_opt(inports, row=1)
                     if ip < 0: break
                     outport = re.search("\d+:\d+$", outports[op])[0]
@@ -248,7 +237,7 @@ while True:
                 else:
                     msg = last_midimessage
                     sb.lcd_clear()
-                    sb.lcd_write("MIDI monitor:   ", 0)
+                    sb.lcd_write("MIDI monitor:", 0)
                     while True:
                         if sb.waitfortap(0.1): break
                         if last_midimessage == msg: continue
@@ -275,17 +264,17 @@ while True:
                     ip = subprocess.check_output(['hostname', '-I']).decode().strip()
                     sb.lcd_clear()
                     sb.lcd_write(ssid, 0)
-                    sb.lcd_write(ip.rjust(16), 1)
+                    sb.lcd_write(ip, 1, rjust=True)
                     if not sb.waitfortap(10):
                         j = -2
                         break
-                    sb.lcd_write("Connections:    ", 0)
+                    sb.lcd_write("Connections:", 0)
                     while True:
                         if remote_link:
                             opts = networks + ['Rescan...', 'Block RemoteLink']
                         else:
                             opts = networks + ['Rescan...', 'Allow RemoteLink']
-                        j = sb.choose_opt(opts, 1, timeout=0)
+                        j = sb.choose_opt(opts, row=1, scroll=True, timeout=0)
                         if j < 0: break
                         if j == len(opts) - 1:
                             if remote_link:
@@ -299,11 +288,11 @@ while True:
                             pxr.write_config()
                             break
                         if j == len(opts) - 2:
-                            sb.lcd_write("scanning..      ", 1)
+                            sb.lcd_write("scanning..", 1)
                             x = subprocess.check_output('sudo iw wlan0 scan'.split()).decode()
                             networks = [s for s in re.findall('SSID: ([^\n]*)', x) if s]
                         else:
-                            sb.lcd_write("Password:       ", 0)
+                            sb.lcd_write("Password:", 0)
                             newpsk = sb.char_input(charset = SB.PRNCHARS)
                             if newpsk == '': break
                             sb.lcd_clear()
@@ -322,19 +311,19 @@ while True:
                 b = subprocess.check_output(['sudo', 'blkid']).decode()
                 x = re.findall('/dev/sd[a-z]\d+', b)
                 if not x:
-                    sb.lcd_write("USB not found!  ", 1)
-                    sb.waitforrelease(1)
+                    sb.lcd_write("USB not found!", 1)
+                    sb.waitforrelease(2)
                     break
-                sb.lcd_write("copying files.. ", 1)
+                sb.lcd_write("copying files..", 1)
                 try:
                     subprocess.run(['sudo', 'mkdir', '-p', '/mnt/usbdrv'])
                     for usb in x:
                         subprocess.run(['sudo', 'mount', usb, '/mnt/usbdrv/'], timeout=30)
-                        for src in glob.glob(os.path.join('/mnt/usbdrv', '**', '*'), recursive=True):
-                            if not os.path.isfile(src): continue
-                            dest = os.path.join('SquishBox', os.path.relpath(src, start='/mnt/usbdrv'))
-                            if not os.path.exists(os.path.dirname(dest)):
-                                os.makedirs(os.path.dirname(dest))
+                        for src in Path('/mnt/usbdrv').rglob('*'):
+                            if not src.is_file(): continue
+                            dest = 'SquishBox' / src.relative_to('/mnt/usbdrv')
+                            if not dest.parent.exists():
+                                dest.parent.mkdir(parents=True, exist_ok=True)
                             shutil.copyfile(src, dest)
                         subprocess.run(['sudo', 'umount', usb], timeout=30)
                 except Exception as e:
@@ -342,47 +331,47 @@ while True:
                     sb.lcd_write(str(e).replace('\n', ' '), 1)
                     while not sb.waitfortap(10): pass
                 else:
-                    sb.lcd_write("copying files.. ", 0)
-                    sb.lcd_write("           done!", 1)
+                    sb.lcd_write("copying files..", 0)
+                    sb.lcd_write("done!", 1, rjust=True)
                     sb.waitforrelease(1)
 
             elif k == 4: # update firmware and/or system
-                sb.lcd_write(f"Firmware {patcher.VERSION}".ljust(16), 0)
-                sb.lcd_write("      checking..", 1)
+                sb.lcd_write(f"Firmware {VERSION}", 0, scroll=True)
+                sb.lcd_write("checking..", 1, rjust=True)
                 x = subprocess.check_output(['curl', 'https://raw.githubusercontent.com/albedozero/fluidpatcher/master/patcher/__init__.py'])
                 newver = re.search("VERSION = '([0-9\.]+)'", x.decode())[1]
                 subprocess.run(['sudo', 'apt-get', 'update'])
                 u = subprocess.check_output(['sudo', 'apt-get', 'upgrade', '-sy'])
                 fup, sysup = 0, 0
-                if [int(x) for x in newver.split('.')] > [int(x) for x in patcher.VERSION.split('.')]:
+                if [int(x) for x in newver.split('.')] > [int(x) for x in VERSION.split('.')]:
                     fup = True if sb.choose_opt([f"install {newver}?"], row=1, timeout=0) == 0 else False
                 else:
-                    sb.lcd_write("     Up to date!", 1)
+                    sb.lcd_write("Up to date!", 1, rjust=True)
                     sb.waitfortap(10)
                 if not re.search('0 upgraded, 0 newly installed', u.decode()):
-                    sb.lcd_write("OS out of date  ", 0)
+                    sb.lcd_write("OS out of date", 0)
                     sysup = True if sb.choose_opt(['upgrade?'], row=1, timeout=0) == 0 else False
                 if not (fup or sysup):
                     break
-                sb.lcd_write("updating..      ", 0)
-                sb.lcd_write("     please wait", 1)
+                sb.lcd_write("updating..", 0)
+                sb.lcd_write("please wait", 1, rjust=True)
                 try:
                     if fup:
                         with tempfile.TemporaryDirectory() as tmp:
                             subprocess.run(['git', 'clone', 'https://github.com/albedozero/fluidpatcher', tmp])
-                            for src in glob.glob(os.path.join(tmp, '**', '*'), recursive=True):
-                                if not os.path.isfile(src): continue
-                                if os.path.splitext(src) == ".yaml": continue
-                                if os.path.split(src) == "hw_overlay.py": continue
-                                dest = os.path.join(os.getcwd(), os.path.relpath(src, start=tmp))
-                                if not os.path.exists(os.path.dirname(dest)):
-                                    os.makedirs(os.path.dirname(dest))
+                            for src in Path(tmp).rglob('*'):
+                                if not src.is_file(): continue
+                                if src.suffix == ".yaml": continue
+                                if src.name == "hw_overlay.py": continue
+                                dest = Path.cwd() / src.relative_to(tmp)
+                                if not dest.parent.exists():
+                                    dest.parent.mkdir(parents=True, exist_ok=True)
                                 shutil.copyfile(src, dest)
                     if sysup:
                         subprocess.run(['sudo', 'apt-get', 'upgrade', '-y'])
                     subprocess.run(['sudo', 'reboot'])
                 except Exception as e:
-                    sb.lcd_write("halted - errors:", 0)
+                    sb.lcd_write("halted - errors:", 1, scroll=True)
                     sb.lcd_write(str(e).replace('\n', ' '), 1)
                     while not sb.waitfortap(10): pass
 
@@ -392,12 +381,12 @@ while True:
         # long-hold right button = reload bank
         if sb.right == SB.LONG:
             sb.lcd_clear()
-            sb.lcd_blink("Reloading Bank  ", 0)
+            sb.lcd_blink("Reloading Bank", 0)
             lastpatch = pxr.patch_name(pno)
             pxr.load_bank(pxr.currentbank)
             try:
                 pno = pxr.patch_index(lastpatch)
-            except patcher.PatcherError:
+            except PatcherError:
                 if pno >= pxr.patches_count():
                     pno = 0
             warn = pxr.select_patch(pno)
@@ -408,7 +397,7 @@ while True:
         # long-hold left button = panic
         if sb.left == SB.LONG:
             sb.lcd_clear()
-            sb.lcd_blink("Panic Restart   ", 0)
+            sb.lcd_blink("Panic Restart", 0)
             sb.waitforrelease(1)
             sys.exit(1)
 
@@ -418,22 +407,21 @@ while True:
             req = remote_link.requests.pop(0)
             
             if req.type == netlink.SEND_VERSION:
-                remote_link.reply(req, patcher.VERSION)
+                remote_link.reply(req, VERSION)
             
             elif req.type == netlink.RECV_BANK:
                 try:
                     pxr.load_bank(req.body)
-                except patcher.PatcherError as e:
+                except PatcherError as e:
                     remote_link.reply(req, str(e), netlink.REQ_ERROR)
                 else:
-                    remote_link.reply(req, patcher.render_fpyaml(pxr.patch_names()))
+                    remote_link.reply(req, pxr.render_fpyaml(pxr.patch_names()))
                     
             elif req.type == netlink.LIST_BANKS:
-                banks = list_banks()
-                if not banks:
+                if not pxr.banks:
                     remote_link.reply(req, "no banks found!", netlink.REQ_ERROR)
                 else:
-                    remote_link.reply(req, patcher.render_fpyaml(banks))
+                    remote_link.reply(req, pxr.render_fpyaml(pxr.banks))
                 
             elif req.type == netlink.LOAD_BANK:
                 sb.lcd_write(req.body, 0)
@@ -443,20 +431,20 @@ while True:
                         rawbank = pxr.load_bank()
                     else:
                         rawbank = pxr.load_bank(req.body)
-                except patcher.PatcherError as e:
+                except PatcherError as e:
                     remote_link.reply(req, str(e), netlink.REQ_ERROR)
                     sb.lcd_write("bank load error!", 1)
                     sb.waitforrelease(2)
                 else:
-                    info = patcher.render_fpyaml(pxr.currentbank, rawbank, pxr.patch_names())
+                    info = pxr.render_fpyaml(pxr.currentbank, rawbank, pxr.patch_names())
                     remote_link.reply(req, info)
                     pxr.write_config()
                     
             elif req.type == netlink.SAVE_BANK:
-                bfile, rawbank = patcher.parse_fpyaml(req.body)
+                bfile, rawbank = pxr.parse_fpyaml(req.body)
                 try:
                     pxr.save_bank(bfile, rawbank)
-                except patcher.PatcherError as e:
+                except PatcherError as e:
                     remote_link.reply(req, str(e), netlink.REQ_ERROR)
                 else:
                     remote_link.reply(req)
@@ -469,27 +457,26 @@ while True:
                     else:
                         pno = pxr.patch_index(req.body)
                     warn = pxr.select_patch(pno)
-                except patcher.PatcherError as e:
+                except PatcherError as e:
                     remote_link.reply(req, str(e), netlink.REQ_ERROR)
                 else:
                     remote_link.reply(req, warn)
                     break
                     
             elif req.type == netlink.LIST_SOUNDFONTS:
-                sf = list_soundfonts()
-                if not sf:
+                if not pxr.soundfonts:
                     remote_link.reply(req, "No soundfonts!", netlink.REQ_ERROR)
                 else:
-                    remote_link.reply(req, patcher.render_fpyaml(sf))
+                    remote_link.reply(req, pxr.render_fpyaml(pxr.soundfonts))
             
             elif req.type == netlink.LOAD_SOUNDFONT:
                 sb.lcd_write(req.body, 0)
-                sb.lcd_write("loading...      ", 1)
+                sb.lcd_write("loading...", 1)
                 if not pxr.load_soundfont(req.body):
-                    sb.lcd_write("unable to load! ", 1)
+                    sb.lcd_write("unable to load!", 1)
                     remote_link.reply(req, "Unable to load " + req.body, netlink.REQ_ERROR)
                 else:
-                    remote_link.reply(req, patcher.render_fpyaml(pxr.sfpresets))
+                    remote_link.reply(req, pxr.render_fpyaml(pxr.sfpresets))
             
             elif req.type == netlink.SELECT_SFPRESET:
                 pno = int(req.body)
@@ -503,20 +490,20 @@ while True:
                 except:
                     remote_link.reply(req, 'No plugins installed')
                 else:
-                    remote_link.reply(req, patcher.render_fpyaml(info))
+                    remote_link.reply(req, pxr.render_fpyaml(info))
 
             elif req.type == netlink.LIST_PORTS:
-                ports = patcher.list_midi_inputs()
-                remote_link.reply(req, patcher.render_fpyaml(ports))
+                ports = pxr.list_midi_inputs()
+                remote_link.reply(req, pxr.render_fpyaml(ports))
 
             elif req.type == netlink.READ_CFG:
-                info = patcher.render_fpyaml(pxr.cfgfile, pxr.read_config())
+                info = pxr.render_fpyaml(pxr.cfgfile, pxr.read_config())
                 remote_link.reply(req, info)
 
             elif req.type == netlink.SAVE_CFG:
                 try:
                     pxr.write_config(req.body)
-                except patcher.PatcherError as e:
+                except PatcherError as e:
                     remote_link.reply(req, str(e), netlink.REQ_ERROR)
                 else:
                     remote_link.reply(req)

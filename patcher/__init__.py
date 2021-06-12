@@ -1,9 +1,9 @@
 """
 Description: a performance-oriented patch interface for fluidsynth
 """
-import re, mido
-from copy import deepcopy
-from os.path import relpath, join as joinpath
+import re, copy
+from pathlib import Path
+import oyaml, mido
 from . import fswrap, fpyaml
 
 MAX_SF_BANK = 129
@@ -21,24 +21,17 @@ SYNTH_DEFAULTS = {'synth.chorus.depth': 8.0, 'synth.chorus.level': 2.0,
 
 VERSION = '0.5'
 
-YAMLError = fpyaml.oyaml.YAMLError
-
-list_midi_outputs = mido.get_output_names
-list_midi_inputs = mido.get_input_names
-
-def parse_fpyaml(text):
-    if '---' in text:
-        return fpyaml.oyaml.safe_load_all(text)
-    return fpyaml.oyaml.safe_load(text)
-
-def render_fpyaml(*args):
-    if len(args) > 1:
-        return fpyaml.oyaml.safe_dump_all(args)
-    return fpyaml.oyaml.safe_dump(args[0])
-
 
 class PatcherError(Exception):
     pass
+
+
+class PresetInfo:
+    
+    def __init__(self, name, bank, prog):
+        self.name = name
+        self.bank = bank
+        self.prog = prog
 
 
 class Patcher:
@@ -57,27 +50,61 @@ class Patcher:
 
     @property
     def cfgfile(self):
-        return self._cfgfile
-        
-    @property
-    def sfdir(self):
-        return self.cfg.get('soundfontdir', 'sf2')
-        
-    @property
-    def bankdir(self):
-        return self.cfg.get('bankdir', 'banks')
-        
-    @property
-    def plugindir(self):
-        return self.cfg.get('plugindir', '')
-        
-    @property
-    def sysexdir(self):
-        return self.cfg.get('sysexdir', '')
-        
+        if self._cfgfile == '':
+            return None
+        else:
+            return Path(self._cfgfile)
+
     @property
     def currentbank(self):
-        return self.cfg.get('currentbank', '')
+        if 'currentbank' in self.cfg:
+            return Path(self.cfg['currentbank'])
+        else:
+            return None
+
+    @property
+    def sfdir(self):
+        return Path(self.cfg.get('soundfontdir', 'sf2'))
+
+    @property
+    def bankdir(self):
+        return Path(self.cfg.get('bankdir', 'banks'))
+
+    @property
+    def plugindir(self):
+        return Path(self.cfg.get('plugindir', ''))
+
+    @property
+    def sysexdir(self):
+        return Path(self.cfg.get('sysexdir', ''))
+
+    @property
+    def banks(self):
+        return sorted([b.relative_to(self.bankdir) for b in self.bankdir.rglob('*.yaml')])
+
+    @property
+    def soundfonts(self):
+        return sorted([sf.relative_to(self.sfdir) for sf in self.sfdir.rglob('*.sf2')])
+
+    @staticmethod
+    def parse_fpyaml(text):
+        if '---' in text:
+            return oyaml.safe_load_all(text)
+        return oyaml.safe_load(text)
+
+    @staticmethod
+    def render_fpyaml(*args):
+        if len(args) > 1:
+            return oyaml.safe_dump_all(args)
+        return oyaml.safe_dump(args[0])
+
+    @staticmethod
+    def list_midi_outputs():
+        return mido.get_output_names()
+
+    @staticmethod
+    def list_midi_inputs():
+        return mido.get_input_names()
 
     def set_midimessage_callback(self, func):
         self._fluid.callback = func
@@ -86,56 +113,53 @@ class Patcher:
         self._fluid.callback = None
 
     def read_config(self):
-        if self._cfgfile == '':
-            return render_fpyaml(self.cfg)
-        f = open(self._cfgfile)
-        raw = f.read()
-        f.close()
+        if self.cfgfile == None:
+            return self.render_fpyaml(self.cfg)
+        raw = self.cfgfile.read_text()
         try:
-            self.cfg = parse_fpyaml(raw)
-        except (YAMLError, IOError):
+            self.cfg = self.parse_fpyaml(raw)
+        except (oyaml.YAMLError, IOError):
             raise PatcherError("Bad configuration file")
         return raw
 
     def write_config(self, raw=None):
-        if self._cfgfile == '':
+        if self.cfgfile == None:
             return
-        f = open(self._cfgfile, 'w')
         if raw:
             try:
-                c = parse_fpyaml(raw)
-            except (YAMLError, IOError):
+                c = self.parse_fpyaml(raw)
+            except (oyaml.YAMLError, IOError):
                 raise PatcherError("Invalid config data")
-            self.cfg = c
-            f.write(raw)
+            else:
+                self.cfgfile.write_text(raw)
+                self.cfg = c
         else:
-            f.write(render_fpyaml(self.cfg))
-        f.close()
+            self.cfgfile.write_text(self.render_fpyaml(self.cfg))
 
     def load_bank(self, bank=None):
     # load patches, settings from :bank yaml string or filename
     # returns the file contents/yaml string
         if bank == None:
-            bfile = self.currentbank
+            if self.currentbank == None: return None
+            bankfile = self.currentbank
         else:
-            bfile = bank
+            bankfile = Path(bank)
         try:
-            f = open(joinpath(self.bankdir, bfile))
-            bank = f.read()
-            f.close()
-            self.cfg['currentbank'] = bfile
+            bank = (self.bankdir / bankfile).read_text()
         except (OSError, FileNotFoundError):
-            pass
+            pass # bank is yaml, not a filename
+        else:
+            self.cfg['currentbank'] = bankfile.as_posix()
         try:
-            b = parse_fpyaml(bank)
-        except YAMLError:
+            b = self.parse_fpyaml(bank)
+        except oyaml.YAMLError:
             raise PatcherError("Unable to parse bank data")
         self._bank = b
         try:
             self._bank['patches'].values()
         except:
             self._bank = {'patches': {'No Patches': {}}}
-
+        # initialize the synth
         self._reset_synth_defaults()
         self._send_cc_defaults()
         if 'init' in self._bank:
@@ -145,27 +169,28 @@ class Patcher:
                 self._fluid.send_cc(msg.chan - 1, msg.cc, msg.val)
             for syx in self._bank['init'].get('sysex', []):
                 self._parse_sysex(syx)
-
         self._reload_bankfonts()
         return bank
 
     def save_bank(self, bankfile='', raw=''):
     # save current patches, settings in :bankfile
     # if :raw parses, save it exactly
-        if not bankfile:
+        if bankfile:
+            bankfile = Path(bankfile)
+        else:
+            if self.currentbank == None: return
             bankfile = self.currentbank
-        f = open(joinpath(self.bankdir, bankfile), 'w')
         if raw:
             try:
-                b = parse_fpyaml(raw)
-            except (YAMLError, IOError):
+                b = self.parse_fpyaml(raw)
+            except (oyaml.YAMLError, IOError):
                 raise PatcherError("Invalid bank data")
-            self._bank = b
-            f.write(raw)
+            else:
+                self._bank = b
         else:
-            f.write(render_fpyaml(self._bank))
-        f.close()
-        self.cfg['currentbank'] = bankfile
+            raw = self.render_fpyaml(self._bank)
+        (self.bankdir / bankfile).write_text(raw)
+        self.cfg['currentbank'] = bankfile.as_posix()
 
     def patch_name(self, patch_index):
         if patch_index >= len(self._bank['patches']):
@@ -194,9 +219,9 @@ class Patcher:
             self._fluid.program_unset(channel - 1)
             if channel not in patch: continue
             preset = patch[channel]
-            if preset.name not in self._soundfonts:
+            if preset.sf not in self._soundfonts:
                 self._reload_bankfonts()
-            if not self._fluid.program_select(channel - 1, joinpath(self.sfdir, preset.name), preset.bank, preset.prog):
+            if not self._fluid.program_select(channel - 1, self.sfdir / preset.sf, preset.bank, preset.prog):
                 warnings.append(f"Unable to select preset {preset} on channel {channel}")
 
         # activate LADSPA effects
@@ -241,7 +266,7 @@ class Patcher:
             addlike = self._resolve_patch(addlike)
             for x in addlike:
                 if not isinstance(x, int):
-                    self._bank['patches'][name][x] = deepcopy(addlike[x])
+                    self._bank['patches'][name][x] = copy.deepcopy(addlike[x])
         return(self._bank['patches'][name])
 
     def delete_patch(self, patch):
@@ -262,7 +287,8 @@ class Patcher:
                     del patch[channel]
                 continue
             sfont, bank, prog = info
-            patch[channel] = fpyaml.SFPreset(relpath(sfont, start=self.sfdir), bank, prog)
+            sfrel = Path(sfont).relative_to(self.sfdir).as_posix()
+            patch[channel] = fpyaml.SFPreset(sfrel, bank, prog)
             cc_messages = []
             for first, last, default in CC_DEFAULTS:
                 for cc in range(first, last + 1):
@@ -275,9 +301,9 @@ class Patcher:
     def load_soundfont(self, soundfont):
     # load a single :soundfont and scan all its presets
         for sfont in self._soundfonts - {soundfont}:
-            self._fluid.unload_soundfont(joinpath(self.sfdir, sfont))
+            self._fluid.unload_soundfont(self.sfdir / sfont)
         if {soundfont} - self._soundfonts:
-            if not self._fluid.load_soundfont(joinpath(self.sfdir, soundfont)):
+            if not self._fluid.load_soundfont(self.sfdir / soundfont):
                 self._soundfonts = set()
                 return False
         self._soundfonts = {soundfont}
@@ -285,10 +311,10 @@ class Patcher:
         self.sfpresets = []
         for bank in range(MAX_SF_BANK):
             for prog in range(MAX_SF_PROGRAM):
-                name = self._fluid.get_preset_name(joinpath(self.sfdir, soundfont), bank, prog)
+                name = self._fluid.get_preset_name(self.sfdir / soundfont, bank, prog)
                 if not name:
                     continue
-                self.sfpresets.append(fpyaml.SFPreset(name, bank, prog))
+                self.sfpresets.append(PresetInfo(name, bank, prog))
         if not self.sfpresets: return False
         for channel in range(0, self._max_channels):
             self._fluid.program_unset(channel)
@@ -305,7 +331,7 @@ class Patcher:
         if presetnum < len(self.sfpresets):
             p = self.sfpresets[presetnum]
             soundfont = list(self._soundfonts)[0]
-            if not self._fluid.program_select(0, joinpath(self.sfdir, soundfont), p.bank, p.prog):
+            if not self._fluid.program_select(0, self.sfdir / soundfont, p.bank, p.prog):
                 warnings.append(f"Unable to select preset {p}")
         else:
             warnings.append('Preset out of range')
@@ -319,21 +345,21 @@ class Patcher:
         if updatebank:
             if 'fluidsettings' not in self._bank:
                 self._bank['fluidsettings'] = {}
-            self._bank['fluidsettings'].update(opt=val)
+            self._bank['fluidsettings'][opt] = val
             if patch:
                 patch = self._resolve_patch(patch)
                 if 'fluidsettings' in patch and opt in patch['fluidsettings']:
                     patch['fluidsettings'].remove(opt)
 
-    def add_router_rule(ruletext=None, **rule):
+    def add_router_rule(self, ruletext=None, **rule):
         if ruletext:
             try:
-                rule = parse_fpyaml(ruletext)
-            except (YAMLError, IOError):
+                rule = self.parse_fpyaml(ruletext)
+            except (oyaml.YAMLError, IOError):
                 raise PatcherError("Improperly formatted router rule")
         else:
             for par, val in rule.items():
-                rule[par] = parse_fpyaml(str(val))
+                rule[par] = self.parse_fpyaml(str(val))
         self._midi_route(**rule)
 
     # private functions
@@ -342,12 +368,12 @@ class Patcher:
         for patch in self._bank['patches'].values():
             for channel in patch:
                 if isinstance(channel, int):
-                    sfneeded |= {patch[channel].name}
+                    sfneeded |= {patch[channel].sf}
         missing = set()
         for sfont in self._soundfonts - sfneeded:
-            self._fluid.unload_soundfont(joinpath(self.sfdir, sfont))
+            self._fluid.unload_soundfont(self.sfdir / sfont)
         for sfont in sfneeded - self._soundfonts:
-            if not self._fluid.load_soundfont(joinpath(self.sfdir, sfont)):
+            if not self._fluid.load_soundfont(self.sfdir / sfont):
                 missing |= {sfont}
         self._soundfonts = sfneeded - missing
 
@@ -391,7 +417,7 @@ class Patcher:
         self._fluid.router_addrule(type, chan, par1, par2, **kwargs)
 
     def _fxplugin_connect(self, name, lib, plugin=None, audio='stereo', vals={}, mix=None):
-        libpath = joinpath(self.plugindir, lib)
+        libpath = self.plugindir / lib
         if audio == 'mono':
             audio = 'Input', 'Output'
         elif audio == 'stereo':
@@ -420,7 +446,7 @@ class Patcher:
                     if name not in openports:
                         openports[name] = mido.open_output(name)
                     if isinstance(data[0], str):
-                        msg = mido.read_syx_file(joinpath(self.sysexdir, data[0]))
+                        msg = mido.read_syx_file(self.sysexdir / data[0])
                     else:
                         msg = mido.Message('sysex', data=data)
                     openports[name].send(msg)
@@ -442,3 +468,4 @@ class Patcher:
                 self.fluid_set(opt, cfg_fset[opt])
             else:
                 self.fluid_set(opt, val)
+        

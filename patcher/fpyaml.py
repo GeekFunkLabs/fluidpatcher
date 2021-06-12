@@ -29,16 +29,6 @@ def scinote_to_val(val):
     octave = int(sci[3])
     return sign * ((octave + 1) * 12 + note + acc)
 
-def parse(text):
-    if '---' in text:
-        return oyaml.safe_load_all(text)
-    return oyaml.safe_load(text)
-
-def render(*args):
-    if len(args) > 1:
-        return oyaml.safe_dump_all(args)
-    return oyaml.safe_dump(args[0])
-
 
 class SFPreset(oyaml.YAMLObject):
 
@@ -46,49 +36,24 @@ class SFPreset(oyaml.YAMLObject):
     yaml_loader = oyaml.SafeLoader
     yaml_dumper = oyaml.SafeDumper
 
-    def __init__(self, name, bank, prog):
-        self.name = name
+    def __init__(self, sf, bank, prog):
+        self.sf = sf
         self.bank = bank
         self.prog = prog
         
     def __repr__(self):
-        return '%s:%03d:%03d' % (self.name, self.bank, self.prog)
+        return '%s:%03d:%03d' % (self.sf, self.bank, self.prog)
 
     @classmethod
     def from_yaml(cls, loader, node):
-        name, bank, prog = sfpex.findall(loader.construct_scalar(node))[0]
+        sf, bank, prog = sfpex.findall(loader.construct_scalar(node))[0]
         bank = int(bank)
         prog = int(prog)
-        return cls(name, bank, prog)
+        return cls(sf, bank, prog)
 
     @staticmethod
     def to_yaml(dumper, data):
         return dumper.represent_scalar('!sfpreset', str(data))
-
-
-class CCMsg(oyaml.YAMLObject):
-
-    yaml_tag = '!ccmsg'
-    yaml_loader = oyaml.SafeLoader
-    yaml_dumper = oyaml.SafeDumper
-
-    def __init__(self, chan, cc, val):
-        self.chan = chan
-        self.cc = cc
-        self.val = val
-        
-    def __repr__(self):
-        return '%d/%d=%d' % (self.chan, self.cc, self.val)
-
-    @classmethod
-    def from_yaml(cls, loader, node):
-        msg = ccmsgex.findall(loader.construct_scalar(node))[0]
-        chan, cc, val = map(int, msg)
-        return cls(chan, cc, val)
-
-    @staticmethod
-    def to_yaml(dumper, data):
-        return dumper.represent_scalar('!ccmsg', str(data))
 
 
 class RouterSpec(oyaml.YAMLObject):
@@ -189,6 +154,31 @@ class FromToSpec(oyaml.YAMLObject):
         return RouterSpec(self.from1, self.from2, mul, add)
 
 
+class CCMsg(oyaml.YAMLObject):
+
+    yaml_tag = '!ccmsg'
+    yaml_loader = oyaml.SafeLoader
+    yaml_dumper = oyaml.SafeDumper
+
+    def __init__(self, chan, cc, val):
+        self.chan = chan
+        self.cc = cc
+        self.val = val
+        
+    def __repr__(self):
+        return '%d/%d=%d' % (self.chan, self.cc, self.val)
+
+    @classmethod
+    def from_yaml(cls, loader, node):
+        msg = ccmsgex.findall(loader.construct_scalar(node))[0]
+        chan, cc, val = map(int, msg)
+        return cls(chan, cc, val)
+
+    @staticmethod
+    def to_yaml(dumper, data):
+        return dumper.represent_scalar('!ccmsg', str(data))
+
+
 class FlowSeq(oyaml.YAMLObject):
 
     yaml_tag = '!flowseq'
@@ -266,5 +256,5 @@ mnode = oyaml.MappingNode
 resolve_path('!cclist', list, mnode, 'cc')
 resolve_path('!cclist', list, mnode, 'init', mnode, 'cc')
 resolve_path('!cclist', list, mnode, 'patches', mnode, None, mnode, 'cc')
-resolve_path('!rrule', dict, mnode, 'router_rules', snode, None) 
+resolve_path('!rrule', dict, mnode, 'router_rules', snode, None)
 resolve_path('!rrule', dict, mnode, 'patches', mnode, None, mnode, 'router_rules', snode, None)

@@ -115,22 +115,26 @@ class MidiEvent:
         self.event = event
 
     @property
-    def type(self): return FL.fluid_midi_event_get_type(self.event)        
+    def type(self): return FL.fluid_midi_event_get_type(self.event)
+
     @type.setter
     def type(self, v): FL.fluid_midi_event_set_type(self.event, v)
 
     @property
-    def chan(self): return FL.fluid_midi_event_get_channel(self.event)        
+    def chan(self): return FL.fluid_midi_event_get_channel(self.event)
+
     @chan.setter
     def chan(self, v): FL.fluid_midi_event_set_channel(self.event, v)
     
     @property
     def par1(self): return fl_midi_event_get_par1(self.event)
+
     @par1.setter
     def par1(self, v): fl_midi_event_set_par1(self.event, v)
 
     @property
     def par2(self): return fl_midi_event_get_par2(self.event)
+
     @par2.setter
     def par2(self, v): fl_midi_event_set_par2(self.event, v)
         
@@ -330,7 +334,7 @@ class Synth:
         return None
 
     def load_soundfont(self, sfont):
-        id = FL.fluid_synth_sfload(self.synth, sfont.encode(), False)
+        id = FL.fluid_synth_sfload(self.synth, str(sfont).encode(), False)
         if id == FLUID_FAILED:
             return False
         self.sfid[sfont] = id
@@ -410,7 +414,7 @@ class Synth:
         def fxchain_add(self, name, lib, plugin):
             if plugin != None:
                 plugin = plugin.encode()
-            if FL.fluid_ladspa_add_effect(self.fx, name.encode(), lib.encode(), plugin) == FLUID_FAILED:
+            if FL.fluid_ladspa_add_effect(self.fx, name.encode(), str(lib).encode(), plugin) == FLUID_FAILED:
                 return False
             return True
 
