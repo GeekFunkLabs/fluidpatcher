@@ -254,17 +254,19 @@ while True:
                     sb.waitforrelease(2)
                 m = sb.choose_opt(clients, row=1, timeout=0)
                 subprocess.run(['aconnect', ports[clients[m]], ports['FLUID Synth']])
-                sb.waitforrelease(0)
-                
+                sb.waitforrelease(0)                
+
             elif k == 2: # wifi settings
                 while True:
-                    x = re.search("SSID: ([^\n]+)", subprocess.check_output('iw dev wlan0 link'.split()).decode())                
+                    x = re.search("SSID: ([^\n]+)", subprocess.check_output('iw dev wlan0 link'.split()).decode())
                     ssid = x[1] if x else "Not connected"
                     ip = subprocess.check_output(['hostname', '-I']).decode().strip()
                     sb.lcd_clear()
                     sb.lcd_write(ssid, 0)
-                    sb.lcd_write("%-16s" % ip, 1)
-                    if not sb.waitfortap(10): break
+                    sb.lcd_write(ip.rjust(16), 1)
+                    if not sb.waitfortap(10):
+                        j = -2
+                        break
                     sb.lcd_write("Connections:    ", 0)
                     while True:
                         if remote_link:
@@ -301,7 +303,7 @@ while True:
                             j = -2
                             break
                     if j > -2: break
-                
+
             elif k == 3: # copy files from a flash drive into SquishBox directory
                 sb.lcd_clear()
                 sb.lcd_write("looking for USB ", 0)
