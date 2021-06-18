@@ -237,7 +237,7 @@ while True:
         # left button menu - system-related tasks
         if sb.button('left') == SB.HOLD:
             sb.lcd_write("Options:        ", 0)
-            k = sb.choose_opt(['Power Down', 'MIDI Devices', 'Wifi Settings', 'Add From USB'], row=1, passlong=True)
+            k = sb.choose_opt(['Power Down', 'MIDI Devices', 'Wifi Settings', 'Add From USB', 'Update Device'], row=1, passlong=True)
             
             if k == 0: # power down
                 sb.lcd_write("Shutting down...", 0)
@@ -302,35 +302,75 @@ while True:
                             break
                     if j > -2: break
                 
-            elif k == 3: # add soundfonts from a flash drive
+            elif k == 3: # copy files from a flash drive into SquishBox directory
                 sb.lcd_clear()
-                sb.lcd_write("looking for USB ", row=0)
-                b = subprocess.check_output('sudo blkid'.split())
-                x = re.findall('/dev/sd[a-z]\d*', b.decode('ascii'))
+                sb.lcd_write("looking for USB ", 0)
+                b = subprocess.check_output(['sudo', 'blkid']).decode()
+                x = re.findall('/dev/sd[a-z]\d+', b)
                 if not x:
-                    sb.lcd_write("USB not found!  ", row=1)
+                    sb.lcd_write("USB not found!  ", 1)
                     sb.waitforrelease(1)
                     break
-                sb.lcd_write("copying files.. ", row=1)
+                sb.lcd_write("copying files.. ", 1)
                 try:
-                    if not os.path.exists('/mnt/usbdrv/'):
-                        os.mkdir('/mnt/usbdrv')
+                    subprocess.run(['sudo', 'mkdir', '-p', '/mnt/usbdrv'])
                     for usb in x:
                         subprocess.run(['sudo', 'mount', usb, '/mnt/usbdrv/'], timeout=30)
-                        for sf in glob.glob(os.path.join('/mnt/usbdrv', '**', '*.sf2'), recursive=True):
-                            sfrel = os.path.relpath(sf, start='/mnt/usbdrv')
-                            dest = os.path.join(pxr.sfdir, sfrel)
+                        for src in glob.glob(os.path.join('/mnt/usbdrv', '**', '*'), recursive=True):
+                            if not os.path.isfile(src): continue
+                            dest = os.path.join('SquishBox', os.path.relpath(src, start='/mnt/usbdrv'))
                             if not os.path.exists(os.path.dirname(dest)):
                                 os.makedirs(os.path.dirname(dest))
-                            subprocess.run(['sudo', 'cp', '-f', sf, dest], timeout=30)
+                            shutil.copyfile(src, dest)
                         subprocess.run(['sudo', 'umount', usb], timeout=30)
                 except Exception as e:
                     sb.lcd_write("halted - errors:", 0)
                     sb.lcd_write(str(e).replace('\n', ' '), 1)
-                    while not sb.waitfortap(10):
-                        pass
-                sb.lcd_write("copying files.. done!           ")
-                sb.waitforrelease(1)
+                    while not sb.waitfortap(10): pass
+                else:
+                    sb.lcd_write("copying files.. ", 0)
+                    sb.lcd_write("           done!", 1)
+                    sb.waitforrelease(1)
+
+            elif k == 4: # update firmware and/or system
+                sb.lcd_write(f"Firmware {patcher.VERSION}".ljust(16), 0)
+                sb.lcd_write("      checking..", 1)
+                x = subprocess.check_output(['curl', 'https://raw.githubusercontent.com/albedozero/fluidpatcher/master/patcher/__init__.py'])
+                newver = re.search("VERSION = '([0-9\.]+)'", x.decode())[1]
+                subprocess.run(['sudo', 'apt-get', 'update'])
+                u = subprocess.check_output(['sudo', 'apt-get', 'upgrade', '-sy'])
+                fup, sysup = 0, 0
+                if [int(x) for x in newver.split('.')] > [int(x) for x in patcher.VERSION.split('.')]:
+                    fup = True if sb.choose_opt([f"install {newver}?"], row=1, timeout=0) == 0 else False
+                else:
+                    sb.lcd_write("     Up to date!", 1)
+                    sb.waitfortap(10)
+                if not re.search('0 upgraded, 0 newly installed', u.decode()):
+                    sb.lcd_write("OS out of date  ", 0)
+                    sysup = True if sb.choose_opt(['upgrade?'], row=1, timeout=0) == 0 else False
+                if not (fup or sysup):
+                    break
+                sb.lcd_write("updating..      ", 0)
+                sb.lcd_write("     please wait", 1)
+                try:
+                    if fup:
+                        with tempfile.TemporaryDirectory() as tmp:
+                            subprocess.run(['git', 'clone', 'https://github.com/albedozero/fluidpatcher', tmp])
+                            for src in glob.glob(os.path.join(tmp, '**', '*'), recursive=True):
+                                if not os.path.isfile(src): continue
+                                if os.path.splitext(src) == ".yaml": continue
+                                if os.path.split(src) == "hw_overlay.py": continue
+                                dest = os.path.join(os.getcwd(), os.path.relpath(src, start=tmp))
+                                if not os.path.exists(os.path.dirname(dest)):
+                                    os.makedirs(os.path.dirname(dest))
+                                shutil.copyfile(src, dest)
+                    if sysup:
+                        subprocess.run(['sudo', 'apt-get', 'upgrade', '-y'])
+                    subprocess.run(['sudo', 'reboot'])
+                except Exception as e:
+                    sb.lcd_write("halted - errors:", 0)
+                    sb.lcd_write(str(e).replace('\n', ' '), 1)
+                    while not sb.waitfortap(10): pass
 
             break
 
