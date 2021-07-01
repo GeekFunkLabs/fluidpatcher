@@ -49,7 +49,7 @@ patches:
   Shred Guitar:
     1: FluidR3_GM.sf2:000:030
     # CC 13, 14 control tube drive, tape/tube mix
-    effects:
+    ladspafx:
       Tube Warmth:
         lib: /usr/lib/ladspa/tap_tubewarmth.so
         audio: mono
