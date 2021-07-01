@@ -179,9 +179,9 @@ class CCMsg(oyaml.YAMLObject):
         return dumper.represent_scalar('!ccmsg', str(data))
 
 
-class FlowSeq(oyaml.YAMLObject):
+class CCMsgList(oyaml.YAMLObject):
 
-    yaml_tag = '!flowseq'
+    yaml_tag = '!cclist'
     yaml_loader = oyaml.SafeLoader
     yaml_dumper = oyaml.SafeDumper
 
@@ -206,12 +206,12 @@ class FlowSeq(oyaml.YAMLObject):
 
     @staticmethod
     def to_yaml(dumper, data):
-        return dumper.represent_sequence('!flowseq', data, flow_style=True)
+        return dumper.represent_sequence('!cclist', data, flow_style=True)
 
 
-class FlowMap(oyaml.YAMLObject):
+class RouterRule(oyaml.YAMLObject):
 
-    yaml_tag = '!flowmap'
+    yaml_tag = '!rrule'
     yaml_loader = oyaml.SafeLoader
     yaml_dumper = oyaml.SafeDumper
     
@@ -228,16 +228,7 @@ class FlowMap(oyaml.YAMLObject):
 
     @staticmethod
     def to_yaml(dumper, data):
-        return dumper.represent_mapping('!flowmap', data, flow_style=True)
-
-
-class RouterRule(FlowMap):
-    
-    yaml_tag = '!rrule'
-    
-class CCMsgList(FlowSeq):
-
-    yaml_tag = '!cclist'
+        return dumper.represent_mapping('!rrule', data, flow_style=True)
 
 
 handlers = dict(Loader=oyaml.SafeLoader, Dumper=oyaml.SafeDumper)
