@@ -39,6 +39,7 @@ BUTTONS = BTN_L, BTN_R
 class StompBox():
 
     def __init__(self):
+    
 
         # initialize LCD
         self.LCD = RPLCD.CharLCD(pin_rs=LCD_RS,
@@ -81,7 +82,6 @@ class StompBox():
         
     def update(self):
         time.sleep(POLL_TIME)
-
         t = time.time()
         for button in BUTTONS:
             if GPIO.input(button) != ACTIVE:
@@ -104,15 +104,14 @@ class StompBox():
                         self.state[button] = LONG
                 elif self.state[button] == LONG:
                     self.state[button] = LONGER
-
         if self.scrolltext:
             if (t - self.lastscroll) >= SCROLL_TIME:
                 self.lastscroll = t
                 self.s += 1
-                if 0 < self.s < len(scrolltext) - COLS:
+                if 0 < self.s <= len(self.scrolltext) - COLS:
                     self.LCD.cursor_pos = (self.scrollrow, 0)
                     self.LCD.write_string(self.scrolltext[self.s:self.s + COLS])
-                elif self.s > len(scrolltext) - COLS + 2:
+                elif self.s > len(self.scrolltext) - COLS + 3:
                     self.s = -4
                     self.LCD.cursor_pos = (self.scrollrow, 0)
                     self.LCD.write_string(self.scrolltext[:COLS])
@@ -126,13 +125,15 @@ class StompBox():
                 if all(s == UP for s in self.state.values()):
                     break
 
-    def waitfortap(self, t):
+    def waitfortap(self, t=0):
         # wait :t seconds or until a button is tapped
         # return True if tapped, False if not
         tstop = time.time() + t
-        while time.time() < tstop:
+        while True:
+            if t and time.time() > tstop:
+                return False
             self.update()
-            if TAP in self.state.values():
+            if TAP in self.buttons:
                 return True
         return False
 
