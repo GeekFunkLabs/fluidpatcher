@@ -47,7 +47,7 @@ warning() {
 sysupdate() {
     if ! $UPDATED; then
         echo "Updating apt indexes..."
-        sudo apt-get -qq update || { warning "Failed to update apt indexes!" && exit 1; }
+        sudo apt-get -qq update || { warning "Failed to update apt indexes! Logged to $logfile" && exit 1; }
         sleep 3
         UPDATED=true
 		if $UPGRADE; then
@@ -64,7 +64,7 @@ apt_pkg_install() {
     APT_CHK=$(dpkg-query -W -f='${Status}\n' "$1" 2> /dev/null | grep "install ok installed")
     if [[ $APT_CHK == "" ]]; then    
         echo "Apt is installing $1..."
-        sudo apt-get --no-install-recommends --yes install "$1" &>> $logfile || { warning "Apt failed to install $1!" && exit 1; }
+        sudo apt-get --no-install-recommends --yes install "$1" &>> $logfile || { warning "Apt failed to install $1! Logged to $logfile" && exit 1; }
     fi
 }
 
@@ -74,7 +74,7 @@ pip_install() {
     fi
     if ! [[ $PYTHON_PKG =~ "$1" ]]; then
         echo "Pip is installing $1..."
-        sudo -H pip3 install "$1" &>> $logfile || { warning "Pip failed to install $1!" && exit 1; }
+        sudo -H pip3 install "$1" &>> $logfile || { warning "Pip failed to install $1! Logged to $logfile" && exit 1; }
     fi
 }
 
@@ -171,7 +171,7 @@ if [[ $update == "yes" ]]; then
     inform "Installing/Updating FluidPatcher and any required packages..."
     # get dependencies
     sysupdate
-    apt_pkg_install "git"
+#    apt_pkg_install "git"  # use curl or wget instead
     apt_pkg_install "python3-pip"
     apt_pkg_install "python3-rtmidi"
     apt_pkg_install "libfluidsynth1"
@@ -250,6 +250,7 @@ Type=simple
 ExecStart=$installdir/squishbox.py
 User=pi
 WorkingDirectory=$installdir
+Environment="JACK_NO_AUDIO_RESERVATION=1"
 Restart=on-failure
 
 [Install]
@@ -380,8 +381,8 @@ if [[ $soundfonts == "yes" ]]; then
     apt_pkg_install "tap-plugins"
 	apt_pkg_install "wah-plugins"
     wget -nv --show-progress geekfunklabs.com/squishbox_soundfonts.zip
-    unzip -na squishbox_sfpack.zip -d $installdir/SquishBox
-    rm squishbox_sfpack.zip
+    unzip -na squishbox_soundfonts.zip -d $installdir/SquishBox
+    rm squishbox_soundfonts.zip
 fi
 
 success "Tasks complete!"
