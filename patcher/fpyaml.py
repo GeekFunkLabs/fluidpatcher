@@ -3,16 +3,16 @@ Description: yaml extensions for fluidpatcher
 """
 import re, oyaml
 
-sfpex = re.compile('^(.+):(\d+):(\d+)$')
-ccmsgex = re.compile('^(\d+)/(\d+)=(\d+)$')
 nn = '[A-G]?[b#]?\d+'
+sfpex = re.compile('^(.+\.sf2):(\d+):(\d+)$', flags=re.I)
+msgex = re.compile(f'^(note|cc|prog|pbend|cpress|kpress|noteoff):(\d+):({nn}):?(\d+)?$')
 rspecex = re.compile(f'^({nn})-({nn})\*(-?[\d\.]+)([+-]{nn})$')
 ftspecex = re.compile(f'^({nn})-?({nn})?=?(-?{nn})?-?(-?{nn})?$')
 
 def sift(val):
     try:
         val = float(val)
-    except ValueError:
+    except (ValueError, TypeError):
         return val
     else:
         if val.is_integer():
@@ -23,9 +23,9 @@ def scinote_to_val(val):
     if not isinstance(val, str):
         return val
     sci = re.findall('([+-]?)([A-G])([b#]?)([0-9])', val)[0]
-    sign = ('+ -'.find(sci[0]) - 1) * -1
-    note = 'C_D_EF_G_A_B'.find(sci[1])
-    acc = (' #b'.find(sci[2]) + 1) % 3 - 1
+    sign = -1 if sci[0] == '-' else 1
+    note = 'C D EF G A B'.find(sci[1])
+    acc = ['b', '', '#'].index(sci[2]) - 1
     octave = int(sci[3])
     return sign * ((octave + 1) * 12 + note + acc)
 
@@ -42,7 +42,7 @@ class SFPreset(oyaml.YAMLObject):
         self.prog = prog
         
     def __repr__(self):
-        return '%s:%03d:%03d' % (self.sf, self.bank, self.prog)
+        return f"{self.sf}:{self.bank:03d}:{self.prog:03d}"
 
     @classmethod
     def from_yaml(cls, loader, node):
@@ -51,9 +51,9 @@ class SFPreset(oyaml.YAMLObject):
         prog = int(prog)
         return cls(sf, bank, prog)
 
-    @staticmethod
-    def to_yaml(dumper, data):
-        return dumper.represent_scalar('!sfpreset', str(data))
+#    @staticmethod
+#    def to_yaml(dumper, data):
+#        return dumper.represent_scalar('!sfpreset', str(data))
 
 
 class RouterSpec(oyaml.YAMLObject):
@@ -62,126 +62,105 @@ class RouterSpec(oyaml.YAMLObject):
     yaml_loader = oyaml.SafeLoader
     yaml_dumper = oyaml.SafeDumper
     
-    def __init__(self, min, max, mul, add):
-        self.min = min
-        self.max = max
-        self.mul = mul
-        self.add = add
+    def __init__(self, min, max, mul, add, rep=None):
+        self.min = scinote_to_val(min)
+        self.max = scinote_to_val(max)
+        self.mul = scinote_to_val(mul)
+        self.add = scinote_to_val(add)
+        if rep:
+            self.rep = rep
+        elif isinstance(add, (int, float)):
+            self.rep = f"{min}-{max}*{mul}{add:+g}"
+        else:
+            self.rep = f"{min}-{max}*{mul}{add}"
 
     def __repr__(self):
-        if isinstance(self.add, int):
-            return '%s-%s*%s%+d' % (self.min, self.max, self.mul, self.add)
-        elif isinstance(self.add, float):
-            return '%s-%s*%s%+f' % (self.min, self.max, self.mul, self.add)
-        else:
-            return '%s-%s*%s%s' % (self.min, self.max, self.mul, self.add)
-        
+        return self.rep
+
     @property
     def vals(self):
-        v = list(map(scinote_to_val, [self.min, self.max, self.mul, self.add]))
-        return int(v[0]), int(v[1]), float(v[2]), int(v[3])
+        return int(self.min), int(self.max), float(self.mul), int(self.add)
         
     @classmethod
     def from_yaml(cls, loader, node):
-        route = rspecex.findall(loader.construct_scalar(node))[0]
-        min, max, mul, add = map(sift, route)
-        return cls(min, max, mul, add)
+        spec = rspecex.search(loader.construct_scalar(node))
+        min, max, mul, add = map(sift, spec.groups())
+        return cls(min, max, mul, add, spec[0])
         
-    @staticmethod
-    def to_yaml(dumper, data):
-        return dumper.represent_scalar('!rspec', str(data))
+#    @staticmethod
+#    def to_yaml(dumper, data):
+#        return dumper.represent_scalar('!rspec', str(data))
         
 
-class FromToSpec(oyaml.YAMLObject):
+class FromToSpec(RouterSpec):
 
     yaml_tag = '!ftspec'
     yaml_loader = oyaml.SafeLoader
     yaml_dumper = oyaml.SafeDumper
     
-    def __init__(self, from1, from2, to1, to2):
-        self._from1 = from1
-        self._from2 = from2
-        self._to1 = to1
-        self._to2 = to2
-        
-    def __repr__(self):
-        rep = f"{self.from1}"
-        if self._from2 != '': rep += f"-{self._from2}"
-        if self._to1 != '': rep += f"={self._to1}"
-        if self._to2 != '': rep += f"-{self._to2}"
-        return rep
+    def __init__(self, min, max, tomin, tomax, rep=None):
+        self.min = scinote_to_val(min)
+        self.max = scinote_to_val(max) if max != None else self.min
+        self.tomin = scinote_to_val(tomin) if tomin != None else self.min
+        if tomax != None: self.tomax = scinote_to_val(tomax)
+        elif tomin != None: self.tomax = self.tomin
+        else: self.tomax = self.max
+        if self.min == self.max:
+            self.mul = 1
+        else:
+            self.mul = (self.tomax - self.tomin) / (self.max - self.min)
+        self.add = self.tomin - self.min * self.mul
+        if rep: self.rep = rep
+        else:
+            self.rep = f"{min}"
+            if max != '': self.rep += f"-{max}"
+            if tomin != '': self.rep += f"={tomin}"
+            if tomax != '': self.rep += f"-{tomax}"
 
-    @property
-    def from1(self):
-        return scinote_to_val(self._from1)
-
-    @property
-    def from2(self):
-        if self._from2 != '':
-            return scinote_to_val(self._from2)
-        return scinote_to_val(self._from1)
-
-    @property
-    def to1(self):
-        if self._to1 != '':
-            return scinote_to_val(self._to1)
-        return self.from1
-        
-    @property
-    def to2(self):
-        if self._to2 != '':
-            return scinote_to_val(self._to2)
-        if self._to1 == '':
-            return scinote_to_val(self._from2)
-        return scinote_to_val(self._to1)
-        
     @classmethod
     def from_yaml(cls, loader, node):
-        spec = ftspecex.findall(loader.construct_scalar(node))[0]
-        from1, from2, to1, to2 = map(sift, spec)
-        return cls(from1, from2, to1, to2)
+        spec = ftspecex.search(loader.construct_scalar(node))
+        min, max, tomin, tomax = map(sift, spec.groups())
+        return cls(min, max, tomin, tomax, spec[0])
         
-    @staticmethod
-    def to_yaml(dumper, data):
-        return dumper.represent_scalar('!ftspec', str(data))
+#    @staticmethod
+#    def to_yaml(dumper, data):
+#        return dumper.represent_scalar('!ftspec', str(data))
         
-    def routerspec(self):
-        if self.from1 == self.from2:
-            mul = 1
-        else:
-            mul = (self.to2 - self.to1) / (self.from2 - self.from1)
-        add = self.to1 - self.from1 * mul
-        return RouterSpec(self.from1, self.from2, mul, add)
 
+class MidiMsg(oyaml.YAMLObject):
 
-class CCMsg(oyaml.YAMLObject):
-
-    yaml_tag = '!ccmsg'
+    yaml_tag = '!midimsg'
     yaml_loader = oyaml.SafeLoader
     yaml_dumper = oyaml.SafeDumper
 
-    def __init__(self, chan, cc, val):
+    def __init__(self, type, chan, par1, par2, rep=None):
+        self.type = type
         self.chan = chan
-        self.cc = cc
-        self.val = val
-        
+        self.par1 = scinote_to_val(par1)
+        self.par2 = par2
+        if rep: self.rep = rep
+        else:
+            self.rep = f"{type}:{chan}:{par1}"
+            if par2: self.rep += f":{par2}"
+
     def __repr__(self):
-        return '%d/%d=%d' % (self.chan, self.cc, self.val)
+        return self.rep
 
     @classmethod
     def from_yaml(cls, loader, node):
-        msg = ccmsgex.findall(loader.construct_scalar(node))[0]
-        chan, cc, val = map(int, msg)
-        return cls(chan, cc, val)
+        msg = msgex.search(loader.construct_scalar(node))
+        type, chan, par1, par2 = map(sift, msg.groups())
+        return cls(type, chan, par1, par2, msg[0])
 
-    @staticmethod
-    def to_yaml(dumper, data):
-        return dumper.represent_scalar('!ccmsg', str(data))
+#    @staticmethod
+#    def to_yaml(dumper, data):
+#        return dumper.represent_scalar('!ccmsg', str(data))
 
 
-class CCMsgList(oyaml.YAMLObject):
+class MsgList(oyaml.YAMLObject):
 
-    yaml_tag = '!cclist'
+    yaml_tag = '!msglist'
     yaml_loader = oyaml.SafeLoader
     yaml_dumper = oyaml.SafeDumper
 
@@ -206,7 +185,7 @@ class CCMsgList(oyaml.YAMLObject):
 
     @staticmethod
     def to_yaml(dumper, data):
-        return dumper.represent_sequence('!cclist', data, flow_style=True)
+        return dumper.represent_sequence('!msglist', data, flow_style=True)
 
 
 class RouterRule(oyaml.YAMLObject):
@@ -234,7 +213,7 @@ class RouterRule(oyaml.YAMLObject):
 handlers = dict(Loader=oyaml.SafeLoader, Dumper=oyaml.SafeDumper)
 
 oyaml.add_implicit_resolver('!sfpreset', sfpex, **handlers)
-oyaml.add_implicit_resolver('!ccmsg', ccmsgex, **handlers)
+oyaml.add_implicit_resolver('!midimsg', msgex, **handlers)
 oyaml.add_implicit_resolver('!rspec', rspecex, **handlers)
 oyaml.add_implicit_resolver('!ftspec', ftspecex, **handlers)
 
@@ -244,8 +223,8 @@ def resolve_path(tag, kind, *path):
 
 snode = oyaml.SequenceNode
 mnode = oyaml.MappingNode
-resolve_path('!cclist', list, mnode, 'cc')
-resolve_path('!cclist', list, mnode, 'init', mnode, 'cc')
-resolve_path('!cclist', list, mnode, 'patches', mnode, None, mnode, 'cc')
+resolve_path('!msglist', list, mnode, 'msg')
+resolve_path('!msglist', list, mnode, 'init', mnode, 'msg')
+resolve_path('!msglist', list, mnode, 'patches', mnode, None, mnode, 'msg')
 resolve_path('!rrule', dict, mnode, 'router_rules', snode, None)
 resolve_path('!rrule', dict, mnode, 'patches', mnode, None, mnode, 'router_rules', snode, None)
