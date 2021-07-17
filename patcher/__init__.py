@@ -26,14 +26,6 @@ class PatcherError(Exception):
     pass
 
 
-class PresetInfo:
-    
-    def __init__(self, name, bank, prog):
-        self.name = name
-        self.bank = bank
-        self.prog = prog
-
-
 class Patcher:
 
     def __init__(self, cfgfile='', fluidsettings={}):
@@ -42,10 +34,10 @@ class Patcher:
         self.read_config()
         fluidsettings.update(self.cfg.get('fluidsettings', {}))
         self._fluid = fswrap.Synth(**fluidsettings)
+        self._fluid.msg_callback = None
         self._max_channels = fluidsettings.get('synth.midi-channels', 16)
         self._bank = {'patches': {'No Patches': {}}}
         self._soundfonts = set()
-        self._cc_links = []
         self.sfpresets = []
 
     @property
@@ -111,10 +103,7 @@ class Patcher:
         return mido.get_input_names()
 
     def set_midimessage_callback(self, func):
-        self._fluid.callback = func
-    
-    def clear_midimessage_callback(self):
-        self._fluid.callback = None
+        self._fluid.msg_callback = func
 
     def read_config(self):
         if self.cfgfile == None:
@@ -165,12 +154,13 @@ class Patcher:
         # reinitialize the synth
         self._reset_synth_defaults()
         self._send_cc_defaults()
-        if 'init' in self._bank:
-            for opt, val in self._bank['init'].get('fluidsettings', {}).items():
+        init = self._bank.get('init', None)
+        if init:
+            for opt, val in init.get('fluidsettings', {}).items():
                 self.fluid_set(opt, val)
-            for msg in self._bank['init'].get('cc', []):
-                self._fluid.send_cc(msg.chan - 1, msg.cc, msg.val)
-            for syx in self._bank['init'].get('sysex', []):
+            for msg in init.get('messages', []):
+                self._fluid.send_event(msg.type, msg.chan - 1, msg.par1, msg.par2)
+            for syx in init.get('sysex', []):
                 self._parse_sysex(syx)
         self._reload_bankfonts()
         return bank
@@ -199,51 +189,69 @@ class Patcher:
     # apply all the settings in :patch
         warnings = []
         self.sfpresets = []
-        activechannels = []
+        activechannels = set()
         patch = self._resolve_patch(patch)
-        
-        # select soundfont presets
+
+        def keymerge(key):
+            try: return {**self._bank.get(key, {}), **patch.get(key, {})}.items()
+            except TypeError: pass
+            try: return self._bank.get(key, []) + patch.get(key, [])
+            except TypeError: pass
+            return self._bank.get(key, None) or patch.get(key, None)
+
         for channel in range(1, self._max_channels + 1):
-            self._fluid.program_unset(channel - 1)
-            if channel not in patch: continue
-            preset = patch[channel]
-            if preset.sf not in self._soundfonts:
-                self._reload_bankfonts()
-            if not self._fluid.program_select(channel - 1, self.sfdir / preset.sf, preset.bank, preset.prog):
-                warnings.append(f"Unable to select preset {preset} on channel {channel}")
+            preset = keymerge(channel)
+            if preset:
+                if preset.sf not in self._soundfonts: self._reload_bankfonts()
+                if not self._fluid.program_select(channel - 1, self.sfdir / preset.sf, preset.bank, preset.prog):
+                    warnings.append(f"Unable to select preset {preset} on channel {channel}")
+                else: activechannels |= {channel - 1}
             else:
-                activechannels.append(channel)
-
-        # activate LADSPA effects
+                self._fluid.program_unset(channel - 1)
+                
         self._fluid.fxchain_clear()
-        effects = self._bank.get('ladspafx', {})
-        effects.update(**patch.get('ladspafx', {}))
-        warnings.extend(self._fxchain_create(effects, set(activechannels)))
-        if effects: self._fluid.fxchain_activate()
+        for name, info in keymerge('ladspafx'):
+            chan = info.pop('chan', None)
+            if isinstance(chan, fpyaml.RouterSpec):
+                fxchannels = set(range(chan.min - 1, chan.max))
+            elif isinstance(chan, list): fxchannels = set(chan - 1)
+            elif isinstance(chan, int): fxchannels = {chan - 1}
+            else: fxchannels = set(range(0, self._max_channels))
+            self._fluid.fxunit_add(name, chan=fxchannels & activechannels, **info)
+        self._fluid.fxchain_link()
 
-        # apply fluidsettings
-        for opt, val in self._bank.get('fluidsettings', {}).items():
-            self.fluid_set(opt, val)
-        for opt, val in patch.get('fluidsettings', {}).items():
+        self._fluid.players_clear()
+        for name, info in keymerge('players'):
+            chan = info.pop('chan', None)
+            if isinstance(chan, fpyaml.RouterSpec):
+                chan = chan.min - 1, chan.max - 1, chan.mul, int(chan.mul + chan.add - 1)
+            elif isinstance(chan, int): chan = chan - 1, chan - 1, 1.0, 0
+            self._fluid.player_add(name, chan=chan, **info)
+
+        self._fluid.sequencers_clear()
+        for name, info in keymerge('sequencers'):
+            for i, msg in enumerate(info.get('notes', [])):
+                info['notes'][i] = msg.chan - 1, msg.par1, msg.par2
+            self._fluid.sequencer_add(name, **info)
+
+        self._fluid.arpeggiators_clear()
+        for name, info in keymerge('arpeggiators'):
+            self._fluid.arpeggiator_add(name, **info)
+
+        for opt, val in keymerge('fluidsettings'):
             self.fluid_set(opt, val)
 
-        # add MIDI router rules
-        self._fluid.router_clear()
         self._fluid.router_default()
-        for rule in self._bank.get('router_rules', []) +  patch.get('router_rules', []):
+        for rule in keymerge('router_rules'):
             if rule == 'clear': self._fluid.router_clear()
-            elif rule == 'default': self._fluid.router_default()
             else: self.add_router_rule(**rule.__dict__)
 
-        # send CC messages
-        for msg in self._bank.get('cc', []) + patch.get('cc', []):
-            if msg == 'default': self._send_cc_defaults()
-            else: self._fluid.send_cc(msg.chan - 1, msg.cc, msg.val)
+        for syx in keymerge('sysex'):
+            self._parse_sysex(syx)
 
-        # send SYSEX messages
-        for syx in self._bank.get('sysex', []) + patch.get('sysex', []):
-            warn = self._parse_sysex(syx)
-            if warn: warnings.append(warn)
+        for msg in keymerge('messages'):
+            if msg == 'default': self._send_cc_defaults()
+            else: self._fluid.send_event(msg.type, msg.chan - 1, msg.par1, msg.par2)
 
         return warnings
 
@@ -282,7 +290,7 @@ class Patcher:
                 for cc in range(first, last + 1):
                     val = self._fluid.get_cc(channel - 1, cc)
                     if val != default:
-                        cc_messages.append(fpyaml.CCMsg(channel, cc, val))
+                        cc_messages.append(fpyaml.MidiMsg('cc', channel, cc, val))
         if cc_messages:
             patch['cc'] = cc_messages
 
@@ -351,31 +359,28 @@ class Patcher:
         for par, val in rule.items():
             if isinstance(val, str):
                 rule[par] = self.parse_fpyaml(val)
+
         chan = rule.pop('chan', None)
         if isinstance(chan, fpyaml.FromToSpec):
-            for chto in range(chan.to1, chan.to2 + 1):
-                rule['chan'] = fpyaml.RouterSpec(chan.from1, chan.from2, 0.0, chto)
-                self.add_router_rule(**rule)
+            for chto in range(chan.tomin, chan.tomax + 1):
+                chan = fpyaml.RouterSpec(chan.min, chan.max, 0.0, chto)
+                self.add_router_rule(chan=chan, **rule)
             return
         elif isinstance(chan, fpyaml.RouterSpec):
-            for chfrom in range(chan.min, chan.max + 1):
-                rule['chan'] = chfrom - 1, chfrom - 1, 0.0, int(chfrom * chan.mul) + chan.add - 1
-                self.add_router_rule(**rule)
-            return
+            chan = chan.min - 1, chan.max - 1, chan.mul, int(chan.mul + chan.add - 1)
         elif isinstance(chan, int): chan = chan - 1, chan - 1, 1.0, 0
+
         par1 = rule.pop('par1', None)
-        if isinstance(par1, fpyaml.FromToSpec):
-            par1 = par1.routerspec()
         if isinstance(par1, fpyaml.RouterSpec):
             par1 = par1.vals
         elif isinstance(par1, int): par1 = par1, par1, 1.0, 0
+
         par2 = rule.pop('par2', None)
-        if isinstance(par2, fpyaml.FromToSpec):
-            par2 = par2.routerspec()
         if isinstance(par2, fpyaml.RouterSpec):
             par2 = par2.vals
         elif isinstance(par2, int): par2 = par2, par2, 1.0, 0
-        self._fluid.router_addrule(rule.pop('type'), chan, par1, par2, **rule)
+
+        self._fluid.router_addrule(chan=chan, par1=par1, par2=par2, **rule)
 
     # private functions
     def _reload_bankfonts(self):
@@ -405,6 +410,7 @@ class Patcher:
             patch = self._bank['patches'][name]
         return patch
 
+
     def _fxchain_create(self, fxchain, activechannels):
         warnings = {}
         for hostports, midichannels in self._fluid.hostports_mapping:
@@ -412,7 +418,7 @@ class Patcher:
             for name, fx in fxchain.items():
                 chan = fx.get('chan', None)
                 if isinstance(chan, fpyaml.FromToSpec):
-                    fxchannels = set(range(chan.min, chan.max + 1))
+                    fxchannels = set(range(chan.from1, chan.from2 + 1))
                 elif isinstance(chan, list):
                     fxchannels = set(chan)
                 elif isinstance(chan, int):
@@ -450,6 +456,7 @@ class Patcher:
                 if 'vals' in fx:
                     for ctrl, val in fx['vals'].items():
                         self._fluid.fx_setcontrol(name, ctrl, val)
+        if fxchain: self._fluid.fxchain_activate()
         return list(warnings.values())
 
     def _parse_sysex(self, messages):
@@ -473,8 +480,8 @@ class Patcher:
     def _send_cc_defaults(self, channels=[]):
         for channel in channels or range(1, self._max_channels + 1):
             for first, last, default in CC_DEFAULTS:
-                for cc in range(first, last + 1):
-                    self._fluid.send_cc(channel - 1, cc, default)
+                for ctrl in range(first, last + 1):
+                    self._fluid.send_cc(channel - 1, ctrl, default)
         
     def _reset_synth_defaults(self):
         cfg_fset = self.cfg.get('fluidsettings', {})
@@ -483,4 +490,13 @@ class Patcher:
                 self.fluid_set(opt, cfg_fset[opt])
             else:
                 self.fluid_set(opt, val)
-        
+
+
+class PresetInfo:
+    
+    def __init__(self, name, bank, prog):
+        self.name = name
+        self.bank = bank
+        self.prog = prog
+
+
