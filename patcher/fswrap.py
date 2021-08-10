@@ -95,6 +95,7 @@ specfunc(FL.fluid_event_noteoff, None, c_void_p, c_int, c_int)
 specfunc(FL.fluid_event_set_source, None, c_void_p, c_void_p)
 specfunc(FL.fluid_event_set_dest, None, c_void_p, c_void_p)
 specfunc(FL.fluid_event_timer, None, c_void_p, c_void_p)
+specfunc(FL.fluid_event_get_type, c_int, c_void_p)
 
 # sequencer
 fl_seqcallback = CFUNCTYPE(None, c_uint, c_void_p, c_void_p, c_void_p)
@@ -109,6 +110,7 @@ specfunc(FL.fluid_sequencer_remove_events, None, c_void_p, c_short, c_short, c_i
 specfunc(FL.fluid_sequencer_get_tick, c_uint, c_void_p)
 FLUID_SEQ_NOTEON = 1
 FLUID_SEQ_TIMER = 17
+FLUID_SEQ_UNREGISTERING = 21
 
 try:
     # fluidsynth 2.x
@@ -319,9 +321,10 @@ class ExtRule(TransRule):
 
 class Player:
 
-    def __init__(self, synth, file, loops, chan, barlength):
+    def __init__(self, synth, files, loops, chan, barlength):
         self.fplayer = FL.new_fluid_player(synth.fsynth)
-        FL.fluid_player_add(self.fplayer, str(file).encode())
+        for file in files:
+            FL.fluid_player_add(self.fplayer, str(file).encode())
         self.loops = list(zip(loops[::2], loops[1::2]))
         self.chan = Route(*chan) if chan else None
         self.barlength = barlength
@@ -339,7 +342,7 @@ class Player:
             FL.fluid_player_stop(self.fplayer)
 
     def looper(self, data, tick):
-        if self.pendingseek:
+        if self.pendingseek != None:
             if tick % self.barlength == 0:
                 FL.fluid_player_seek(self.fplayer, self.pendingseek)
                 self.pendingseek = None
@@ -404,9 +407,11 @@ class Sequencer:
         self.tdiv = tdiv
         self.swing = swing
         self.ticksperbeat = 500 # default 120bpm at 1000 ticks/sec
-        self.notes = [SequencerNote(chan, key, vel) for chan, key, vel in notes]
+        self.notes = [SequencerNote(chan, key, vel) for _, chan, key, vel in notes]
 
     def scheduler(self, time=None, event=None, fseq=None, data=None):
+        if event and FL.fluid_event_get_type(event) == FLUID_SEQ_UNREGISTERING:
+            return
         dur = self.ticksperbeat * 4 / self.tdiv
         if self.tdiv >= 8 and self.tdiv % 3:
             if self.beat % 2: dur *= 2 * (1 - self.swing)
@@ -441,6 +446,8 @@ class Sequencer:
         self.ticksperbeat = 1000 * 60 / bpm
 
     def delete(self):
+        FL.fluid_sequencer_remove_events(self.fseq, -1, -1, -1)
+        FL.fluid_sequencer_unregister_client(self.fseq, self.fseq_dest)
         FL.delete_fluid_sequencer(self.fseq)
 
 
@@ -492,7 +499,7 @@ class LadspaEffect:
             self.fxunits.append(f"{name}{len(self.fxunits)}".encode())
             FL.fluid_ladspa_add_effect(self.ladspa, self.fxunits[-1], str(lib).encode(), plugin)
         for hostports, midichannels in synth.hostports_mapping:
-            if channels and not channels & midichannels: continue
+            if not channels & midichannels: continue
             if len(audio) == 4: # stereo effect
                 addfxunit()
                 self.fxinfo[hostports] = self.fxunits[-1:] * 2, aports[0:2], aports[2:4]
@@ -673,30 +680,34 @@ class Synth:
         else:
             rule = FL.new_fluid_midi_router_rule()
             if chan:
-                FL.fluid_midi_router_rule_set_chan(rule, *chan)
+                FL.fluid_midi_router_rule_set_chan(rule, int(chan[0]), int(chan[1]), float(chan[2]), int(chan[3]))
             if par1:
-                FL.fluid_midi_router_rule_set_param1(rule, *par1)
+                FL.fluid_midi_router_rule_set_param1(rule, int(par1[0]), int(par1[1]), float(par1[2]), int(par1[3]))
             if par2:
-                FL.fluid_midi_router_rule_set_param2(rule, *par2)
+                FL.fluid_midi_router_rule_set_param2(rule, int(par2[0]), int(par2[1]), float(par2[2]), int(par2[3]))
             FL.fluid_midi_router_add_rule(self.frouter, rule, EVENT_NAMES.index(type))
 
-    def players_clear(self):
-        for p in self.players.values(): p.delete()
+    def players_clear(self, mask=[]):
+        for name in self.players:
+            if name not in mask: self.players[name].delete()
         self.players = {}
 
     def player_add(self, name, file, loops=[], chan=None, barlength=1, tempo=0):
+        if not isinstance(file, list): file = [file]
         self.players[name] = Player(self, file, loops, chan, barlength)
         
-    def sequencers_clear(self):
-        for seq in self.sequencers.values(): seq.delete()
+    def sequencers_clear(self, mask=[]):
+        for name in self.sequencers:
+            if name not in mask: self.sequencers[name].delete()
         self.sequencers = {}
         
     def sequencer_add(self, name, notes, tdiv=8, swing=0.5, tempo=120):
         self.sequencers[name] = Sequencer(self, notes, tdiv, swing)
         self.sequencers[name].set_tempo(tempo)
         
-    def arpeggiators_clear(self):
-        for arp in self.arpeggiators.values(): arp.delete()
+    def arpeggiators_clear(self, mask=[]):
+        for name in self.arpeggiators:
+            if name not in mask: self.arpeggiators[name].delete()
         self.arpeggiators = {}
         
     def arpeggiator_add(self, name, tdiv=8, swing=0.5, style='', octaves=1, tempo=120):
