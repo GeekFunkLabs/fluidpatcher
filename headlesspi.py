@@ -6,8 +6,7 @@ Description: an implementation of patcher.py for a headless Raspberry Pi
     should work on other platforms as well
 """
 import time, re, sys, os, traceback, subprocess
-from patcher import Patcher, PatcherError, VERSION
-from utils import netlink
+import patcher
 
 # change these values to correspond to buttons/pads on your MIDI keyboard/controller
 # or reprogram your controller to use the corresponding functions
@@ -89,21 +88,10 @@ class HeadlessSynth:
         self.lastpoll = time.time()
         self.load_bank(pxr.currentbank)
         self.select_patch(self.pno)
-        # initialize network link
-        if pxr.cfg.get('netlink_active', 0):
-            port = pxr.cfg.get('netlink_port', netlink.DEFAULT_PORT)
-            passkey = pxr.cfg.get('netlink_passkey', netlink.DEFAULT_PASSKEY)
-            self.nwlink = netlink.Server(port, passkey)
-        else:
-            self.nwlink = None
         pxr.set_midimessage_callback(self.listener)
         onboardled_blink(ACT_LED, 5) # ready to play
-        self.mainloop()
-
-    def mainloop(self):
         while True:
             time.sleep(POLL_TIME)
-            self.netlink_poll()
             if self.shutdowntimer:
                 if t - self.shutdowntimer > 7:
                     onboardled_set(ACT_LED, 1, trigger='mmc0')
@@ -119,8 +107,8 @@ class HeadlessSynth:
         onboardled_set(ACT_LED, 1)
         try:
             pxr.load_bank(bfile)
-        except PatcherError as e:
-            print(f"Error(s) in {bfile}")
+        except Exception as e:
+            print(f"Error loading {bfile}\n{str(e)}")
             error_blink(3)
         onboardled_set(ACT_LED, 0)
         print("Bank loaded.")
@@ -155,75 +143,13 @@ class HeadlessSynth:
             self.select_patch(self.pno)
             pxr.write_config()    
 
-    def netlink_poll(self):
-        if not self.nwlink: return
-        if not self.nwlink.pending(): return
-        req = self.nwlink.requests.pop(0)
-        if req.type == netlink.SEND_VERSION:
-            self.nwlink.reply(req, VERSION)
-        elif req.type == netlink.RECV_BANK:
-            if self.load_bank(req.body):
-                self.nwlink.reply(req, pxr.render_fpyaml(pxr.patches))
-                self.select_patch(0)
-            else:
-                self.nwlink.reply(req, "Error in bank file", netlink.REQ_ERROR)
-        elif req.type == netlink.LIST_BANKS:
-            self.nwlink.reply(req, pxr.render_fpyaml(pxr.banks))
-        elif req.type == netlink.LOAD_BANK:
-            bank = req.body if req.body else pxr.currentbank
-            rawbank = self.load_bank(bank)
-            if rawbank:
-                self.nwlink.reply(req, pxr.render_fpyaml(bank, rawbank, pxr.patches))
-                self.select_patch(0)
-            else:
-                self.nwlink.reply(req, "Unable to load bank file", netlink.REQ_ERROR)
-        elif req.type == netlink.SAVE_BANK:
-            bfile, rawbank = pxr.parse_fpyaml(req.body)
-            if self.load_bank(rawbank):
-                self.save_bank(bfile)
-                self.nwlink.reply(req)
-            else:
-                self.nwlink.reply(req, "Unable to save bank file", netlink.REQ_ERROR)
-        elif req.type == netlink.SELECT_PATCH:
-            if req.body in pxr.patches:
-                self.nwlink.reply(req)
-                self.select_patch(pxr.patches.index(req.body))
-            else:
-                self.nwlink.reply(req, "Patch not found", netlink.REQ_ERROR)
-        elif req.type == netlink.LIST_SOUNDFONTS:
-            self.nwlink.reply(req, pxr.render_fpyaml(pxr.soundfonts))
-        elif req.type == netlink.LOAD_SOUNDFONT:
-            if self.load_soundfont(req.body):
-                self.nwlink.reply(req, pxr.render_fpyaml(pxr.sfpresets))
-                self.presetmode()
-            else:
-                self.nwlink.reply(req, f"Unable to load {req.body}", netlink.REQ_ERROR)
-        elif req.type == netlink.SELECT_SFPRESET:
-            if int(req.body) < len(pxr.sfpresets):
-                self.nwlink.reply(req)
-                self.presetmode(int(req.body))
-            else:
-                self.nwlink.reply(req, "Preset not found", netlink.REQ_ERROR)
-        elif req.type == netlink.LIST_PLUGINS:
-            try: info = subprocess.check_output(['listplugins']).decode()
-            except: self.nwlink.reply(req, 'No plugins installed')
-            else: self.nwlink.reply(req, pxr.render_fpyaml(info))
-        elif req.type == netlink.LIST_PORTS:
-            self.nwlink.reply(req, pxr.render_fpyaml(pxr.list_midi_inputs()))
-        elif req.type == netlink.READ_CFG:
-            self.nwlink.reply(req, pxr.render_fpyaml(pxr.cfgfile, pxr.read_config()))
-        elif req.type == netlink.SAVE_CFG:
-            try: pxr.write_config(req.body)
-            except PatcherError as e: self.nwlink.reply(req, str(e), netlink.REQ_ERROR)
-            else: self.nwlink.reply(req)
-
 
 os.umask(0o002)
 cfgfile = sys.argv[1] if len(sys.argv) > 1 else 'SquishBox/squishboxconf.yaml'
 try:
-    pxr = Patcher(cfgfile)
-except PatcherError as e:
-    print("Error(s) in " + cfgfile)
+    pxr = patcher.Patcher(cfgfile)
+except Exception as e:
+    print(f"Error loading config file {cfgfile}\n{str(e)}")
     error_blink(2)
 
 # hack to connect MIDI devices to old versions of fluidsynth
