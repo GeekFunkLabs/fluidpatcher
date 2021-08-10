@@ -40,7 +40,6 @@ class StompBox():
 
     def __init__(self):
     
-
         # initialize LCD
         self.LCD = RPLCD.CharLCD(pin_rs=LCD_RS,
                             pin_e=LCD_EN,
@@ -126,8 +125,9 @@ class StompBox():
                     break
 
     def waitfortap(self, t=0):
-        # wait :t seconds or until a button is tapped
-        # return True if tapped, False if not
+        # wait until a button is tapped
+        # if t>0 wait at most t: seconds
+        # return True if button was tapped, else False
         tstop = time.time() + t
         while True:
             if t and time.time() > tstop:
@@ -135,7 +135,6 @@ class StompBox():
             self.update()
             if TAP in self.buttons:
                 return True
-        return False
 
     def lcd_clear(self):
         self.LCD.clear()
