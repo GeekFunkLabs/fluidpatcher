@@ -128,7 +128,11 @@ if [[ $startup == 2 ]]; then
 	query "    Patch select knob CC" "use default"; selectpatch=$response
 	query "    Bank change button CC" "use default"; bankinc=$response
 fi
-if promptorno "OK to upgrade your system (if necessary)?"; then
+REPO=`sed -n '/^deb /p' /etc/apt/sources.list|cut -d' ' -f2`
+echo "Required system software will download from $REPO"
+echo "You may optionally use a mirror near you from https://www.raspbian.org/RaspbianMirrors"
+query "Software repository" $REPO; mirror=$response
+if promptorno "OK to upgrade your system (if possible)?"; then
 	UPGRADE=true
 fi
 
@@ -167,11 +171,14 @@ warning "\nThis may take some time ... go make some coffee.\n"
 ## do things
 
 umask 002 # friendly permissions for web file manager
+if ! [[ $mirror == $REPO ]]; then
+	sudo sed -i "/^deb/s|$REPO|$mirror|" /etc/apt/sources.list
+fi
 if [[ $update == "yes" ]]; then
     inform "Installing/Updating FluidPatcher and any required packages..."
     # get dependencies
     sysupdate
-#    apt_pkg_install "git"  # use curl or wget instead
+    apt_pkg_install "git"  # use curl or wget instead?
     apt_pkg_install "python3-pip"
     apt_pkg_install "python3-rtmidi"
     apt_pkg_install "libfluidsynth1"
