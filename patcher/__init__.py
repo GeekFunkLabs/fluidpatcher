@@ -101,7 +101,7 @@ class Patcher:
             self._bank = fpyaml.parse(raw)
         try:
             self._bank['patches'].values()
-        except (NameError, KeyError, AttributeError):
+        except (TypeError, NameError, KeyError, AttributeError):
             self._bank = {'patches': {'No Patches': {}}}
         else:
             if bankfile:
