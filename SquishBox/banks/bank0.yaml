@@ -6,7 +6,7 @@ patches: # indented list of patches
     1: FM Piano.sf2:000:000 # <MIDI Channel>: <soundfont>:<bank>:<program>
     
   Multi Part: # can have a different voice on each MIDI channel
-                 # useful if your controller can split/play to different channels
+              # useful if your controller can split/play to different channels
     1: VintageDreamsWaves-v2.sf2:000:058
     2: VintageDreamsWaves-v2.sf2:000:013
     10: VintageDreamsWaves-v2.sf2:128:002
@@ -14,11 +14,12 @@ patches: # indented list of patches
   Split Keys: # you can also split the keyboard any way you want using MIDI routing
     3: FM Piano.sf2:000:000
     4: VintageDreamsWaves-v2.sf2:000:028
-    router_rules: # this sends notes on the upper half of the keyboard to channel 3, lower half to channel 4
-    - {type: note, chan: 1=3, par1: C4-G9} # note names can be used
+    router_rules: # adds rules for routing MIDI messages
+    - {type: note, chan: 1=3, par1: C4-G9}      # note names can be used
     - {type: note, chan: 1=4, par1: C0-B3*1-12} # drop these down an octave for bass-ness
-    cc: [3/91=127, 3/93=127] # sends control change messages when the patch is selected
-                             # this will set the reverb and chorus level to max on channel 3
+    messages: # sends MIDI messages when the patch is selected
+    - cc:3:91:127
+    - cc:3:93:127 # sets reverb and chorus level to max
 
   Weird Keys: # you can get some interesting effects with MIDI routing
     5: VintageDreamsWaves-v2.sf2:000:014
