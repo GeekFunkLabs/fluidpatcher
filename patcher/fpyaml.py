@@ -110,10 +110,6 @@ class RouterSpec(oyaml.YAMLObject):
         self.add = scinote_to_val(add)
         self.argstr = ', '.join(map(str, [min, max, mul, add]))
         self.yaml = yaml
-#        elif isinstance(add, (int, float)):
-#            self.rep = f"{min}-{max}*{mul}{add:+g}"
-#        else:
-#            self.rep = f"{min}-{max}*{mul}{add}"
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.argstr})"
@@ -152,12 +148,6 @@ class FromToSpec(RouterSpec):
         self.add = self.tomin - self.min * self.mul
         self.argstr = ', '.join(map(str, [min, max, tomin, tomax]))
         self.yaml = yaml
-#        if rep: self.rep = rep
-#        else:
-#            self.rep = f"{min}"
-#            if max != '': self.rep += f"-{max}"
-#            if tomin != '': self.rep += f"={tomin}"
-#            if tomax != '': self.rep += f"-{tomax}"
 
     @classmethod
     def from_yaml(cls, loader, node):
