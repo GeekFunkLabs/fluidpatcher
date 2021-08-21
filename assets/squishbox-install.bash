@@ -52,7 +52,7 @@ sysupdate() {
         UPDATED=true
 		if $UPGRADE; then
 			echo "Upgrading your system..."
-			sudo apt-get -qqy upgrade --with-new-pkgs &>> $logfile
+			sudo apt-get DEBIAN_FRONTEND=noninteractive -qqy upgrade --with-new-pkgs &>> $logfile
 			sudo apt-get clean && sudo apt-get autoclean
 			sudo apt-get -qqy autoremove
 			UPGRADE=false
@@ -63,8 +63,9 @@ sysupdate() {
 apt_pkg_install() {
     APT_CHK=$(dpkg-query -W -f='${Status}\n' "$1" 2> /dev/null | grep "install ok installed")
     if [[ $APT_CHK == "" ]]; then    
-        echo "Apt is installing $1..."
-        sudo apt-get --no-install-recommends --yes install "$1" &>> $logfile || { warning "Apt failed to install $1! Logged to $logfile" && exit 1; }
+        echo "Aptitude is installing $1..."
+        sudo apt-get DEBIAN_FRONTEND=noninteractive --no-install-recommends -qqy install "$1" &>> $logfile ||
+			{ warning "Apt failed to install $1! Logged to $logfile" && exit 1; }
     fi
 }
 
@@ -73,7 +74,7 @@ pip_install() {
         PYTHON_PKG=$(pip3 list 2> /dev/null)
     fi
     if ! [[ $PYTHON_PKG =~ "$1" ]]; then
-        echo "Pip is installing $1..."
+        echo "Python Package Manager is installing $1..."
         sudo -H pip3 install "$1" &>> $logfile || { warning "Pip failed to install $1! Logged to $logfile" && exit 1; }
     fi
 }
@@ -93,6 +94,24 @@ echo "hit ctrl-C and enter 'curl https://geekfunklabs.com/squishbox | more'"
 echo "Logging errors and technical output to $logfile"
 echo -e "Report issues with this script at https://github.com/albedozero/fluidpatcher\n"
 
+if test -f /etc/os-release; then
+	if cat /etc/os-release | grep -q "raspian"; then
+		RASPBIAN=true
+	fi
+	if cat /etc/os-release | grep -q "buster"; then
+		BUSTER=true
+	fi
+else
+	RASPBIAN=false
+fi
+if ! ($RASPBIAN && $BUSTER); then
+	warning "These scripts are designed to work on a Raspberry Pi running Raspbian Buster,"
+	warning "which does not appear to be the case here. YMMV!"
+	if ! promptorno "Proceed anyway?"; then
+		exit 1
+	fi
+fi
+
 inform "Core software update/install and system settings:"
 query "Install location" `echo ~`; installdir=$response
 if test -f "$installdir/patcher/__init__.py"; then
@@ -107,18 +126,23 @@ if promptoryes "Install/update FluidPatcher version $NEW_FP_VER?"; then
 	fi 
 fi
 
+IFS=$'\n'
+AUDIOCARDS=(`aplay -l | grep ^card | cut -d' ' -f 3-`)
 echo "Which audio output would you like to use?"
-echo "  1. Add-on DAC (SquishBox)"
-echo "  2. Headphone jack (headless pi)"
-echo "  3. USB sound card"
 echo "  0. No change"
+echo "  1. Default"
+i=2
+for dev in ${AUDIOCARDS[@]}; do
+	echo "  $i. ${AUDIOCARDS[$i-2]}"
+	((i+=1))
+done
 query "Choose" "0"; audiosetup=$response
 
 echo "What script should be run on startup?"
+echo "  0. No change"
 echo "  1. squishbox.py"
 echo "  2. headlesspi.py"
 echo "  3. Nothing"
-echo "  0. No change"
 query "Choose" "0"; startup=$response
 if [[ $startup == 2 ]]; then
 	echo -e "Set up controls for headless pi:"
@@ -128,6 +152,7 @@ if [[ $startup == 2 ]]; then
 	query "    Patch select knob CC" "use default"; selectpatch=$response
 	query "    Bank change button CC" "use default"; bankinc=$response
 fi
+
 REPO=`sed -n '/^deb /p' /etc/apt/sources.list|cut -d' ' -f2`
 echo "Required system software will download from $REPO"
 echo "You may optionally use a mirror near you from https://www.raspbian.org/RaspbianMirrors"
@@ -170,10 +195,14 @@ warning "\nThis may take some time ... go make some coffee.\n"
 
 ## do things
 
-umask 002 # friendly permissions for web file manager
-if ! [[ $mirror == $REPO ]]; then
+# friendly permissions for web file manager
+umask 002 
+# desktop distros play an audio message when booting to setup; this disables it
+sudo mv /etc/xdg/autostart/piwiz.desktop /etc/xdg/autostart/piwiz.disabled &>> $logfile
+if [[ $mirror != $REPO ]]; then
 	sudo sed -i "/^deb/s|$REPO|$mirror|" /etc/apt/sources.list
 fi
+
 if [[ $update == "yes" ]]; then
     inform "Installing/Updating FluidPatcher and any required packages..."
     # get dependencies
@@ -183,6 +212,7 @@ if [[ $update == "yes" ]]; then
     apt_pkg_install "python3-rtmidi"
     apt_pkg_install "libfluidsynth1"
     apt_pkg_install "fluid-soundfont-gm"
+    apt_pkg_install "jackd1"
     pip_install "oyaml"
     pip_install "mido"
     pip_install "RPi.GPIO"
@@ -206,7 +236,7 @@ if [[ $update == "yes" ]]; then
     rm -rf fluidpatcher
     ln -s /usr/share/sounds/sf2/FluidR3_GM.sf2 $installdir/SquishBox/sf2/ &>> $logfile
     
-    # real-time audio tweaks
+    # audio tweaks
     sudo usermod -a -G audio pi
     AUDIOCONF="/etc/security/limits.d/audio.conf"
     if test -f "$AUDIOCONF"; then
@@ -222,25 +252,14 @@ if [[ $update == "yes" ]]; then
 fi
 
 # set up audio
-CONFIG="/boot/config.txt"
-sudo mv /etc/xdg/autostart/piwiz.desktop /etc/xdg/autostart/piwiz.disabled &>> $logfile
-if [[ $audiosetup =~ ^(1|2|3)$ ]]; then
-	sudo sed -i "/dtparam=audio=on/d" $CONFIG
-	sudo sed -i "/dtoverlay=hifiberry-dac/d" $CONFIG
-fi
-if [[ $audiosetup == "1" ]]; then
-    echo "Activating DAC sound..."
-	echo "dtoverlay=hifiberry-dac" | sudo tee -a $CONFIG &>> $logfile
-    ASK_TO_REBOOT=true
-elif [[ $audiosetup == "2" ]]; then
-    echo "Activating headphone audio..."
-	echo "dtparam=audio=on" | sudo tee -a $CONFIG &>> $logfile
-    sudo amixer -q sset 'Headphone' 400
-    ASK_TO_REBOOT=true
-elif [[ $audiosetup == "3" ]]; then
-    echo "Activating USB audio..."
-	# nothing needed
-    ASK_TO_REBOOT=true
+if (( $audiosetup > 0 )); then
+	sed -i "/  audio.alsa.device/d" $installdir/SquishBox/squishboxconf.yaml
+	echo "/usr/bin/jackd --silent -r -d alsa -s -p 64 -n 3 -r 44100 -P" | sudo tee /etc/jackdrc &>> $logfile
+	if (( $audiosetup > 1 )); then
+		AUDIO=`echo ${AUDIOCARDS[$audiosetup-2]} | cut -d' ' -f 1`
+		sed -i "/^fluidsettings:/a\  audio.alsa.device: hw:$AUDIO"  $installdir/SquishBox/squishboxconf.yaml
+		echo "/usr/bin/jackd --silent -r -d alsa -d hw:$AUDIO -s -p 64 -n 3 -r 44100 -P" | sudo tee /etc/jackdrc &>> $logfile
+	fi
 fi
 
 # set up services
@@ -284,15 +303,15 @@ Restart=on-failure
 WantedBy=multi-user.target
 EOF
     sudo systemctl enable squishbox.service &>> $logfile
-	if ! [[ $decpatch == "use default" ]]; then
+	if [[ $decpatch != "use default" ]]; then
 		sed -i "/^DEC_PATCH/s|[0-9]\+|$decpatch|" $installdir/headlesspi.py; fi
-	if ! [[ $incpatch == "use default" ]]; then
+	if [[ $incpatch != "use default" ]]; then
 		sed -i "/^INC_PATCH/s|[0-9]\+|$incpatch|" $installdir/headlesspi.py; fi
-	if ! [[ $bankinc == "use default" ]]; then
+	if [[ $bankinc != "use default" ]]; then
 		sed -i "/^BANK_INC/s|[0-9]\+|$bankinc|" $installdir/headlesspi.py; fi
-	if ! [[ $selectpatch == "use default" ]]; then
+	if [[ $selectpatch != "use default" ]]; then
 		sed -i "/^SELECT_PATCH/s|[0-9]\+|$selectpatch|" $installdir/headlesspi.py; fi
-	if ! [[ $ctrls_channel == "use default" ]]; then
+	if [[ $ctrls_channel != "use default" ]]; then
 		sed -i "/^CTRLS_MIDI_CHANNEL/s|[0-9]\+|$ctrls_channel|" $installdir/headlesspi.py; fi
     ASK_TO_REBOOT=true
 elif [[ $startup == "3" ]]; then
