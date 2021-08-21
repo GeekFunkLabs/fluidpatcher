@@ -23,10 +23,10 @@ DISABLE_LED = False
 
 
 def connect_controls():
-	pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=DEC_PATCH, patch=-1)
-	pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=INC_PATCH, patch=1)
-	pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=SELECT_PATCH, patch='select')
-	pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=BANK_INC, par2='1-127', bank=1)
+    pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=DEC_PATCH, patch=-1)
+    pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=INC_PATCH, patch=1)
+    pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=SELECT_PATCH, patch='select')
+    pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=BANK_INC, par2='1-127', bank=1)
 
 POLL_TIME = 0.025
 ACT_LED = 0
@@ -93,6 +93,7 @@ class HeadlessSynth:
         while True:
             time.sleep(POLL_TIME)
             if self.shutdowntimer:
+                t = time.time()
                 if t - self.shutdowntimer > 7:
                     onboardled_set(ACT_LED, 1, trigger='mmc0')
                     onboardled_set(PWR_LED, 1, trigger='input')
@@ -120,6 +121,7 @@ class HeadlessSynth:
         onboardled_blink(ACT_LED)
 
     def listener(self, msg):
+    # catches midi :msg to change patch/bank
         if hasattr(msg, 'patch'):
             if msg.patch == 'select':
                 x = int(msg.val * min(len(pxr.patches), 128) / 128)
@@ -128,11 +130,11 @@ class HeadlessSynth:
                     self.select_patch(self.pno)
             else:
                 if msg.val > 0:
-                    shutdowntimer = time.time()
+                    self.shutdowntimer = time.time()
                     self.pno = round(self.pno + msg.patch) % len(pxr.patches)
                     self.select_patch(self.pno)
                 else:
-                    shutdowntimer = 0
+                    self.shutdowntimer = 0
         elif hasattr(msg, 'bank'):
             if pxr.currentbank in pxr.banks:
                 bno = (pxr.banks.index(pxr.currentbank) + 1 ) % len(pxr.banks)
