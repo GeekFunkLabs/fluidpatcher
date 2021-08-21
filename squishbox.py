@@ -245,17 +245,17 @@ class SquishBox:
     def midi_devices(self):
         sb.lcd_write("MIDI Devices:", 0)
         readable = re.findall(" (\d+): '([^\n]*)'", subprocess.check_output(['aconnect', '-i']).decode())
-        inports, names = list(zip(*readable))
-        p = sb.choose_opt(names + ["MIDI monitor.."], row=1, scroll=True, timeout=0)
+        rports, names = list(zip(*readable))
+        p = sb.choose_opt([*names, "MIDI monitor.."], row=1, scroll=True, timeout=0)
         if p < 0: return
-        if 0 < p < len(inports):
+        if 0 <= p < len(rports):
             sb.lcd_write("Connect to:", 0)
             writable = re.findall(" (\d+): '([^\n]*)'", subprocess.check_output(['aconnect', '-o']).decode())
-            outports, names = list(zip(*writable))
-            op = sb.choose_opt(names, row=1)
+            wports, names = list(zip(*writable))
+            op = sb.choose_opt(names, row=1, scroll=True, timeout=0)
             if op < 0: return
-            subprocess.run(['aconnect', inports[p], outports[op]])
-        elif op == len(outports):
+            subprocess.run(['aconnect', rports[p], wports[op]])
+        elif p == len(rports):
             sb.lcd_clear()
             sb.lcd_write("MIDI monitor:", 0)
             self.midimon = True
