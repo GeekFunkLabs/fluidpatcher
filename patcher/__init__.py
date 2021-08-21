@@ -56,10 +56,6 @@ class Patcher:
         return Path(self.cfg.get('pluginpath', '')).resolve()
 
     @property
-    def sysexdir(self):
-        return Path(self.cfg.get('sysexdir', '')).resolve()
-
-    @property
     def banks(self):
         return sorted([b.relative_to(self.bankdir) for b in self.bankdir.rglob('*.yaml')])
 
@@ -128,7 +124,7 @@ class Patcher:
         self.sfpresets = []
         activechannels = set()
         patch = self._resolve_patch(patch)
-        self._reset_synth()
+        self._reset_synth(full=False)
         for channel in range(1, self._max_channels + 1):
             preset = self._bank.get(channel) or patch.get(channel)
             if preset:
@@ -250,14 +246,14 @@ class Patcher:
                 if 'fluidsettings' in patch and opt in patch['fluidsettings']:
                     patch['fluidsettings'].remove(opt)
 
-    def add_router_rule(self, rule={}, **kwargs):
+    def add_router_rule(self, rule=None, **kwargs):
     # :rule text or a RouterRule object
-    # :kwargs router rule parameters to set explicity, as text or values
+    # :kwargs router rule parameters, as text or values
         if isinstance(rule, str):
-            rule = fpyaml.parse(ruletext)
-        if isinstance(rule, dict):
-            for par, val in kwargs.items():
-                if isinstance(val, str): rule[par] = fpyaml.parse(val)
+            rule = fpyaml.parse(rule)
+        if rule == None:
+            rule = {par: fpyaml.parse(str(val))
+                    for par, val in kwargs.items()}
             rule = fpyaml.RouterRule(**rule)
         rule.add(self._fluid.router_addrule)
 
@@ -314,27 +310,35 @@ class Patcher:
     def _reset_synth(self, full=True):
         self._fluid.router_default()
         self._fluid.fxchain_clear()
-        if full:
+        if not full:
+            mask = list(self._bank.get('players', {}))
+            mask += list(self._bank.get('sequencers', {}))
+            mask += list(self._bank.get('arpeggiators', {}))
+            self._fluid.players_clear(mask=mask)
+        else:
             self._fluid.players_clear()
-            self._fluid.sequencers_clear()
-            self._fluid.arpeggiators_clear()
             self._send_cc_defaults()
             cfg_fset = self.cfg.get('fluidsettings', {})
-            for opt, val in SYNTH_DEFAULTS.items():
+            for opt, defaultval in SYNTH_DEFAULTS.items():
                 if opt in cfg_fset:
                     self.fluid_set(opt, cfg_fset[opt])
                 else:
-                    self.fluid_set(opt, val)
+                    self.fluid_set(opt, defaultval)
+            for name, info in self._bank.get('players', {}).items():
+                if 'chan' in info:
+                    playerchan = fpyaml.tochantups(info['chan'])[0]
+                else: playerchan = None
+                self._fluid.player_add(name, **{**info, 'chan': playerchan})
+            for name, info in self._bank.get('sequencers', {}).items():
+                self._fluid.sequencer_add(name, **info)
+            for name, info in self._bank.get('arpeggiators', {}).items():
+                self._fluid.arpeggiator_add(name, **info)
             init = self._bank.get('init', None)
             if init:
                 for opt, val in init.get('fluidsettings', {}).items():
                     self.fluid_set(opt, val)
                 for msg in init.get('messages', []):
                     self._fluid.send_event(*msg)
-        else:
-            self._fluid.players_clear(mask=self._bank.get('players', {}))
-            self._fluid.sequencers_clear(mask=self._bank.get('sequencers', {}))
-            self._fluid.arpeggiators_clear(mask=self._bank.get('arpeggiators', {}))
 
 
 class PresetInfo:
