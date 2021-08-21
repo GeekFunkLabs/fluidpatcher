@@ -77,12 +77,12 @@ specfunc(FL.new_fluid_player, c_void_p, c_void_p)
 specfunc(FL.delete_fluid_player, None, c_void_p)
 specfunc(FL.fluid_player_add, c_int, c_void_p, c_char_p)
 specfunc(FL.fluid_player_set_playback_callback, c_int, c_void_p, fl_eventcallback, c_void_p)
-specfunc(FL.fluid_player_set_tick_callback, c_int, c_void_p, fl_tickcallback, c_void_p)
+#specfunc(FL.fluid_player_set_tick_callback, c_int, c_void_p, fl_tickcallback, c_void_p)
 specfunc(FL.fluid_player_play, c_int, c_void_p)
 specfunc(FL.fluid_player_stop, c_int, c_void_p)
-specfunc(FL.fluid_player_seek, c_int, c_void_p, c_int)
+#specfunc(FL.fluid_player_seek, c_int, c_void_p, c_int)
 specfunc(FL.fluid_player_set_loop, c_int, c_void_p, c_int)
-specfunc(FL.fluid_player_set_tempo, c_int, c_void_p, c_int, c_double)
+#specfunc(FL.fluid_player_set_tempo, c_int, c_void_p, c_int, c_double)
 specfunc(FL.fluid_player_get_status, c_int, c_void_p)
 FLUID_PLAYER_TEMPO_INTERNAL = 0
 FLUID_PLAYER_TEMPO_EXTERNAL_MIDI = 2
@@ -113,11 +113,15 @@ FLUID_SEQ_TIMER = 17
 FLUID_SEQ_UNREGISTERING = 21
 
 try:
-    # fluidsynth 2.x
+    FLUIDSYNTH2 = True
+    specfunc(FL.fluid_player_set_tick_callback, c_int, c_void_p, fl_tickcallback, c_void_p)
+    specfunc(FL.fluid_player_seek, c_int, c_void_p, c_int)
+    specfunc(FL.fluid_player_set_tempo, c_int, c_void_p, c_int, c_double)
+
     specfunc(FL.fluid_synth_get_sfont_by_id, c_void_p, c_void_p, c_int)
     specfunc(FL.fluid_sfont_get_preset, c_void_p, c_void_p, c_int, c_int)
     specfunc(FL.fluid_preset_get_name, c_char_p, c_void_p)
-    specfunc(FL.fluid_synth_get_ladspa_fx, c_void_p, c_void_p)
+    fl_fluid_synth_get_ladspa_fx = specfunc(FL.fluid_synth_get_ladspa_fx, c_void_p, c_void_p)
     specfunc(FL.fluid_ladspa_activate, c_void_p, c_void_p)
     specfunc(FL.fluid_ladspa_reset, c_int, c_void_p)
     specfunc(FL.fluid_ladspa_add_effect, c_int, c_void_p, c_char_p, c_char_p, c_char_p)
@@ -128,7 +132,7 @@ try:
     specfunc(FL.fluid_ladspa_effect_link, c_int, c_void_p, c_char_p, c_char_p, c_char_p)
     FLUIDSETTING_EXISTS = FLUID_OK
 except:
-    # fluidsynth 1.x
+    FLUIDSYNTH2 = False
     class fluid_synth_channel_info_t(Structure):
         _fields_ = [
             ('assigned', c_int),
@@ -138,6 +142,7 @@ except:
             ('name', c_char*32),
             ('reserved', c_char*32)]
     specfunc(FL.fluid_synth_get_channel_info, c_int, c_void_p, c_int, POINTER(fluid_synth_channel_info_t))
+    fl_fluid_synth_get_ladspa_fx = lambda _: None
     FLUIDSETTING_EXISTS = 1
 
 MIDI_NOTEOFF = 0x80
@@ -412,6 +417,7 @@ class Sequencer:
     def scheduler(self, time=None, event=None, fseq=None, data=None):
         if event and FL.fluid_event_get_type(event) == FLUID_SEQ_UNREGISTERING:
             return
+        if not self.notes: return
         dur = self.ticksperbeat * 4 / self.tdiv
         if self.tdiv >= 8 and self.tdiv % 3:
             if self.beat % 2: dur *= 2 * (1 - self.swing)
@@ -530,19 +536,14 @@ class Synth:
             self.setting(opt, val)
         self.fsynth = FL.new_fluid_synth(self.st)
         FL.new_fluid_audio_driver(self.st, self.fsynth)
-        self.ladspa = FL.fluid_synth_get_ladspa_fx(self.fsynth)
-        
+        self.ladspa = fl_fluid_synth_get_ladspa_fx(self.fsynth)
         self.frouter_callback = fl_eventcallback(FL.fluid_synth_handle_midi_event)
         self.frouter = FL.new_fluid_midi_router(self.st, self.frouter_callback, self.fsynth)
         self.custom_router_callback = fl_eventcallback(self.custom_midi_router)
-        FL.new_fluid_midi_driver(self.st, self.custom_router_callback, self.frouter)
-        
+        FL.new_fluid_midi_driver(self.st, self.custom_router_callback, self.frouter)        
         self.sfid = {}
         self.xrules = []
         self.players = {}
-        self.sequencers = {}
-        self.arpeggiators = {}
-        self.tempotaps = []
         self.msg_callback = None
         nports = self.get_setting('synth.audio-groups')
         nchan = self.get_setting('synth.midi-channels')
@@ -569,15 +570,15 @@ class Synth:
                     if res.player in self.players:
                         self.players[res.player].transport(res.val, getattr(res, 'tick', None))
                 elif hasattr(res, 'sequencer'):
-                    if res.sequencer in self.sequencers:
-                        self.sequencers[res.sequencer].play(res.val)
+                    if res.sequencer in self.players:
+                        self.players[res.sequencer].play(res.val)
                 elif hasattr(res, 'arpeggiator'):
-                    if res.arpeggiator in self.arpeggiators:
-                        self.arpeggiators[res.arpeggiator].note(res.chan, res.par1, res.val)
+                    if res.arpeggiator in self.players:
+                        self.players[res.arpeggiator].note(res.chan, res.par1, res.val)
                         mevent.cancel = True
                 elif hasattr(res, 'tempo'):
-                    for obj in (self.players, self.sequencers, self.arpeggiators):
-                        if res.tempo in obj: obj[res.tempo].set_tempo(res.val)
+                    if res.tempo in self.players:
+                        self.players[res.tempo].set_tempo(res.val)
                 elif hasattr(res, 'ladspafx'):
                     if res.ladspafx in self.ladspafx:
                         self.ladspafx[res.ladspafx].setcontrol(res.port, res.val)
@@ -687,35 +688,20 @@ class Synth:
                 FL.fluid_midi_router_rule_set_param2(rule, int(par2[0]), int(par2[1]), float(par2[2]), int(par2[3]))
             FL.fluid_midi_router_add_rule(self.frouter, rule, EVENT_NAMES.index(type))
 
-    def players_clear(self, mask=[]):
-        for name in self.players:
-            if name not in mask: self.players[name].delete()
-        self.players = {}
-
-    def player_add(self, name, file, loops=[], chan=None, barlength=1, tempo=0):
-        if not isinstance(file, list): file = [file]
-        self.players[name] = Player(self, file, loops, chan, barlength)
-        
-    def sequencers_clear(self, mask=[]):
-        for name in self.sequencers:
-            if name not in mask: self.sequencers[name].delete()
-        self.sequencers = {}
-        
     def sequencer_add(self, name, notes, tdiv=8, swing=0.5, tempo=120):
-        self.sequencers[name] = Sequencer(self, notes, tdiv, swing)
-        self.sequencers[name].set_tempo(tempo)
-        
-    def arpeggiators_clear(self, mask=[]):
-        for name in self.arpeggiators:
-            if name not in mask: self.arpeggiators[name].delete()
-        self.arpeggiators = {}
+        self.players[name] = Sequencer(self, notes, tdiv, swing)
+        self.players[name].set_tempo(tempo)
         
     def arpeggiator_add(self, name, tdiv=8, swing=0.5, style='', octaves=1, tempo=120):
-        self.arpeggiators[name] = Arpeggiator(self, tdiv, swing, style, octaves)
-        self.arpeggiators[name].set_tempo(tempo)
+        self.players[name] = Arpeggiator(self, tdiv, swing, style, octaves)
+        self.players[name].set_tempo(tempo)
 
-    try:
-        # fluidsynth 2.x
+    def players_clear(self, mask=[]):
+        for name in [x for x in self.players if x not in mask]:
+            self.players[name].delete()
+            del self.players[name]
+
+    if FLUIDSYNTH2:
         def get_preset_name(self, sfont, bank, prog):
             sfont_obj = FL.fluid_synth_get_sfont_by_id(self.fsynth, self.sfid[sfont])
             preset_obj = FL.fluid_sfont_get_preset(sfont_obj, bank, prog)
@@ -723,6 +709,10 @@ class Synth:
                 return None
             return FL.fluid_preset_get_name(preset_obj).decode()
 
+        def player_add(self, name, file, loops=[], chan=None, barlength=1, tempo=0):
+            if not isinstance(file, list): file = [file]
+            self.players[name] = Player(self, file, loops, chan, barlength)
+            
         def fxchain_clear(self):
             self.ladspafx = {}
             FL.fluid_ladspa_reset(self.ladspa)
@@ -751,7 +741,7 @@ class Synth:
                         ladspafx.link(hostports, lastports, hostports)
             FL.fluid_ladspa_activate(self.ladspa)
 
-    except:
+    else:
         # fluidsynth 1.x
         def get_preset_name(self, sfont, bank, prog):
             if not self.program_select(0, sfont, bank, prog):
@@ -760,11 +750,14 @@ class Synth:
             FL.fluid_synth_get_channel_info(self.fsynth, 0, byref(info))
             return info.name.decode()
 
+        def player_add(self, name, file, loops=[], chan=None, barlength=1, tempo=0):
+            pass
+
         def fxchain_clear(self):
             pass
 
         def fxunit_add(self, name, lib, plugin=None, chan=None, audio='stereo', vals={}, mix=None):
             pass
 
-        def fxchain_create(self):
+        def fxchain_link(self):
             pass
