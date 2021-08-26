@@ -234,11 +234,13 @@ class MainWindow(wx.Frame):
         if hasattr(msg, 'val'):
             pass
         elif getattr(self.midimon, 'monitor', False):
-            info = str(msg.chan + 1), MSG_NAMES[MSG_TYPES.index(msg.type)]
-            if msg.type in MSG_TYPES[0:5]:
-                self.midimon.msglist.Append((*info, f"{msg.par1}={msg.par2}"))
+            t = ('note', 'noteoff', 'cc', 'kpress', 'prog', 'pbend', 'cpress').index(msg.type)
+            x = ("Note On", "Note Off", "Control Change", "Key Pressure",
+                 "Program Change", "Pitch Bend", "Aftertouch")[t]
+            if t < 4:
+                self.midimon.msglist.Append((str(msg.chan + 1), x, f"{msg.par1}={msg.par2}"))
             else:
-                self.midimon.msglist.Append((*info, str(msg.par1)))
+                self.midimon.msglist.Append((str(msg.chan + 1), x, str(msg.par1)))
             self.midimon.msglist.ScrollList(0, 99)
 
     def load_bankfile(self, bfile=''):
@@ -362,7 +364,12 @@ class MainWindow(wx.Frame):
     def onChoosePreset(self, event):
         sf = wx.FileSelector("Open Soundfont", str(pxr.sfdir), "", "*.sf2", "Soundfont (*.sf2)|*.sf2", wx.FD_OPEN)
         if sf == '': return
-        sfbrowser = SoundfontBrowser(str(Path(sf).relative_to(pxr.sfdir)))
+        sfrel = str(Path(sf).relative_to(pxr.sfdir))
+        if pxr.load_soundfont(sf):
+            sfbrowser = SoundfontBrowser(sfrel)
+        else:
+            wx.MessageBox(f"Unable to load {sfrel}", "Error", wx.OK|wx.ICON_ERROR)
+            return
         if sfbrowser.ShowModal() == wx.ID_OK:
             self.bedit.text.WriteText(sfbrowser.copypreset)
         sfbrowser.Destroy()
@@ -384,7 +391,7 @@ class MainWindow(wx.Frame):
 
     def onSettings(self, event):
         rawcfg = pxr.read_config()
-        tmsg = TextCtrlDialog(rawcfg, "Settings", str(pxr.cfgfile), wx.OK|wx.CANCEL, edit=True, size=(500, 450))
+        tmsg = TextCtrlDialog(rawcfg, "Settings", cfgfile, wx.OK|wx.CANCEL, edit=True, size=(500, 450))
         if tmsg.ShowModal() == wx.ID_OK:
             newcfg = tmsg.text.GetValue()
             try:
