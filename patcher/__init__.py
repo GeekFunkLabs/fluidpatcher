@@ -24,7 +24,7 @@ SYNTH_DEFAULTS = {'synth.chorus.depth': 8.0, 'synth.chorus.level': 2.0,
 class Patcher:
 
     def __init__(self, cfgfile='', fluidsettings={}):
-        self._cfgfile = Path(cfgfile) if cfgfile else None
+        self.cfgfile = Path(cfgfile) if cfgfile else None
         self.cfg = {}
         self.read_config()
         fluidsettings.update(self.cfg.get('fluidsettings', {}))
@@ -33,23 +33,22 @@ class Patcher:
         self._max_channels = fluidsettings.get('synth.midi-channels', 16)
         self._bank = {'patches': {'No Patches': {}}}
         self._soundfonts = set()
-        self.sfpresets = []
-
-    @property
-    def cfgfile(self):
-        return self._cfgfile if self._cfgfile else None
 
     @property
     def currentbank(self):
         return Path(self.cfg['currentbank']) if 'currentbank' in self.cfg else None
 
     @property
+    def bankdir(self):
+        return Path(self.cfg.get('bankdir', 'banks')).resolve()
+
+    @property
     def sfdir(self):
         return Path(self.cfg.get('soundfontdir', 'sf2')).resolve()
 
     @property
-    def bankdir(self):
-        return Path(self.cfg.get('bankdir', 'banks')).resolve()
+    def mfilesdir(self):
+        return Path(self.cfg.get('mfilesdir', '')).resolve()
 
     @property
     def pluginpath(self):
@@ -121,39 +120,34 @@ class Patcher:
     def select_patch(self, patch):
     # :patch number, name, or dict
         warnings = []
-        self.sfpresets = []
-        activechannels = set()
+        fxchannels = set()
         patch = self._resolve_patch(patch)
         self._reset_synth(full=False)
         for channel in range(1, self._max_channels + 1):
             preset = self._bank.get(channel) or patch.get(channel)
             if preset:
                 if preset.sf not in self._soundfonts: self._reload_bankfonts()
-                if not self._fluid.program_select(channel - 1, self.sfdir / preset.sf, preset.bank, preset.prog):
-                    warnings.append(f"Unable to select preset {preset} on channel {channel}")
-                else: activechannels |= {channel - 1}
+                if self._fluid.program_select(channel - 1, self.sfdir / preset.sf, preset.bank, preset.prog):
+                    fxchannels |= {channel - 1}
+                else: warnings.append(f"Unable to select preset {preset} on channel {channel}")
             else:
                 self._fluid.program_unset(channel - 1)
-        for name, info in {**self._bank.get('ladspafx', {}), **patch.get('ladspafx', {})}.items():
-            libfile = self.pluginpath / info['lib']
-            if 'chan' in info:
-                fxchannels = fpyaml.tochanset(info['chan']) & activechannels
-            else:
-                fxchannels = activechannels
-            if fxchannels:
-                self._fluid.fxunit_add(name, **{**info, 'lib': libfile, 'chan': fxchannels})
-        self._fluid.fxchain_link()
         for name, info in patch.get('players', {}).items():
-            if 'chan' in info:
-                playerchan = fpyaml.tochantups(info['chan'])[0]
-            else: playerchan = None
-            self._fluid.player_add(name, **{**info, 'chan': playerchan})
+            fpath = self.mfilesdir / info['file']
+            pchan = fpyaml.tochantups(info['chan'])[0] if 'chan' in info else None
+            self._fluid.player_add(name, **{**info, 'file': fpath, 'chan': pchan})
         for name, info in patch.get('sequencers', {}).items():
             self._fluid.sequencer_add(name, **info)
         for name, info in patch.get('arpeggiators', {}).items():
             self._fluid.arpeggiator_add(name, **info)
         for opt, val in {**self._bank.get('fluidsettings', {}), **patch.get('fluidsettings', {})}.items():
             self.fluid_set(opt, val)
+        for name, info in {**self._bank.get('ladspafx', {}), **patch.get('ladspafx', {})}.items():
+            libfile = self.pluginpath / info['lib']
+            if 'chan' in info: fxchannels &= fpyaml.tochanset(info['chan'])
+            if fxchannels:
+                self._fluid.fxunit_add(name, **{**info, 'lib': libfile, 'chan': fxchannels})
+        self._fluid.fxchain_link()
         for rule in self._bank.get('router_rules', []) + patch.get('router_rules', []):
             if rule == 'clear': self._fluid.router_clear()
             else: self.add_router_rule(rule)
@@ -210,7 +204,7 @@ class Patcher:
         if {soundfont} - self._soundfonts:
             if not self._fluid.load_soundfont(self.sfdir / soundfont):
                 self._soundfonts = set()
-                return
+                return False
         self._soundfonts = {soundfont}
         self.sfpresets = []
         for bank in range(MAX_SF_BANK):
@@ -220,16 +214,14 @@ class Patcher:
                 self.sfpresets.append(PresetInfo(name, bank, prog))
         self._reset_synth(full=True)
         self.add_router_rule(type='note', chan=f'2-{self._max_channels}=1')
+        return True
         
     def select_sfpreset(self, presetnum):
         warnings = []
-        if presetnum < len(self.sfpresets):
-            p = self.sfpresets[presetnum]
-            soundfont = list(self._soundfonts)[0]
-            if not self._fluid.program_select(0, self.sfdir / soundfont, p.bank, p.prog):
-                warnings.append(f"Unable to select preset {p}")
-        else:
-            warnings.append('Preset out of range')
+        p = self.sfpresets[presetnum]
+        soundfont = list(self._soundfonts)[0]
+        if not self._fluid.program_select(0, self.sfdir / soundfont, p.bank, p.prog):
+            warnings = [f"Unable to select preset {p}"]
         return warnings
 
     def fluid_get(self, opt):
@@ -325,10 +317,9 @@ class Patcher:
                 else:
                     self.fluid_set(opt, defaultval)
             for name, info in self._bank.get('players', {}).items():
-                if 'chan' in info:
-                    playerchan = fpyaml.tochantups(info['chan'])[0]
-                else: playerchan = None
-                self._fluid.player_add(name, **{**info, 'chan': playerchan})
+                fpath = self.mfilesdir / info['file']
+                pchan = fpyaml.tochantups(info['chan'])[0] if 'chan' in info else None
+                self._fluid.player_add(name, **{**info, 'file': fpath, 'chan': pchan})
             for name, info in self._bank.get('sequencers', {}).items():
                 self._fluid.sequencer_add(name, **info)
             for name, info in self._bank.get('arpeggiators', {}).items():
