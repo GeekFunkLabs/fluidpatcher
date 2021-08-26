@@ -2,19 +2,17 @@ soundfontdir: SquishBox/sf2
 bankdir: SquishBox/banks
 currentbank: bank1.yaml
 
-fluidsettings-default: &default
+fluidsettings:
   midi.autoconnect: 1
-fluidsettings-windows-lowlatency: &windows-lowlatency
+fluidsettings-windows-lowlatency:
   midi.autoconnect: 1
   audio.driver: wasapi
   audio.wasapi.exclusive-mode: 1
   audio.periods: 16
   audio.period-size: 144
-fluidsettings-linux: &linux-lowlatency
+fluidsettings-linux:
   midi.autoconnect: 1
   audio.driver: alsa
   audio.period-size: 64
   audio.periods: 3
   synth.ladspa.active: 1
-
-fluidsettings: *default
