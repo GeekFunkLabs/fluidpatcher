@@ -6,9 +6,10 @@ import re, oyaml
 nn = '[A-G]?[b#]?\d+'
 sfp = re.compile('^(.+\.sf2):(\d+):(\d+)$', flags=re.I)
 rte = re.compile(f'^({nn})-({nn})\*(-?[\d\.]+)([+-]{nn})$')
-fts = re.compile(f'^({nn})-?({nn})?=?(-?{nn})?-?(-?{nn})?$')
+fts = re.compile(f'^({nn})?-?({nn})?=?(-?{nn})?-?(-?{nn})?$')
 ft1 = re.compile(f'^({nn})-({nn})=?(-?{nn})?-?(-?{nn})?$')
 ft2 = re.compile(f'^({nn})=(-?{nn})?-?(-?{nn})?$')
+ft3 = re.compile(f'^=(-?{nn})-?(-?{nn})?$')
 msg = re.compile(f'^(note|cc|prog|pbend|cpress|kpress|noteoff):(\d+):({nn}):?(\d+)?$')
 
 def sift(val):
@@ -97,6 +98,40 @@ class SFPreset(oyaml.YAMLObject):
         return dumper.represent_scalar('!sfpreset', str(data))
 
 
+class MidiMsg(oyaml.YAMLObject):
+
+    yaml_tag = '!midimsg'
+    yaml_loader = oyaml.SafeLoader
+    yaml_dumper = oyaml.SafeDumper
+
+    def __init__(self, type, chan, par1, par2, yaml=''):
+        self.type = type
+        self.chan = chan - 1
+        self.par1 = scinote_to_val(par1)
+        self.par2 = par2
+        self.argstr = ', '.join(map(str, [type, chan, par1, par2]))
+        self.yaml = yaml
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.argstr})"
+
+    def __str__(self):
+        return self.yaml
+
+    def __iter__(self):
+        return iter([self.type, self.chan, self.par1, self.par2])
+
+    @classmethod
+    def from_yaml(cls, loader, node):
+        m = msg.search(loader.construct_scalar(node))
+        type, chan, par1, par2 = map(sift, m.groups())
+        return cls(type, chan, par1, par2, m[0])
+
+    @staticmethod
+    def to_yaml(dumper, data):
+        return dumper.represent_scalar('!midimsg', str(data))
+
+
 class RouterSpec(oyaml.YAMLObject):
 
     yaml_tag = '!rspec'
@@ -135,6 +170,7 @@ class FromToSpec(RouterSpec):
     yaml_dumper = oyaml.SafeDumper
     
     def __init__(self, min, max, tomin, tomax, yaml=''):
+        if min == None: min, max = 0, 127
         self.min = scinote_to_val(min)
         self.max = scinote_to_val(max) if max != None else self.min
         self.tomin = scinote_to_val(tomin) if tomin != None else self.min
@@ -201,50 +237,13 @@ class RouterRule(oyaml.YAMLObject):
         return dumper.represent_mapping('!rrule', data, flow_style=True)
 
 
-class MidiMsg(oyaml.YAMLObject):
-
-    yaml_tag = '!midimsg'
-    yaml_loader = oyaml.SafeLoader
-    yaml_dumper = oyaml.SafeDumper
-
-    def __init__(self, type, chan, par1, par2, yaml=''):
-        self.type = type
-        self.chan = chan - 1
-        self.par1 = scinote_to_val(par1)
-        self.par2 = par2
-        self.argstr = ', '.join(map(str, [type, chan, par1, par2]))
-        self.yaml = yaml
-#        if rep: self.rep = rep
-#        else:
-#            self.rep = f"{type}:{chan}:{par1}"
-#            if par2 != '': self.rep += f":{par2}"
-
-    def __repr__(self):
-        return f"{self.__class__.__name__}({self.argstr})"
-
-    def __str__(self):
-        return self.yaml
-
-    def __iter__(self):
-        return iter([self.type, self.chan, self.par1, self.par2])
-
-    @classmethod
-    def from_yaml(cls, loader, node):
-        m = msg.search(loader.construct_scalar(node))
-        type, chan, par1, par2 = map(sift, m.groups())
-        return cls(type, chan, par1, par2, m[0])
-
-    @staticmethod
-    def to_yaml(dumper, data):
-        return dumper.represent_scalar('!midimsg', str(data))
-
-
 handlers = dict(Loader=oyaml.SafeLoader, Dumper=oyaml.SafeDumper)
 oyaml.add_implicit_resolver('!sfpreset', sfp, **handlers)
+oyaml.add_implicit_resolver('!midimsg', msg, **handlers)
 oyaml.add_implicit_resolver('!rspec', rte, **handlers)
 oyaml.add_implicit_resolver('!ftspec', ft1, **handlers)
 oyaml.add_implicit_resolver('!ftspec', ft2, **handlers)
-oyaml.add_implicit_resolver('!midimsg', msg, **handlers)
+oyaml.add_implicit_resolver('!ftspec', ft3, **handlers)
 seqnode = oyaml.SequenceNode
 mapnode = oyaml.MappingNode
 oyaml.add_path_resolver('!rrule', [(mapnode, 'router_rules'), (seqnode, None)], dict, **handlers)
