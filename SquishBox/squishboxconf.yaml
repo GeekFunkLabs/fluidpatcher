@@ -3,13 +3,13 @@ bankdir: SquishBox/banks
 pluginpath: /usr/lib/ladspa
 currentbank: bank1.yaml
 
-fluidsettings-alsa: &alsa-audio
+fluidsettings:
   audio.driver: alsa
   audio.period-size: 64
   audio.periods: 3
   midi.autoconnect: 1
   synth.ladspa.active: 1
-fluidsettings-jack: &jack-multichannel
+fluidsettings-jack:
   audio.driver: jack
   audio.jack.autoconnect: 1
   audio.jack.multi: 1
@@ -17,5 +17,3 @@ fluidsettings-jack: &jack-multichannel
   synth.audio-channels: 16
   synth.audio-groups: 16
   synth.ladspa.active: 1
-
-fluidsettings: *jack-multichannel
