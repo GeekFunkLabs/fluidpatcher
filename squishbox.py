@@ -148,13 +148,12 @@ class SquishBox:
             if s < 0: return False
             sfont = pxr.soundfonts[s]
         sb.lcd_write("loading...", 1, rjust=True)
-        try: pxr.load_soundfont(sfont)
-        except Exception as e:
-            sb.lcd_write(f"sf load error: {str(e)}", 1, scroll=True)
-            sb.waitfortap()
-            return False
-        sb.waitforrelease(1)
-        return True
+        if pxr.load_soundfont(pxr.soundfonts[s]):
+            sb.waitforrelease(1)
+            return True
+        sb.lcd_write(f"Unable to load {str(pxr.soundfonts[s])}", 1, scroll=True)
+        sb.waitfortap()
+        return False
 
     def select_patch(self, pno):
         self.pno = pno
@@ -185,22 +184,20 @@ class SquishBox:
 
     def listener(self, msg):
         if hasattr(msg, 'val'):
-            pass
+            if hasattr(msg, 'patch'):
+                if msg.patch == 'select':
+                    self.pno = msg.val
+                    self.select_patch(self.pno)
+                elif msg.val > 0:
+                    self.pno = round(self.pno + msg.patch) % len(pxr.patches)
+                    self.select_patch(self.pno)
         elif self.midimon:
-            if msg.type == 'note':
-                sb.lcd_write(f"Ch{msg.chan + 1:<3}note{msg.par1:3}={msg.par2:<3}", 1)
-            if msg.type == 'noteoff':
-                sb.lcd_write(f"Ch{msg.chan + 1:<3}noff{msg.par1:3}={msg.par2:<3}", 1)
-            if msg.type == 'cc':
-                sb.lcd_write(f"Ch{msg.chan + 1:<3}  cc{msg.par1:3}={msg.par2:<3}", 1)
-            if msg.type == 'kpress':
-                sb.lcd_write(f"Ch{msg.chan + 1:<3}keyp{msg.par1:3}={msg.par2:<3}", 1)
-            if msg.type == 'pbend':
-                sb.lcd_write(f"Ch{msg.chan + 1:<3}pbend={msg.par1:<5}", 1)
-            if msg.type == 'cpress':
-                sb.lcd_write(f"Ch{msg.chan + 1:<3}atouch={msg.par1:<4}", 1)
-            if msg.type == 'prog':
-                sb.lcd_write(f"Ch{msg.chan + 1:<3}program={msg.par1:<3}", 1)
+            t = ('note', 'noteoff', 'cc', 'kpress', 'prog', 'pbend', 'cpress').index(msg.type)
+            x = ("note", "noff", "  cc", "keyp", " prog", "pbend", "press")[t]
+            if t < 4:
+                sb.lcd_write(f"Ch{msg.chan + 1:<3}{x}{msg.par1:3}={msg.par2:<3}", 1)
+            else:
+                sb.lcd_write(f"Ch{msg.chan + 1:<3}{x}={msg.par1:<5}", 1)
 
     def effects_menu(self):
         i=0

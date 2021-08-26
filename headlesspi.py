@@ -121,7 +121,7 @@ class HeadlessSynth:
         onboardled_blink(ACT_LED)
 
     def listener(self, msg):
-    # catches midi :msg to change patch/bank
+    # catches custom midi :msg to change patch/bank
         if hasattr(msg, 'patch'):
             if msg.patch == 'select':
                 x = int(msg.val * min(len(pxr.patches), 128) / 128)
