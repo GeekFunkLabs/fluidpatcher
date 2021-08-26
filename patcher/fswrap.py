@@ -77,12 +77,9 @@ specfunc(FL.new_fluid_player, c_void_p, c_void_p)
 specfunc(FL.delete_fluid_player, None, c_void_p)
 specfunc(FL.fluid_player_add, c_int, c_void_p, c_char_p)
 specfunc(FL.fluid_player_set_playback_callback, c_int, c_void_p, fl_eventcallback, c_void_p)
-#specfunc(FL.fluid_player_set_tick_callback, c_int, c_void_p, fl_tickcallback, c_void_p)
 specfunc(FL.fluid_player_play, c_int, c_void_p)
 specfunc(FL.fluid_player_stop, c_int, c_void_p)
-#specfunc(FL.fluid_player_seek, c_int, c_void_p, c_int)
 specfunc(FL.fluid_player_set_loop, c_int, c_void_p, c_int)
-#specfunc(FL.fluid_player_set_tempo, c_int, c_void_p, c_int, c_double)
 specfunc(FL.fluid_player_get_status, c_int, c_void_p)
 FLUID_PLAYER_TEMPO_INTERNAL = 0
 FLUID_PLAYER_TEMPO_EXTERNAL_MIDI = 2
@@ -114,20 +111,18 @@ FLUID_SEQ_UNREGISTERING = 21
 
 try:
     FLUIDSYNTH2 = True
-    specfunc(FL.fluid_player_set_tick_callback, c_int, c_void_p, fl_tickcallback, c_void_p)
-    specfunc(FL.fluid_player_seek, c_int, c_void_p, c_int)
-    specfunc(FL.fluid_player_set_tempo, c_int, c_void_p, c_int, c_double)
-
     specfunc(FL.fluid_synth_get_sfont_by_id, c_void_p, c_void_p, c_int)
     specfunc(FL.fluid_sfont_get_preset, c_void_p, c_void_p, c_int, c_int)
     specfunc(FL.fluid_preset_get_name, c_char_p, c_void_p)
+    specfunc(FL.fluid_player_set_tick_callback, c_int, c_void_p, fl_tickcallback, c_void_p)
+    specfunc(FL.fluid_player_seek, c_int, c_void_p, c_int)
+    specfunc(FL.fluid_player_set_tempo, c_int, c_void_p, c_int, c_double)
     fl_fluid_synth_get_ladspa_fx = specfunc(FL.fluid_synth_get_ladspa_fx, c_void_p, c_void_p)
     specfunc(FL.fluid_ladspa_activate, c_void_p, c_void_p)
     specfunc(FL.fluid_ladspa_reset, c_int, c_void_p)
     specfunc(FL.fluid_ladspa_add_effect, c_int, c_void_p, c_char_p, c_char_p, c_char_p)
     specfunc(FL.fluid_ladspa_add_buffer, c_int, c_void_p, c_char_p)
     specfunc(FL.fluid_ladspa_buffer_exists, c_int, c_void_p, c_char_p)
-    specfunc(FL.fluid_ladspa_effect_set_mix, c_int, c_void_p, c_char_p, c_int, c_float)
     specfunc(FL.fluid_ladspa_effect_set_control, c_int, c_void_p, c_char_p, c_char_p, c_float)
     specfunc(FL.fluid_ladspa_effect_link, c_int, c_void_p, c_char_p, c_char_p, c_char_p)
     FLUIDSETTING_EXISTS = FLUID_OK
@@ -252,7 +247,7 @@ class TransRule:
             else:
                 if not (self.par1.min <= mevent.par1 <= self.par1.max):
                     return False
-        if self.type in ('note', 'cc', 'kpress', 'noteoff') and self.par2:
+        if self.type in ('note', 'cc', 'kpress', 'noteoff') and self.par2 != None:
             if self.par2.min > self.par2.max:
                 if self.par2.min < mevent.par2 < self.par2.max:
                     return False
@@ -326,10 +321,9 @@ class ExtRule(TransRule):
 
 class Player:
 
-    def __init__(self, synth, files, loops, chan, barlength):
+    def __init__(self, synth, file, loops, chan, barlength):
         self.fplayer = FL.new_fluid_player(synth.fsynth)
-        for file in files:
-            FL.fluid_player_add(self.fplayer, str(file).encode())
+        FL.fluid_player_add(self.fplayer, str(file).encode())
         self.loops = list(zip(loops[::2], loops[1::2]))
         self.chan = Route(*chan) if chan else None
         self.barlength = barlength
@@ -493,26 +487,28 @@ class LadspaEffect:
     
     def __init__(self, synth, name, lib, plugin, channels, audio):
         self.ladspa = synth.ladspa
-        if plugin != None: plugin = plugin.encode()
+        plugin = plugin.encode() if plugin else None
         if audio == 'stereo':
             audio = 'Input L', 'Input R', 'Output L', 'Output R'
         elif audio == 'mono':
             audio = 'Input', 'Output'
-        aports = [p.encode() for p in audio]
+        aports = [port.encode() for port in audio]
         self.fxunits = []
         self.fxinfo = {}
         def addfxunit():
-            self.fxunits.append(f"{name}{len(self.fxunits)}".encode())
-            FL.fluid_ladspa_add_effect(self.ladspa, self.fxunits[-1], str(lib).encode(), plugin)
+            fxname = f"{name}{len(self.fxunits)}".encode()
+            if FL.fluid_ladspa_add_effect(self.ladspa, fxname, str(lib).encode(), plugin) == FLUID_OK:
+                self.fxunits.append(fxname)
+                return True
+            return False
         for hostports, midichannels in synth.hostports_mapping:
             if not channels & midichannels: continue
             if len(audio) == 4: # stereo effect
-                addfxunit()
-                self.fxinfo[hostports] = self.fxunits[-1:] * 2, aports[0:2], aports[2:4]
+                if addfxunit():
+                    self.fxinfo[hostports] = self.fxunits[-1:] * 2, aports[0:2], aports[2:4]
             if len(audio) == 2: # mono effect
-                addfxunit()
-                addfxunit()
-                self.fxinfo[hostports] = self.fxunits[-2:], aports[0:1] * 2, aports[1:2] * 2
+                if addfxunit() and addfxunit():
+                    self.fxinfo[hostports] = self.fxunits[-2:], aports[0:1] * 2, aports[1:2] * 2
 
     def link(self, hostports, inputs, outputs):
         for fxunit, fxin, fxout, inp, outp in zip(*self.fxinfo[hostports], inputs, outputs):
@@ -522,10 +518,6 @@ class LadspaEffect:
     def setcontrol(self, port, val):
         for fxunit in self.fxunits:
             FL.fluid_ladspa_effect_set_control(self.ladspa, fxunit, port.encode(), c_float(val))
-
-    def setmix(self, gain):
-        for fxunit in self.fxunits:
-            FL.fluid_ladspa_effect_set_mix(self.ladspa, fxunit, 1, c_float(gain))
 
 
 class Synth:
@@ -582,9 +574,6 @@ class Synth:
                 elif hasattr(res, 'ladspafx'):
                     if res.ladspafx in self.ladspafx:
                         self.ladspafx[res.ladspafx].setcontrol(res.port, res.val)
-                elif hasattr(res, 'ladspafxmix'):
-                    if res.ladspafx in self.ladspafx:
-                        self.ladspafx[res.ladspafx].setmix(res.val)
                 else:
                     if self.msg_callback != None:
                         self.msg_callback(res)
@@ -710,18 +699,18 @@ class Synth:
             return FL.fluid_preset_get_name(preset_obj).decode()
 
         def player_add(self, name, file, loops=[], chan=None, barlength=1, tempo=0):
-            if not isinstance(file, list): file = [file]
             self.players[name] = Player(self, file, loops, chan, barlength)
-            
+            if tempo > 0:
+                self.players[name].set_tempo(tempo)
+
         def fxchain_clear(self):
             self.ladspafx = {}
             FL.fluid_ladspa_reset(self.ladspa)
 
-        def fxunit_add(self, name, lib, plugin=None, chan=None, audio='stereo', vals={}, mix=None):
+        def fxunit_add(self, name, lib, plugin=None, chan=None, audio='stereo', vals={}):
             self.ladspafx[name] = LadspaEffect(self, name, lib, plugin, chan, audio)
             for ctrl, val in vals.items():
                 self.ladspafx[name].setcontrol(ctrl, val)
-            if mix: self.ladspafx[name].setmix(mix)
 
         def fxchain_link(self):
             if self.ladspafx == {}: return
@@ -756,7 +745,7 @@ class Synth:
         def fxchain_clear(self):
             pass
 
-        def fxunit_add(self, name, lib, plugin=None, chan=None, audio='stereo', vals={}, mix=None):
+        def fxunit_add(self, name, lib, plugin=None, chan=None, audio='stereo', vals={}):
             pass
 
         def fxchain_link(self):
