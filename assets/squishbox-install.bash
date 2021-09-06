@@ -52,7 +52,7 @@ sysupdate() {
         UPDATED=true
 		if $UPGRADE; then
 			echo "Upgrading your system..."
-			sudo apt-get DEBIAN_FRONTEND=noninteractive -qqy upgrade --with-new-pkgs &>> $logfile
+			sudo DEBIAN_FRONTEND=noninteractive apt-get -qqy upgrade --with-new-pkgs &>> $logfile
 			sudo apt-get clean && sudo apt-get autoclean
 			sudo apt-get -qqy autoremove
 			UPGRADE=false
@@ -64,7 +64,7 @@ apt_pkg_install() {
     APT_CHK=$(dpkg-query -W -f='${Status}\n' "$1" 2> /dev/null | grep "install ok installed")
     if [[ $APT_CHK == "" ]]; then    
         echo "Aptitude is installing $1..."
-        sudo apt-get DEBIAN_FRONTEND=noninteractive --no-install-recommends -qqy install "$1" &>> $logfile ||
+        sudo DEBIAN_FRONTEND=noninteractive apt-get --no-install-recommends -qqy install "$1" &>> $logfile ||
 			{ warning "Apt failed to install $1! Logged to $logfile" && exit 1; }
     fi
 }
@@ -154,8 +154,10 @@ if [[ $startup == 2 ]]; then
 fi
 
 REPO=`sed -n '/^deb /p' /etc/apt/sources.list|cut -d' ' -f2`
-echo "Required system software will download from $REPO"
-echo "You may optionally use a mirror near you from https://www.raspbian.org/RaspbianMirrors"
+echo "The default software repository (http://raspbian.raspberrypi.org/raspbian/)"
+echo "sometimes responds too slowly, causing installation to time out and fail."
+echo "For this reason, you may want to use a site near you from the list at"
+echo "https://www.raspbian.org/RaspbianMirrors"
 query "Software repository" $REPO; mirror=$response
 if promptorno "OK to upgrade your system (if possible)?"; then
 	UPGRADE=true
@@ -199,26 +201,27 @@ warning "\nThis may take some time ... go make some coffee.\n"
 umask 002 
 # desktop distros play an audio message when booting to setup; this disables it
 sudo mv /etc/xdg/autostart/piwiz.desktop /etc/xdg/autostart/piwiz.disabled &>> $logfile
+
+# get dependencies
+inform "Installing/Updating required software..."
 if [[ $mirror != $REPO ]]; then
 	sudo sed -i "/^deb/s|$REPO|$mirror|" /etc/apt/sources.list
 fi
+sysupdate
+apt_pkg_install "git"  # use curl or wget instead?
+apt_pkg_install "python3-pip"
+apt_pkg_install "python3-rtmidi"
+apt_pkg_install "libfluidsynth1"
+apt_pkg_install "fluid-soundfont-gm"
+apt_pkg_install "jackd1"
+pip_install "oyaml"
+pip_install "mido"
+pip_install "RPi.GPIO"
+pip_install "RPLCD"
+sudo usermod -a -G audio pi
 
 if [[ $update == "yes" ]]; then
-    inform "Installing/Updating FluidPatcher and any required packages..."
-    # get dependencies
-    sysupdate
-    apt_pkg_install "git"  # use curl or wget instead?
-    apt_pkg_install "python3-pip"
-    apt_pkg_install "python3-rtmidi"
-    apt_pkg_install "libfluidsynth1"
-    apt_pkg_install "fluid-soundfont-gm"
-    apt_pkg_install "jackd1"
-    pip_install "oyaml"
-    pip_install "mido"
-    pip_install "RPi.GPIO"
-    pip_install "RPLCD"
-
-    echo "Installing/Updating FluidPatcher version $NEW_FP_VER ..."
+    inform "Installing/Updating FluidPatcher version $NEW_FP_VER ..."
     rm -rf fluidpatcher
     git clone https://github.com/albedozero/fluidpatcher &>> $logfile
 	cd fluidpatcher
@@ -235,24 +238,11 @@ if [[ $update == "yes" ]]; then
 	cd ..
     rm -rf fluidpatcher
     ln -s /usr/share/sounds/sf2/FluidR3_GM.sf2 $installdir/SquishBox/sf2/ &>> $logfile
-    
-    # audio tweaks
-    sudo usermod -a -G audio pi
-    AUDIOCONF="/etc/security/limits.d/audio.conf"
-    if test -f "$AUDIOCONF"; then
-        if ! grep -q "^@audio - rtprio 80" $AUDIOCONF; then
-            echo "@audio - rtprio 80" | sudo tee -a $AUDIOCONF &>> $logfile
-        fi
-        if ! grep -q "^@audio - memlock unlimited" $AUDIOCONF; then
-            echo "@audio - memlock unlimited" | sudo tee -a $AUDIOCONF &>> $logfile
-        fi
-    else
-        echo -e "@audio - rtprio 80\n@audio - memlock unlimited" | sudo tee -a $AUDIOCONF &>> $logfile
-    fi
 fi
 
 # set up audio
 if (( $audiosetup > 0 )); then
+	inform "Setting up audio..."
 	sed -i "/  audio.alsa.device/d" $installdir/SquishBox/squishboxconf.yaml
 	echo "/usr/bin/jackd --silent -r -d alsa -s -p 64 -n 3 -r 44100 -P" | sudo tee /etc/jackdrc &>> $logfile
 	if (( $audiosetup > 1 )); then
@@ -264,7 +254,7 @@ fi
 
 # set up services
 if [[ $startup == "1" ]]; then
-    echo "Enabling startup service..."
+    inform "Enabling SquishBox startup service..."
     chmod a+x $installdir/squishbox.py
     cat <<EOF | sudo tee /etc/systemd/system/squishbox.service &>> $logfile
 [Unit]
@@ -285,7 +275,7 @@ EOF
     sudo systemctl enable squishbox.service &>> $logfile
     ASK_TO_REBOOT=true
 elif [[ $startup == "2" ]]; then
-    echo "Enabling startup service..."
+    inform "Enabling headless Pi synth startup service..."
     chmod a+x $installdir/headlesspi.py
     cat <<EOF | sudo tee /etc/systemd/system/squishbox.service &>> $logfile
 [Unit]
@@ -315,7 +305,7 @@ EOF
 		sed -i "/^CTRLS_MIDI_CHANNEL/s|[0-9]\+|$ctrls_channel|" $installdir/headlesspi.py; fi
     ASK_TO_REBOOT=true
 elif [[ $startup == "3" ]]; then
-    echo "Disabling startup service..."
+    inform "Disabling startup service..."
     sudo systemctl disable squishbox.service &>> $logfile
     ASK_TO_REBOOT=true
 fi
@@ -385,16 +375,15 @@ EOF
         sudo sed -i "/\[Service\]/aUMask=0002" /lib/systemd/system/php7.3-fpm.service
     fi
     # install and configure [tinyfilemanager](https://tinyfilemanager.github.io)
-    echo "Configuring file manager..."
     wget -q raw.githubusercontent.com/prasathmani/tinyfilemanager/master/tinyfilemanager.php
-    sudo sed -i "/define('APP_TITLE'/cdefine('APP_TITLE', 'SquishBox Manager');" tinyfilemanager.php
-    sudo sed -i "/'admin' =>/d;/'user' =>/d" tinyfilemanager.php
-    sudo sed -i "/\$auth_users =/a    '$fmgr_user' => '$fmgr_hash'" tinyfilemanager.php
-    sudo sed -i "/\$theme =/c\$theme = 'dark';" tinyfilemanager.php
-    sudo sed -i "0,/root_path =/s|root_path = .*|root_path = '$installdir/SquishBox';|" tinyfilemanager.php
-    sudo sed -i "0,/favicon_path =/s|favicon_path = .*|favicon_path = 'gfl_logo.png';|" tinyfilemanager.php
-    sudo sed -i '/aceMode/s|,"yaml":"YAML"||' tinyfilemanager.php
-    sudo sed -i 's|"aceMode":{|&"yaml":"YAML",|' tinyfilemanager.php
+    sed -i "/define('APP_TITLE'/cdefine('APP_TITLE', 'SquishBox Manager');" tinyfilemanager.php
+    sed -i "/'admin' =>/d;/'user' =>/d" tinyfilemanager.php
+    sed -i "/\$auth_users =/a    '$fmgr_user' => '$fmgr_hash'" tinyfilemanager.php
+    sed -i "/\$theme =/c\$theme = 'dark';" tinyfilemanager.php
+    sed -i "0,/root_path =/s|root_path = .*|root_path = '$installdir/SquishBox';|" tinyfilemanager.php
+    sed -i "0,/favicon_path =/s|favicon_path = .*|favicon_path = 'gfl_logo.png';|" tinyfilemanager.php
+    sed -i '/aceMode/s|,"yaml":"YAML"||' tinyfilemanager.php
+    sed -i 's|"aceMode":{|&"yaml":"YAML",|' tinyfilemanager.php
     sudo mv -f tinyfilemanager.php /var/www/html/index.php
     wget -q geekfunklabs.com/gfl_logo.png
     sudo mv -f gfl_logo.png /var/www/html/
