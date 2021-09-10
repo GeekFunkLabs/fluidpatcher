@@ -46,9 +46,9 @@ class ControlBoard(wx.Panel):
         dc.DrawRectangle(0, 0, w, h2)
         dc.SetTextForeground(wx.WHITE)
         dc.SetClippingRegion(PAD, PAD, w - 2 * PAD, fh * 3 + PAD * 2)
-        dc.DrawLabel(pwin.currentfile, wx.Rect(PAD, PAD, w - 2 * PAD, fh))
-        dc.DrawLabel(pxr.patches[pwin.pno], wx.Rect(PAD, fh * 1 + PAD * 2, w - 2 * PAD, fh))
-        dc.DrawLabel(f"patch {pwin.pno + 1}/{len(pxr.patches)}", wx.Rect(PAD, fh * 2 + PAD * 3, w - 2 * PAD, fh), wx.ALIGN_RIGHT)
+        dc.DrawLabel(pwin.display[0], wx.Rect(PAD, PAD, w - 2 * PAD, fh))
+        dc.DrawLabel(pwin.display[1], wx.Rect(PAD, fh * 1 + PAD * 2, w - 2 * PAD, fh))
+        dc.DrawLabel(pwin.display[2], wx.Rect(PAD, fh * 2 + PAD * 3, w - 2 * PAD, fh), wx.ALIGN_RIGHT)
         dc.DestroyClippingRegion()
         
         dc.SetTextForeground(wx.BLACK)
@@ -216,6 +216,7 @@ class MainWindow(wx.Frame):
         self.menubar.Append(helpMenu, '&Help')
         self.SetMenuBar(self.menubar)
 
+        self.display = ['', '', '']
         self.ctrlboard = ControlBoard(self)
         self.bedit = TextCtrlDialog('', "Bank Editor", ' ', flags=wx.APPLY|wx.CLOSE, edit=True, size=(500, 450))
         self.midimon = MidiMonitor(self)
@@ -244,10 +245,14 @@ class MainWindow(wx.Frame):
             self.midimon.msglist.ScrollList(0, 99)
 
     def load_bankfile(self, bfile=''):
+        self.display = [bfile, "", "loading patches"]
+        self.ctrlboard.Refresh()
+        self.ctrlboard.Update()
         try:
             rawbank = pxr.load_bank(bfile)
         except Exception as e:
             wx.MessageBox(str(e), "Error", wx.OK|wx.ICON_ERROR)
+            self.display[0] = self.currentfile
             return
         pxr.write_config()
         self.currentfile = bfile
@@ -297,6 +302,7 @@ class MainWindow(wx.Frame):
         else:
             self.pno = pno
         warn = pxr.select_patch(self.pno)
+        self.display[1:] = pxr.patches[self.pno], f"patch {self.pno + 1}/{len(pxr.patches)}"
         self.ctrlboard.Refresh()
         if warn: wx.MessageBox('\n'.join(warn), "Warning", wx.OK|wx.ICON_WARNING)
 
@@ -370,20 +376,20 @@ class MainWindow(wx.Frame):
         else:
             wx.MessageBox(f"Unable to load {sfrel}", "Error", wx.OK|wx.ICON_ERROR)
             return
-        if sfbrowser.ShowModal() == wx.ID_OK:
+        if sfbrowser.ShowModal() == wx.ID_OK and self.bedit.IsShown():
             self.bedit.text.WriteText(sfbrowser.copypreset)
         sfbrowser.Destroy()
         self.choose_patch(pno=self.pno)
 
     def onBrowsePlugins(self, event):
-        if not pxr.pluginpath:
+        if not pxr.plugindir:
             pdir = wx.DirSelector("Select Plugins Directory")
             if pdir == '': return
             pxr.cfg['plugindir'] = Path(pdir)
             pxr.write_config()
-        plugin = wx.FileSelector("Plugins", str(pxr.pluginpath), "", "*.dll", "LADSPA plugin (*.dll)|*.dll")
+        plugin = wx.FileSelector("Plugins", str(pxr.plugindir), "", "*.dll", "LADSPA plugin (*.dll)|*.dll")
         if plugin:
-            self.bedit.text.WriteText(str(Path(plugin).relative_to(pxr.pluginpath)))
+            self.bedit.text.WriteText(str(Path(plugin).relative_to(pxr.plugindir)))
 
     def onMidiMon(self, event):
         self.midimon.monitor = True
@@ -405,6 +411,7 @@ class MainWindow(wx.Frame):
     def onAbout(self, event):
         msg = f"""
 FluidPatcher v{patcher.VERSION}
+github.com/albedozero/fluidpatcher
 
 by Bill Peterson
 geekfunklabs.com
