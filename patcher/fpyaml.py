@@ -5,12 +5,13 @@ import re, oyaml
 
 nn = '[A-G]?[b#]?\d+'
 sfp = re.compile('^(.+\.sf2):(\d+):(\d+)$', flags=re.I)
+msg = re.compile(f'^(note|cc|prog|pbend|cpress|kpress|noteoff):(\d+):({nn}):?(\d+)?$')
+syx = re.compile('^sysex:(.*?):(.+)$')
 rte = re.compile(f'^({nn})-({nn})\*(-?[\d\.]+)([+-]{nn})$')
 fts = re.compile(f'^({nn})?-?({nn})?=?(-?{nn})?-?(-?{nn})?$')
 ft1 = re.compile(f'^({nn})-({nn})=?(-?{nn})?-?(-?{nn})?$')
 ft2 = re.compile(f'^({nn})=(-?{nn})?-?(-?{nn})?$')
 ft3 = re.compile(f'^=(-?{nn})-?(-?{nn})?$')
-msg = re.compile(f'^(note|cc|prog|pbend|cpress|kpress|noteoff):(\d+):({nn}):?(\d+)?$')
 
 def sift(val):
     try:
@@ -21,7 +22,7 @@ def sift(val):
         if val.is_integer():
             val = int(val)
         return val
-        
+
 def scinote_to_val(val):
     if not isinstance(val, str):
         return val
@@ -132,6 +133,38 @@ class MidiMsg(oyaml.YAMLObject):
         return dumper.represent_scalar('!midimsg', str(data))
 
 
+class SysexMsg(MidiMsg):
+
+    yaml_tag = '!syxmsg'
+    yaml_loader = oyaml.SafeLoader
+    yaml_dumper = oyaml.SafeDumper
+
+    def __init__(self, dest, data=[], file='', yaml=''):
+        self.dest = dest
+        self.data = data
+        self.file = file
+        self.argstr = ', '.join(map(str, [dest, data, file, yaml]))
+        self.yaml = yaml
+
+    def __iter__(self):
+        return iter(self.data)
+
+    @classmethod
+    def from_yaml(cls, loader, node):
+        s = syx.search(loader.construct_scalar(node))
+        if ':' in  s[2]:
+            try:
+                data = list(map(int, s[2].split(':')))
+            except ValueError:
+                data = list(map(lambda x: int(x, 16), s[2].split(':')))
+            finally: return cls(s[1], data=[data], yaml=s[0])
+        else: return cls(s[1], file=s[2], yaml=s[0])
+
+    @staticmethod
+    def to_yaml(dumper, data):
+        return dumper.represent_scalar('!syxmsg', str(data))
+
+
 class RouterSpec(oyaml.YAMLObject):
 
     yaml_tag = '!rspec'
@@ -240,6 +273,7 @@ class RouterRule(oyaml.YAMLObject):
 handlers = dict(Loader=oyaml.SafeLoader, Dumper=oyaml.SafeDumper)
 oyaml.add_implicit_resolver('!sfpreset', sfp, **handlers)
 oyaml.add_implicit_resolver('!midimsg', msg, **handlers)
+oyaml.add_implicit_resolver('!syxmsg', syx, **handlers)
 oyaml.add_implicit_resolver('!rspec', rte, **handlers)
 oyaml.add_implicit_resolver('!ftspec', ft1, **handlers)
 oyaml.add_implicit_resolver('!ftspec', ft2, **handlers)
