@@ -3,6 +3,7 @@ Description: a performance-oriented patch interface for fluidsynth
 """
 import re, copy
 from pathlib import Path
+import mido
 from . import fswrap, fpyaml
 
 VERSION = '0.5'
@@ -51,8 +52,8 @@ class Patcher:
         return Path(self.cfg.get('mfilesdir', '')).resolve()
 
     @property
-    def pluginpath(self):
-        return Path(self.cfg.get('pluginpath', '')).resolve()
+    def plugindir(self):
+        return Path(self.cfg.get('plugindir', '')).resolve()
 
     @property
     def banks(self):
@@ -143,7 +144,7 @@ class Patcher:
         for opt, val in {**self._bank.get('fluidsettings', {}), **patch.get('fluidsettings', {})}.items():
             self.fluid_set(opt, val)
         for name, info in {**self._bank.get('ladspafx', {}), **patch.get('ladspafx', {})}.items():
-            libfile = self.pluginpath / info['lib']
+            libfile = self.plugindir / info['lib']
             if 'chan' in info: fxchannels &= fpyaml.tochanset(info['chan'])
             if fxchannels:
                 self._fluid.fxunit_add(name, **{**info, 'lib': libfile, 'chan': fxchannels})
@@ -153,6 +154,7 @@ class Patcher:
             else: self.add_router_rule(rule)
         for msg in self._bank.get('messages', []) + patch.get('messages', []):
             if msg == 'default': self._send_cc_defaults()
+            elif isinstance(msg, fpyaml.SysexMsg): self._send_sysex(msg)
             else: self._fluid.send_event(*msg)
         return warnings
 
@@ -273,31 +275,29 @@ class Patcher:
             patch = self._bank['patches'][name]
         return patch
 
-    """
-    def _parse_sysex(self, messages):
-        outports = list_midi_outputs()
-        openports = {}
-        try:
-            for port, data in [(x[0], x[1:]) for x in messages]:
-                for name in [p for p in outports if port in p]:
-                    if name not in openports:
-                        openports[name] = mido.open_output(name)
-                    if isinstance(data[0], str):
-                        msg = mido.read_syx_file(self.sysexdir / data[0])
-                    else:
-                        msg = mido.Message('sysex', data=data)
-                    openports[name].send(msg)
-            for name in openports:
-                openports[name].close()
-        except:
-            return "Failed to parse or send SYSEX"
-    """
-
     def _send_cc_defaults(self, channels=[]):
         for channel in channels or range(1, self._max_channels + 1):
             for first, last, default in CC_DEFAULTS:
                 for ctrl in range(first, last + 1):
                     self._fluid.send_cc(channel - 1, ctrl, default)
+
+    def _send_sysex(self, msg):
+        if not msg.data and msg.file:
+            msg.data = [m.data for m in mido.read_syx_file(self.mfilesdir / msg.file)]
+        if msg.dest == '' or "FLUID Synth" in msg.dest:
+            for x in msg: self._fluid.send_sysex(x)
+        else:
+            if not hasattr(self, 'ports'): self.ports = {}
+            for portname in self.ports:
+                if msg.dest in portname:
+                    port = self.ports[portname]
+                    break
+            else:
+                for portname in mido.get_output_names():
+                    if msg.dest in portname:
+                        port = self.ports[portname] = mido.open_output(portname)
+                        break
+            for x in msg: port.send(mido.Message('sysex', data=x))
 
     def _reset_synth(self, full=True):
         self._fluid.router_default()
@@ -329,7 +329,8 @@ class Patcher:
                 for opt, val in init.get('fluidsettings', {}).items():
                     self.fluid_set(opt, val)
                 for msg in init.get('messages', []):
-                    self._fluid.send_event(*msg)
+                    if isinstance(msg, fpyaml.SysexMsg): self._send_sysex(msg)
+                    else: self._fluid.send_event(*msg)
 
 
 class PresetInfo:
