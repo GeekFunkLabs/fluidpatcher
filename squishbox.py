@@ -11,7 +11,6 @@ from utils import stompboxpi as SB
 class SquishBox:
 
     def __init__(self):
-        self.midimon = False
         self.networks = []
         pxr.set_midimessage_callback(self.listener)
         if not self.load_bank(pxr.currentbank):
@@ -189,15 +188,10 @@ class SquishBox:
                     self.pno = msg.val
                     self.select_patch(self.pno)
                 elif msg.val > 0:
-                    self.pno = round(self.pno + msg.patch) % len(pxr.patches)
+                    self.pno = (self.pno + msg.patch) % len(pxr.patches)
                     self.select_patch(self.pno)
-        elif self.midimon:
-            t = ('note', 'noteoff', 'cc', 'kpress', 'prog', 'pbend', 'cpress').index(msg.type)
-            x = ("note", "noff", "  cc", "keyp", " prog", "pbend", "press")[t]
-            if t < 4:
-                sb.lcd_write(f"Ch{msg.chan + 1:<3}{x}{msg.par1:3}={msg.par2:<3}", 1)
-            else:
-                sb.lcd_write(f"Ch{msg.chan + 1:<3}{x}={msg.par1:<5}", 1)
+        else:
+            self.lastmsg = msg
 
     def effects_menu(self):
         i=0
@@ -255,9 +249,16 @@ class SquishBox:
         elif p == len(rports):
             sb.lcd_clear()
             sb.lcd_write("MIDI monitor:", 0)
-            self.midimon = True
-            while not sb.waitfortap(0.1): pass
-            self.midimon = False
+            msg = self.lastmsg
+            while not sb.waitfortap(0.1):
+                if msg == self.lastmsg: continue
+                msg = self.lastmsg
+                t = ('note', 'noteoff', 'cc', 'kpress', 'prog', 'pbend', 'cpress').index(msg.type)
+                x = ("note", "noff", "  cc", "keyp", " prog", "pbend", "press")[t]
+                if t < 4:
+                    sb.lcd_write(f"Ch{msg.chan + 1:<3}{x}{msg.par1:3}={msg.par2:<3}", 1)
+                else:
+                    sb.lcd_write(f"Ch{msg.chan + 1:<3}{x}={msg.par1:<5}", 1)
 
     def wifi_settings(self):
         # display current connection
