@@ -35,7 +35,7 @@ specfunc(FL.fluid_settings_setnum, c_int, c_void_p, c_char_p, c_double)
 specfunc(FL.fluid_settings_setstr, c_int, c_void_p, c_char_p, c_char_p)
 
 # synth
-fl_eventcallback = CFUNCTYPE(c_void_p, c_void_p, c_void_p)
+fl_eventcallback = CFUNCTYPE(c_int, c_void_p, c_void_p)
 specfunc(FL.new_fluid_synth, c_void_p, c_void_p)
 specfunc(FL.new_fluid_audio_driver, c_void_p, c_void_p, c_void_p)
 specfunc(FL.new_fluid_midi_router, c_void_p, c_void_p, fl_eventcallback, c_void_p)
@@ -70,6 +70,7 @@ specfunc(FL.fluid_midi_event_set_type, c_int, c_void_p, c_int)
 specfunc(FL.fluid_midi_event_set_channel, c_int, c_void_p, c_int)
 fl_midi_event_set_par1 = specfunc(FL.fluid_midi_event_set_key, c_int, c_void_p, c_int)
 fl_midi_event_set_par2 = specfunc(FL.fluid_midi_event_set_velocity, c_int, c_void_p, c_int)
+specfunc(FL.fluid_midi_event_set_sysex, c_int, c_void_p, c_void_p, c_int, c_int)
 
 # player
 fl_tickcallback = CFUNCTYPE(None, c_void_p, c_uint)
@@ -117,7 +118,7 @@ try:
     specfunc(FL.fluid_player_set_tick_callback, c_int, c_void_p, fl_tickcallback, c_void_p)
     specfunc(FL.fluid_player_seek, c_int, c_void_p, c_int)
     specfunc(FL.fluid_player_set_tempo, c_int, c_void_p, c_int, c_double)
-    fl_fluid_synth_get_ladspa_fx = specfunc(FL.fluid_synth_get_ladspa_fx, c_void_p, c_void_p)
+    specfunc(FL.fluid_synth_get_ladspa_fx, c_void_p, c_void_p)
     specfunc(FL.fluid_ladspa_activate, c_void_p, c_void_p)
     specfunc(FL.fluid_ladspa_reset, c_int, c_void_p)
     specfunc(FL.fluid_ladspa_add_effect, c_int, c_void_p, c_char_p, c_char_p, c_char_p)
@@ -137,7 +138,7 @@ except:
             ('name', c_char*32),
             ('reserved', c_char*32)]
     specfunc(FL.fluid_synth_get_channel_info, c_int, c_void_p, c_int, POINTER(fluid_synth_channel_info_t))
-    fl_fluid_synth_get_ladspa_fx = lambda _: None
+    specfunc(FL.fluid_player_set_midi_tempo, c_int, c_void_p, c_int)
     FLUIDSETTING_EXISTS = 1
 
 MIDI_NOTEOFF = 0x80
@@ -319,61 +320,6 @@ class ExtRule(TransRule):
         return ExtMidiMessage(msg, val, self)
 
 
-class Player:
-
-    def __init__(self, synth, file, loops, chan, barlength):
-        self.fplayer = FL.new_fluid_player(synth.fsynth)
-        FL.fluid_player_add(self.fplayer, str(file).encode())
-        self.loops = list(zip(loops[::2], loops[1::2]))
-        self.chan = Route(*chan) if chan else None
-        self.barlength = barlength
-        self.pendingseek = None
-        self.tickcallback = fl_tickcallback(self.looper)
-        self.playback_callback = fl_eventcallback(self.player_router)
-        FL.fluid_player_set_tick_callback(self.fplayer, self.tickcallback, None)
-        FL.fluid_player_set_playback_callback(self.fplayer, self.playback_callback, synth.fsynth)
-        
-    def transport(self, play, seek=None):
-        self.pendingseek = seek
-        if play > 0:
-            FL.fluid_player_play(self.fplayer)
-        else:
-            FL.fluid_player_stop(self.fplayer)
-
-    def looper(self, data, tick):
-        if self.pendingseek != None:
-            if tick % self.barlength == 0:
-                FL.fluid_player_seek(self.fplayer, self.pendingseek)
-                self.pendingseek = None
-        for start, end in self.loops:
-            if tick == end:
-                FL.fluid_player_seek(self.fplayer, start)
-                break
-        
-    def player_router(self, fsynth, event):
-        if self.chan == None:
-            return FL.fluid_synth_handle_midi_event(fsynth, event)
-        mevent = MidiEvent(event)
-        if mevent.type != None:
-            if self.chan.min > self.chan.max:
-                if not (self.chan.min < mevent.chan < self.chan.max):
-                    mevent.chan = int(mevent.chan * self.chan.mul + self.chan.add + 0.5)
-            else:
-                if self.chan.min <= mevent.chan <= self.chan.max:
-                    mevent.chan = int(mevent.chan * self.chan.mul + self.chan.add + 0.5)
-        return FL.fluid_synth_handle_midi_event(fsynth, mevent.event)
-                    
-    def set_tempo(self, bpm=None):
-        if bpm:
-            usec = int(60000000.0 / bpm) # usec per quarter note (MIDI standard)
-            FL.fluid_player_set_tempo(self.fplayer, FLUID_PLAYER_TEMPO_EXTERNAL_MIDI, usec)
-        else:
-            FL.fluid_player_set_tempo(self.fplayer, FLUID_PLAYER_TEMPO_INTERNAL, 1.0)
-
-    def delete(self):
-        FL.delete_fluid_player(self.fplayer)
-
-
 class SequencerNote:
 
     def __init__(self, chan, key, vel):
@@ -483,6 +429,61 @@ class Arpeggiator(Sequencer):
             self.play(loops=0)
 
 
+class Player:
+
+    def __init__(self, synth, file, loops, chan, barlength):
+        self.fplayer = FL.new_fluid_player(synth.fsynth)
+        FL.fluid_player_add(self.fplayer, str(file).encode())
+        self.loops = list(zip(loops[::2], loops[1::2]))
+        self.chan = Route(*chan) if chan else None
+        self.barlength = barlength
+        self.pendingseek = None
+        self.playback_callback = fl_eventcallback(self.player_router)
+        FL.fluid_player_set_playback_callback(self.fplayer, self.playback_callback, synth.fsynth)
+        self.tickcallback = fl_tickcallback(self.looper)
+        FL.fluid_player_set_tick_callback(self.fplayer, self.tickcallback, None)
+
+    def transport(self, play, seek=None):
+        self.pendingseek = seek
+        if play > 0:
+            FL.fluid_player_play(self.fplayer)
+        else:
+            FL.fluid_player_stop(self.fplayer)
+
+    def player_router(self, fsynth, event):
+        if self.chan == None:
+            return FL.fluid_synth_handle_midi_event(fsynth, event)
+        mevent = MidiEvent(event)
+        if mevent.type != None:
+            if self.chan.min > self.chan.max:
+                if not (self.chan.min < mevent.chan < self.chan.max):
+                    mevent.chan = int(mevent.chan * self.chan.mul + self.chan.add + 0.5)
+            else:
+                if self.chan.min <= mevent.chan <= self.chan.max:
+                    mevent.chan = int(mevent.chan * self.chan.mul + self.chan.add + 0.5)
+        return FL.fluid_synth_handle_midi_event(fsynth, mevent.event)
+
+    def looper(self, data, tick):
+        if self.pendingseek != None:
+            if tick % self.barlength == 0:
+                FL.fluid_player_seek(self.fplayer, self.pendingseek)
+                self.pendingseek = None
+        for start, end in self.loops:
+            if tick == end:
+                FL.fluid_player_seek(self.fplayer, start)
+                break
+
+    def set_tempo(self, bpm=None):
+        if bpm:
+            usec = int(60000000.0 / bpm) # usec per quarter note (MIDI standard)
+            FL.fluid_player_set_tempo(self.fplayer, FLUID_PLAYER_TEMPO_EXTERNAL_MIDI, usec)
+        else:
+            FL.fluid_player_set_tempo(self.fplayer, FLUID_PLAYER_TEMPO_INTERNAL, 1.0)
+
+    def delete(self):
+        FL.delete_fluid_player(self.fplayer)
+
+
 class LadspaEffect:
     
     def __init__(self, synth, name, lib, plugin, channels, audio):
@@ -528,7 +529,6 @@ class Synth:
             self.setting(opt, val)
         self.fsynth = FL.new_fluid_synth(self.st)
         FL.new_fluid_audio_driver(self.st, self.fsynth)
-        self.ladspa = fl_fluid_synth_get_ladspa_fx(self.fsynth)
         self.frouter_callback = fl_eventcallback(FL.fluid_synth_handle_midi_event)
         self.frouter = FL.new_fluid_midi_router(self.st, self.frouter_callback, self.fsynth)
         self.custom_router_callback = fl_eventcallback(self.custom_midi_router)
@@ -537,14 +537,16 @@ class Synth:
         self.xrules = []
         self.players = {}
         self.msg_callback = None
-        nports = self.get_setting('synth.audio-groups')
-        nchan = self.get_setting('synth.midi-channels')
-        if nports == 1:
-            hostports = [('Main:L', 'Main:R')]
-        else:
-            hostports = [(f'Main:L{i + 1}', f'Main:R{i + 1}') for i in range(nports)]
-        midichannels = [set(range(i, nchan, nports)) for i in range(nports)]
-        self.hostports_mapping = list(zip(hostports, midichannels))
+        if FLUIDSYNTH2:
+            nports = self.get_setting('synth.audio-groups')
+            nchan = self.get_setting('synth.midi-channels')
+            if nports == 1:
+                hostports = [('Main:L', 'Main:R')]
+            else:
+                hostports = [(f'Main:L{i + 1}', f'Main:R{i + 1}') for i in range(nports)]
+            midichannels = [set(range(i, nchan, nports)) for i in range(nports)]
+            self.hostports_mapping = list(zip(hostports, midichannels))
+            self.ladspa = FL.fluid_synth_get_ladspa_fx(self.fsynth)
 
     def custom_midi_router(self, data, event):
         mevent = MidiEvent(event)
@@ -572,7 +574,7 @@ class Synth:
                     if res.tempo in self.players:
                         self.players[res.tempo].set_tempo(res.val)
                 elif hasattr(res, 'ladspafx'):
-                    if res.ladspafx in self.ladspafx:
+                    if res.ladspafx in getattr(self, 'ladspafx', {}):
                         self.ladspafx[res.ladspafx].setcontrol(res.port, res.val)
                 else:
                     if self.msg_callback != None:
@@ -581,6 +583,7 @@ class Synth:
             self.msg_callback(MidiMessage(mevent))
         if not mevent.cancel:
             return FL.fluid_midi_router_handle_midi_event(self.frouter, mevent.event)
+        return FLUID_OK
 
     def setting(self, opt, val):
         if isinstance(val, str):
@@ -642,6 +645,13 @@ class Synth:
         newevent.chan = chan
         newevent.par1 = par1
         newevent.par2 = par2
+        self.custom_midi_router(None, newevent.event)
+
+    def send_sysex(self, data):
+        newevent = MidiEvent(FL.new_fluid_midi_event())
+        size = sizeof(c_int) * len(data)
+        cdata = (c_int * len(data))(*data)
+        FL.fluid_midi_event_set_sysex(newevent.event, cdata, size, True)
         self.custom_midi_router(None, newevent.event)
 
     def send_cc(self, chan, ctrl, val):
@@ -731,7 +741,6 @@ class Synth:
             FL.fluid_ladspa_activate(self.ladspa)
 
     else:
-        # fluidsynth 1.x
         def get_preset_name(self, sfont, bank, prog):
             if not self.program_select(0, sfont, bank, prog):
                 return None
