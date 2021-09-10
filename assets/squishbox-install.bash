@@ -1,7 +1,6 @@
 #!/bin/bash
 
 installdir=""
-logfile="install-log.txt"
 UPDATED=false
 UPGRADE=false
 PYTHON_PKG=""
@@ -47,12 +46,12 @@ warning() {
 sysupdate() {
     if ! $UPDATED; then
         echo "Updating apt indexes..."
-        sudo apt-get -qq update || { warning "Failed to update apt indexes! Logged to $logfile" && exit 1; }
+        sudo apt-get -qq update || { warning "Failed to update apt indexes!" && exit 1; }
         sleep 3
         UPDATED=true
 		if $UPGRADE; then
 			echo "Upgrading your system..."
-			sudo DEBIAN_FRONTEND=noninteractive apt-get -qqy upgrade --with-new-pkgs &>> $logfile
+			sudo DEBIAN_FRONTEND=noninteractive apt-get -qqy upgrade --with-new-pkgs
 			sudo apt-get clean && sudo apt-get autoclean
 			sudo apt-get -qqy autoremove
 			UPGRADE=false
@@ -64,8 +63,8 @@ apt_pkg_install() {
     APT_CHK=$(dpkg-query -W -f='${Status}\n' "$1" 2> /dev/null | grep "install ok installed")
     if [[ $APT_CHK == "" ]]; then    
         echo "Aptitude is installing $1..."
-        sudo DEBIAN_FRONTEND=noninteractive apt-get --no-install-recommends -qqy install "$1" &>> $logfile ||
-			{ warning "Apt failed to install $1! Logged to $logfile" && exit 1; }
+        sudo DEBIAN_FRONTEND=noninteractive apt-get --no-install-recommends -qqy install "$1" ||
+			{ warning "Apt failed to install $1!" && exit 1; }
     fi
 }
 
@@ -75,13 +74,12 @@ pip_install() {
     fi
     if ! [[ $PYTHON_PKG =~ "$1" ]]; then
         echo "Python Package Manager is installing $1..."
-        sudo -H pip3 install "$1" &>> $logfile || { warning "Pip failed to install $1! Logged to $logfile" && exit 1; }
+        sudo -H pip3 install "$1" || { warning "Pip failed to install $1!" && exit 1; }
     fi
 }
 
 
-sleep 2
-rm -f $logfile
+sleep 1 # give curl time to print info
 
 ## get options from the user
 
@@ -91,7 +89,6 @@ warning "Always be careful when running scripts and commands copied"
 warning "from the internet. Ensure they are from a trusted source."
 echo "If you want to see what this script does before running it,"
 echo "hit ctrl-C and enter 'curl https://geekfunklabs.com/squishbox | more'"
-echo "Logging errors and technical output to $logfile"
 echo -e "Report issues with this script at https://github.com/albedozero/fluidpatcher\n"
 
 if test -f /etc/os-release; then
@@ -200,7 +197,7 @@ warning "\nThis may take some time ... go make some coffee.\n"
 # friendly permissions for web file manager
 umask 002 
 # desktop distros play an audio message when booting to setup; this disables it
-sudo mv /etc/xdg/autostart/piwiz.desktop /etc/xdg/autostart/piwiz.disabled &>> $logfile
+sudo mv -f /etc/xdg/autostart/piwiz.desktop /etc/xdg/autostart/piwiz.disabled
 
 # get dependencies
 inform "Installing/Updating required software..."
@@ -223,32 +220,32 @@ sudo usermod -a -G audio pi
 if [[ $update == "yes" ]]; then
     inform "Installing/Updating FluidPatcher version $NEW_FP_VER ..."
     rm -rf fluidpatcher
-    git clone https://github.com/albedozero/fluidpatcher &>> $logfile
+    git clone https://github.com/albedozero/fluidpatcher
 	cd fluidpatcher
     if [[ $overwrite == "yes" ]]; then
-        find . -type d -exec mkdir -p $installdir/{} \; &>> ../$logfile
-        find . -type f ! -name "hw_overlay.py" -exec cp -f {} $installdir/{} \; &>> ../$logfile
-        find . -type f -name "hw_overlay.py" -exec cp -n {} $installdir/{} \; &>> ../$logfile
+        find . -type d -exec mkdir -p $installdir/{} \;
+        find . -type f ! -name "hw_overlay.py" -exec cp -f {} $installdir/{} \;
+        find . -type f -name "hw_overlay.py" -exec cp -n {} $installdir/{} \;
     else
-        find . -type d -exec mkdir -p $installdir/{} \; &>> $logfile
-        find . -type f ! -name "*.yaml" ! -name "hw_overlay.py" -exec cp -f {} $installdir/{} \; &>> ../$logfile
-        find . -type f -name "hw_overlay.py" -exec cp -n {} $installdir/{} \; &>> ../$logfile
-        find . -type f -name "*.yaml" -exec cp -n {} $installdir/{} \; &>> ../$logfile        
+        find . -type d -exec mkdir -p $installdir/{} \;
+        find . -type f ! -name "*.yaml" ! -name "hw_overlay.py" -exec cp -f {} $installdir/{} \;
+        find . -type f -name "hw_overlay.py" -exec cp -n {} $installdir/{} \;
+        find . -type f -name "*.yaml" -exec cp -n {} $installdir/{} \;        
     fi
 	cd ..
     rm -rf fluidpatcher
-    ln -s /usr/share/sounds/sf2/FluidR3_GM.sf2 $installdir/SquishBox/sf2/ &>> $logfile
+    ln -s /usr/share/sounds/sf2/FluidR3_GM.sf2 $installdir/SquishBox/sf2/
 fi
 
 # set up audio
 if (( $audiosetup > 0 )); then
 	inform "Setting up audio..."
 	sed -i "/  audio.alsa.device/d" $installdir/SquishBox/squishboxconf.yaml
-	echo "/usr/bin/jackd --silent -r -d alsa -s -p 64 -n 3 -r 44100 -P" | sudo tee /etc/jackdrc &>> $logfile
+	echo "/usr/bin/jackd --silent -r -d alsa -s -p 64 -n 3 -r 44100 -P" | sudo tee /etc/jackdrc
 	if (( $audiosetup > 1 )); then
 		AUDIO=`echo ${AUDIOCARDS[$audiosetup-2]} | cut -d' ' -f 1`
 		sed -i "/^fluidsettings:/a\  audio.alsa.device: hw:$AUDIO"  $installdir/SquishBox/squishboxconf.yaml
-		echo "/usr/bin/jackd --silent -r -d alsa -d hw:$AUDIO -s -p 64 -n 3 -r 44100 -P" | sudo tee /etc/jackdrc &>> $logfile
+		echo "/usr/bin/jackd --silent -r -d alsa -d hw:$AUDIO -s -p 64 -n 3 -r 44100 -P" | sudo tee /etc/jackdrc
 	fi
 fi
 
@@ -256,7 +253,7 @@ fi
 if [[ $startup == "1" ]]; then
     inform "Enabling SquishBox startup service..."
     chmod a+x $installdir/squishbox.py
-    cat <<EOF | sudo tee /etc/systemd/system/squishbox.service &>> $logfile
+    cat <<EOF | sudo tee /etc/systemd/system/squishbox.service
 [Unit]
 Description=SquishBox
 After=local-fs.target
@@ -272,12 +269,12 @@ Restart=on-failure
 [Install]
 WantedBy=multi-user.target
 EOF
-    sudo systemctl enable squishbox.service &>> $logfile
+    sudo systemctl enable squishbox.service
     ASK_TO_REBOOT=true
 elif [[ $startup == "2" ]]; then
     inform "Enabling headless Pi synth startup service..."
     chmod a+x $installdir/headlesspi.py
-    cat <<EOF | sudo tee /etc/systemd/system/squishbox.service &>> $logfile
+    cat <<EOF | sudo tee /etc/systemd/system/squishbox.service
 [Unit]
 Description=Headless Pi Synth
 After=local-fs.target
@@ -292,7 +289,7 @@ Restart=on-failure
 [Install]
 WantedBy=multi-user.target
 EOF
-    sudo systemctl enable squishbox.service &>> $logfile
+    sudo systemctl enable squishbox.service
 	if [[ $decpatch != "use default" ]]; then
 		sed -i "/^DEC_PATCH/s|[0-9]\+|$decpatch|" $installdir/headlesspi.py; fi
 	if [[ $incpatch != "use default" ]]; then
@@ -306,7 +303,7 @@ EOF
     ASK_TO_REBOOT=true
 elif [[ $startup == "3" ]]; then
     inform "Disabling startup service..."
-    sudo systemctl disable squishbox.service &>> $logfile
+    sudo systemctl disable squishbox.service
     ASK_TO_REBOOT=true
 fi
 
@@ -320,17 +317,17 @@ if [[ $compile == "yes" ]]; then
     sysupdate
     apt_pkg_install "tap-plugins"
     echo "Getting build dependencies..."
-    sudo apt-get build-dep fluidsynth --no-install-recommends --yes &>> $logfile
+    sudo apt-get build-dep fluidsynth --no-install-recommends --yes
     rm -rf fluidsynth
-    git clone https://github.com/FluidSynth/fluidsynth &>> $logfile
+    git clone https://github.com/FluidSynth/fluidsynth
     mkdir fluidsynth/build
     cd fluidsynth/build
     echo "Configuring..."
-    cmake .. &>> $logfile
+    cmake ..
     echo "Compiling..."
-    make &>> $logfile
-    sudo make install &>> $logfile
-    sudo ldconfig &>> $logfile
+    make
+    sudo make install
+    sudo ldconfig
     cd ../..
     rm -rf fluidsynth
 fi
@@ -342,7 +339,7 @@ if [[ $filemgr == "yes" ]]; then
     apt_pkg_install "nginx"
     apt_pkg_install "php-fpm"
     # enable php in nginx
-    cat <<'EOF' | sudo tee /etc/nginx/sites-available/default &>> $logfile
+    cat <<'EOF' | sudo tee /etc/nginx/sites-available/default
 server {
         listen 80 default_server;
         listen [::]:80 default_server;
