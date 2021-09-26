@@ -201,7 +201,7 @@ class MidiMessage:
 
 class ExtMidiMessage(MidiMessage):
 
-    def __init__(self, mevent, val=None, extrule=None):
+    def __init__(self, mevent, extrule=None, val=None):
         if extrule: self.__dict__.update(extrule.__dict__)
         super().__init__(mevent)
         self.val = val
@@ -306,18 +306,21 @@ class ExtRule(TransRule):
         for attr, val in apars.items():
             setattr(self, attr, val)
 
-    def apply(self, msg):
+    def apply(self, mevent):
+        msg = ExtMidiMessage(mevent, extrule=self)
+        if self.chan != None:
+            msg.chan = int(mevent.chan * self.chan.mul + self.chan.add + 0.5)
+        if self.par1 != None:
+            msg.par1 = int(mevent.par1 * self.par1.mul + self.par1.add + 0.5)
+        if self.par2 != None:
+            msg.par2 = int(mevent.par2 * self.par2.mul + self.par2.add + 0.5)
         if self.type in ('note', 'cc', 'kpress', 'noteoff'):
-            if self.par2 == None:
-                val = msg.par2
-            else:
-                val = msg.par2 * self.par2.mul + self.par2.add
+            msg.val = mevent.par2
+            if self.par2: msg.val = msg.val * self.par2.mul + self.par2.add
         else:
-            if self.par1 == None:
-                val = msg.par1
-            else:
-                val = msg.par1 * self.par1.mul + self.par1.add
-        return ExtMidiMessage(msg, val, self)
+            msg.val = mevent.par1
+            if self.par1: msg.val = msg.val * self.par1.mul + self.par1.add
+        return msg
 
 
 class SequencerNote:
