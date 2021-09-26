@@ -3,7 +3,7 @@ Description: yaml extensions for fluidpatcher
 """
 import re, oyaml
 
-nn = '[A-G]?[b#]?\d+'
+nn = '[A-G]?[b#]?\d*[.]?\d+'
 sfp = re.compile('^(.+\.sf2):(\d+):(\d+)$', flags=re.I)
 msg = re.compile(f'^(note|cc|prog|pbend|cpress|kpress|noteoff):(\d+):({nn}):?(\d+)?$')
 syx = re.compile('^sysex:(.*?):(.+)$')
@@ -40,6 +40,8 @@ def totups(obj):
         return [(val, val, 1.0, 0) for val in obj]
     elif isinstance(obj, int):
         return [(obj, obj, 1.0, 0)]
+    elif isinstance(obj, str):
+        return [(scinote_to_val(obj), scinote_to_val(obj), 1.0, 0)]
     else: return [None]
 
 def tochantups(obj):
