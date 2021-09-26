@@ -535,7 +535,7 @@ class Synth:
         self.frouter_callback = fl_eventcallback(FL.fluid_synth_handle_midi_event)
         self.frouter = FL.new_fluid_midi_router(self.st, self.frouter_callback, self.fsynth)
         self.custom_router_callback = fl_eventcallback(self.custom_midi_router)
-        FL.new_fluid_midi_driver(self.st, self.custom_router_callback, self.frouter)        
+        FL.new_fluid_midi_driver(self.st, self.custom_router_callback, None)        
         self.sfid = {}
         self.xrules = []
         self.players = {}
@@ -554,39 +554,35 @@ class Synth:
     def custom_midi_router(self, data, event):
         mevent = MidiEvent(event)
         if mevent.type == None:
-            return FL.fluid_midi_router_handle_midi_event(self.frouter, event)
+            return FL.fluid_midi_router_handle_midi_event(self.frouter, event)            
         for rule in self.xrules:
-            if not rule.applies(mevent): continue
+            if not rule.applies(mevent):
+                continue
             res = rule.apply(mevent)
             if isinstance(res, MidiEvent):
                 FL.fluid_synth_handle_midi_event(self.fsynth, res.event)
+                continue
+            if hasattr(res, 'fluidsetting'):
+                self.setting(res.fluidsetting, res.val)
+            elif hasattr(res, 'sequencer'):
+                if res.sequencer in self.players:
+                    self.players[res.sequencer].play(res.val)
+            elif hasattr(res, 'arpeggiator'):
+                if res.arpeggiator in self.players:
+                    self.players[res.arpeggiator].note(res.chan, res.par1, res.val)
+            elif hasattr(res, 'player'):
+                if res.player in self.players:
+                    self.players[res.player].transport(res.val, getattr(res, 'tick', None))
+            elif hasattr(res, 'tempo'):
+                if res.tempo in self.players:
+                    self.players[res.tempo].set_tempo(res.val)
+            elif hasattr(res, 'ladspafx'):
+                if res.ladspafx in getattr(self, 'ladspafx', {}):
+                    self.ladspafx[res.ladspafx].setcontrol(res.port, res.val)
             else:
-                if hasattr(res, 'fluidsetting'):
-                    self.setting(res.fluidsetting, res.val)
-                elif hasattr(res, 'player'):
-                    if res.player in self.players:
-                        self.players[res.player].transport(res.val, getattr(res, 'tick', None))
-                elif hasattr(res, 'sequencer'):
-                    if res.sequencer in self.players:
-                        self.players[res.sequencer].play(res.val)
-                elif hasattr(res, 'arpeggiator'):
-                    if res.arpeggiator in self.players:
-                        self.players[res.arpeggiator].note(res.chan, res.par1, res.val)
-                        mevent.cancel = True
-                elif hasattr(res, 'tempo'):
-                    if res.tempo in self.players:
-                        self.players[res.tempo].set_tempo(res.val)
-                elif hasattr(res, 'ladspafx'):
-                    if res.ladspafx in getattr(self, 'ladspafx', {}):
-                        self.ladspafx[res.ladspafx].setcontrol(res.port, res.val)
-                else:
-                    if self.msg_callback != None:
-                        self.msg_callback(res)
-        if self.msg_callback != None:
-            self.msg_callback(MidiMessage(mevent))
-        if not mevent.cancel:
-            return FL.fluid_midi_router_handle_midi_event(self.frouter, mevent.event)
-        return FLUID_OK
+                if self.msg_callback: self.msg_callback(res)
+        if self.msg_callback: self.msg_callback(MidiMessage(mevent))
+        return FL.fluid_midi_router_handle_midi_event(self.frouter, mevent.event)
 
     def setting(self, opt, val):
         if isinstance(val, str):
@@ -652,9 +648,8 @@ class Synth:
 
     def send_sysex(self, data):
         newevent = MidiEvent(FL.new_fluid_midi_event())
-        size = sizeof(c_int) * len(data)
-        cdata = (c_int * len(data))(*data)
-        FL.fluid_midi_event_set_sysex(newevent.event, cdata, size, True)
+        syxdata = (c_int * len(data))(*data)
+        FL.fluid_midi_event_set_sysex(newevent.event, syxdata, sizeof(syxdata), True)
         self.custom_midi_router(None, newevent.event)
 
     def send_cc(self, chan, ctrl, val):
@@ -711,8 +706,8 @@ class Synth:
                 return None
             return FL.fluid_preset_get_name(preset_obj).decode()
 
-        def player_add(self, name, file, loops=[], chan=None, barlength=1, tempo=0):
-            self.players[name] = Player(self, file, loops, chan, barlength)
+        def player_add(self, name, file, loops=[], barlength=1, chan=None, filter=['prog'], tempo=0):
+            self.players[name] = Player(self, file, loops, barlength, chan, filter)
             if tempo > 0:
                 self.players[name].set_tempo(tempo)
 
@@ -751,13 +746,13 @@ class Synth:
             FL.fluid_synth_get_channel_info(self.fsynth, 0, byref(info))
             return info.name.decode()
 
-        def player_add(self, name, file, loops=[], chan=None, barlength=1, tempo=0):
+        def player_add(self, name, file, loops, barlength, chan, filter, tempo):
             pass
 
         def fxchain_clear(self):
             pass
 
-        def fxunit_add(self, name, lib, plugin=None, chan=None, audio='stereo', vals={}):
+        def fxunit_add(self, name, lib, plugin, chan, audio, vals):
             pass
 
         def fxchain_link(self):
