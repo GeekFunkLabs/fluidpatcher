@@ -150,7 +150,8 @@ MIDI_CPRESS = 0xd0
 MIDI_PBEND = 0xe0
 EVENT_NAMES = 'note', 'cc', 'prog', 'pbend', 'cpress', 'kpress', 'noteoff'
 MIDI_TYPES = MIDI_NOTEON, MIDI_CONTROL, MIDI_PROG, MIDI_PBEND, MIDI_CPRESS, MIDI_KPRESS, MIDI_NOTEOFF
-
+SEEK_DONE = -1
+SEEK_WAIT = -2
 
 class MidiEvent:
 
@@ -425,7 +426,7 @@ class Arpeggiator(Sequencer):
         if self.style == 'down':
             self.notes.sort(key=lambda k: k.key, reverse=True)
         if self.style == 'both':
-            self.notes += sorted(notes, key=lambda k: k.key, reverse=True)
+            self.notes += self.notes[-2:0:-1]
         if len(self.keysdown) == 1:
             self.play(loops=-1)
         elif len(self.keysdown) < 1:
@@ -434,47 +435,75 @@ class Arpeggiator(Sequencer):
 
 class Player:
 
-    def __init__(self, synth, file, loops, chan, barlength):
+    def __init__(self, synth, file, loops, barlength, chan, filter):
         self.fplayer = FL.new_fluid_player(synth.fsynth)
+        self.frouter = synth.frouter
         FL.fluid_player_add(self.fplayer, str(file).encode())
         self.loops = list(zip(loops[::2], loops[1::2]))
-        self.chan = Route(*chan) if chan else None
         self.barlength = barlength
-        self.pendingseek = None
+        self.chan = Route(*chan) if chan else None
+        self.filter = filter
+        self.playing = False
+        self.pendingseek = SEEK_DONE
+        self.lasttick = 0
         self.playback_callback = fl_eventcallback(self.player_router)
-        FL.fluid_player_set_playback_callback(self.fplayer, self.playback_callback, synth.fsynth)
+        FL.fluid_player_set_playback_callback(self.fplayer, self.playback_callback, self.frouter)
         self.tickcallback = fl_tickcallback(self.looper)
         FL.fluid_player_set_tick_callback(self.fplayer, self.tickcallback, None)
 
     def transport(self, play, seek=None):
-        self.pendingseek = seek
-        if play > 0:
-            FL.fluid_player_play(self.fplayer)
-        else:
+        if play == 0:
             FL.fluid_player_stop(self.fplayer)
+            self.playing = False
+        elif not self.playing:
+            if seek != None:
+                FL.fluid_player_seek(self.fplayer, seek)
+                if seek > self.lasttick:
+                    self.lasttick = self.pendingseek
+                    self.pendingseek = SEEK_WAIT
+                else:
+                    self.pendingseek = SEEK_DONE
+            FL.fluid_player_play(self.fplayer)
+            self.playing = True
+        else:
+            self.pendingseek = seek
 
-    def player_router(self, fsynth, event):
-        if self.chan == None:
-            return FL.fluid_synth_handle_midi_event(fsynth, event)
+    def player_router(self, data, event):
         mevent = MidiEvent(event)
         if mevent.type != None:
-            if self.chan.min > self.chan.max:
-                if not (self.chan.min < mevent.chan < self.chan.max):
-                    mevent.chan = int(mevent.chan * self.chan.mul + self.chan.add + 0.5)
-            else:
-                if self.chan.min <= mevent.chan <= self.chan.max:
-                    mevent.chan = int(mevent.chan * self.chan.mul + self.chan.add + 0.5)
-        return FL.fluid_synth_handle_midi_event(fsynth, mevent.event)
+            if EVENT_NAMES[MIDI_TYPES.index(mevent.type)] in self.filter:
+                return FLUID_OK
+            if self.chan != None:
+                if self.chan.min > self.chan.max:
+                    if not (self.chan.min < mevent.chan < self.chan.max):
+                        mevent.chan = int(mevent.chan * self.chan.mul + self.chan.add + 0.5)
+                else:
+                    if self.chan.min <= mevent.chan <= self.chan.max:
+                        mevent.chan = int(mevent.chan * self.chan.mul + self.chan.add + 0.5)
+        return FL.fluid_midi_router_handle_midi_event(data, mevent.event)
 
     def looper(self, data, tick):
-        if self.pendingseek != None:
-            if tick % self.barlength == 0:
+        if self.pendingseek > SEEK_DONE:
+            if tick % self.barlength < (tick - self.lasttick):
                 FL.fluid_player_seek(self.fplayer, self.pendingseek)
-                self.pendingseek = None
-        for start, end in self.loops:
-            if tick == end:
-                FL.fluid_player_seek(self.fplayer, start)
-                break
+                if self.pendingseek > tick:
+                    self.lasttick = self.pendingseek
+                    self.pendingseek = SEEK_WAIT
+                else:
+                    self.lasttick = tick
+                    self.pendingseek = SEEK_DONE
+        elif self.pendingseek == SEEK_WAIT:
+            if tick >= self.lasttick:
+                self.pendingseek = SEEK_DONE
+                self.lasttick = tick
+        else:
+            for start, end in self.loops:
+                if self.lasttick < end <= tick:
+                    FL.fluid_player_seek(self.fplayer, start)
+                    self.lasttick = start
+                    break
+            else:
+                self.lasttick = tick
 
     def set_tempo(self, bpm=None):
         if bpm:
