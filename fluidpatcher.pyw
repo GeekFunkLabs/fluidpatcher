@@ -165,7 +165,7 @@ class SoundfontBrowser(wx.Dialog):
         if warn:
             wx.MessageBox('\n'.join(warn), "Warning", wx.OK|wx.ICON_WARNING)
         bank, prog = [self.presetlist.GetItemText(event.GetIndex(), x).strip(':') for x in (0, 1)]
-        self.copypreset = ':'.join((self.sf, bank, prog))
+        self.copypreset = ':'.join((self.sf.as_posix(), bank, prog))
         
     def onActivate(self, event):
         self.EndModal(wx.ID_OK)
