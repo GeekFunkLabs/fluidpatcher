@@ -3,7 +3,10 @@ Description: a performance-oriented patch interface for fluidsynth
 """
 import re, copy
 from pathlib import Path
-import mido
+try:
+    import mido
+except ModuleNotFoundError:
+    pass # mido is optional, only needed to read .syx and send to external devices
 from . import fswrap, fpyaml
 
 VERSION = '0.5'
@@ -168,14 +171,6 @@ class Patcher:
                     self._bank['patches'][name][x] = copy.deepcopy(addlike[x])
         return self.patches.index(name)
 
-    def delete_patch(self, patch):
-        if isinstance(patch, int):
-            name = self.patches[patch]
-        else:
-            name = patch
-        del self._bank['patches'][name]
-        self._reload_bankfonts()
-
     def update_patch(self, patch):
     # update :patch in current bank with fluidsynth's present state
         patch = self._resolve_patch(patch)
@@ -196,6 +191,14 @@ class Patcher:
                         messages.append(fpyaml.MidiMsg('cc', channel, cc, val))
         if messages:
             patch['messages'] = messages
+
+    def delete_patch(self, patch):
+        if isinstance(patch, int):
+            name = self.patches[patch]
+        else:
+            name = patch
+        del self._bank['patches'][name]
+        self._reload_bankfonts()
 
     def load_soundfont(self, soundfont):
     # load a single :soundfont and scan all its presets
@@ -282,22 +285,25 @@ class Patcher:
                     self._fluid.send_cc(channel - 1, ctrl, default)
 
     def _send_sysex(self, msg):
-        if not msg.data and msg.file:
-            msg.data = [m.data for m in mido.read_syx_file(self.mfilesdir / msg.file)]
-        if msg.dest == '' or "FLUID Synth" in msg.dest:
-            for x in msg: self._fluid.send_sysex(x)
-        else:
-            if not hasattr(self, 'ports'): self.ports = {}
-            for portname in self.ports:
-                if msg.dest in portname:
-                    port = self.ports[portname]
-                    break
+        try:
+            if not msg.data and msg.file:
+                msg.data = [m.data for m in mido.read_syx_file(self.mfilesdir / msg.file)]
+            if msg.dest == '' or "FLUID Synth" in msg.dest:
+                for x in msg: self._fluid.send_sysex(x)
             else:
-                for portname in mido.get_output_names():
+                if not hasattr(self, 'ports'): self.ports = {}
+                for portname in self.ports:
                     if msg.dest in portname:
-                        port = self.ports[portname] = mido.open_output(portname)
+                        port = self.ports[portname]
                         break
-            for x in msg: port.send(mido.Message('sysex', data=x))
+                else:
+                    for portname in mido.get_output_names():
+                        if msg.dest in portname:
+                            port = self.ports[portname] = mido.open_output(portname)
+                            break
+                for x in msg: port.send(mido.Message('sysex', data=x))
+        except NameError:
+            pass
 
     def _reset_synth(self, full=True):
         self._fluid.router_default()
