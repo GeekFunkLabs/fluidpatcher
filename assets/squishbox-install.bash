@@ -196,8 +196,8 @@ warning "\nThis may take some time ... go make some coffee.\n"
 
 # friendly permissions for web file manager
 umask 002 
-# desktop distros play an audio message when booting to setup; this disables it
-sudo mv -f /etc/xdg/autostart/piwiz.desktop /etc/xdg/autostart/piwiz.disabled
+# desktop distros play an audio message when first booting to setup; this disables it
+sudo mv -f /etc/xdg/autostart/piwiz.desktop /etc/xdg/autostart/piwiz.disabled 2> /dev/null
 
 # get dependencies
 inform "Installing/Updating required software..."
