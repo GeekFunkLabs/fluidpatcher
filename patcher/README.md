@@ -49,7 +49,7 @@ A generic Python object that handles patches and banks and starts an instance of
 
 **set_midimessage_callback**(_func_)
 
-Sets a function to be called when MIDI events are received by the synth
+Sets a function to be called when MIDI events are received by the synth. This can be bypassed by calling this function with _None_
 - Parameters:
   - _func_: a function that takes a _fswrap.MidiMessage_ object as its single argument
 - Returns: nothing
