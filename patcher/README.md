@@ -1,10 +1,11 @@
 # Patcher
 
-The _patcher_ directory contains all the code necessary to create Python script implementations of FluidPatcher that can share the same bank file format and functionality. To use it, copy this directory to the same location as your Python script and `import patcher` at the top of your script. Patcher requires only Python standard libraries and [oyaml](https://pypi.org/project/oyaml/).
+
+The _patcher_ directory contains all the code necessary to interpret [bank and config files](fileformats.md) and control FluidSynth. This API can thus be used to write different Python programs that can read the same bank files and produce the same functionality. To use it, copy this directory to the same location as your Python script and `import patcher` at the top of your script. Patcher requires only Python standard libraries and [oyaml](https://pypi.org/project/oyaml/).
 
 The example below shows a very simple text-based implementation that loads a specific bank file and allows the user to select and play its patches.
 
-## Example
+### Example
 
 ```python
 import patcher
@@ -21,9 +22,9 @@ while True:
     n = int(input("select patch: ")) - 1
 ```
 
-# API
+## API
 
-## class Patcher
+### class Patcher
 
 **Patcher**(_cfgfile="", fluidsettings={}_)
 
@@ -32,7 +33,7 @@ A generic Python object that handles patches and banks and starts an instance of
   - _cfgfile_: YAML-formatted file with platform-/implementation-specific settings for FluidPatcher/FluidSynth
   - _fluidsettings_: a dictionary of opt: val settings to pass directly to FluidSynth
 
-### Public Attributes/Properties
+#### Public Attributes/Properties
 
 - _cfg_: data structure holding config info
 - _cfgfile_: Path object to file used to configure this Patcher
@@ -45,7 +46,7 @@ A generic Python object that handles patches and banks and starts an instance of
 - _soundfonts_ : list of soundfonts in _sfdir_ and its directory tree
 - _patches_ : list of patches in the current bank
 
-### Public Methods
+#### Public Methods
 
 **set_midimessage_callback**(_func_)
 
@@ -152,13 +153,13 @@ Add a rule describing how MIDI messages will be interpreted/acted upon. This fun
   - _**kwargs_: router rule as a set of key=value pairs
 - Returns: nothing
 
-## class PresetInfo
+### class PresetInfo
 
 **PresetInfo**(_name, bank, prog_)
 
 A simple container for storing information about a soundfont's presets
 
-### Attributes:
+#### Attributes:
   - _name_: the preset name in the soundfont file
   - _bank_: the bank number of the preset
   - _prog_: the program number of the preset
