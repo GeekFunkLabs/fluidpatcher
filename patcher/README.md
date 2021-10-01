@@ -18,7 +18,7 @@ p.load_bank(bankfile)
 n = 0
 while True:
     p.select_patch(n)
-    print("Patch %d/%d: %s" % (n + 1, p.patches_count(), p.patch_name(n)))
+    print(f"Patch {n + 1}/{len(p.patches)}: {p.patches[n]}")
     n = int(input("select patch: ")) - 1
 ```
 
