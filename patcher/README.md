@@ -1,7 +1,7 @@
 # Patcher
 
 
-The _patcher_ directory contains all the code necessary to interpret [bank and config files](fileformats.md) and control FluidSynth. This API can thus be used to write different Python programs that can read the same bank files and produce the same functionality. To use it, copy this directory to the same location as your Python script and `import patcher` at the top of your script. Patcher requires only Python standard libraries and [oyaml](https://pypi.org/project/oyaml/).
+The _patcher_ directory contains all the code necessary to interpret [bank and config files](file_formats.md) and control FluidSynth. This API can thus be used to write different Python programs that can read the same bank files and produce the same functionality. To use it, copy this directory to the same location as your Python script and `import patcher` at the top of your script. Patcher requires only Python standard libraries and [oyaml](https://pypi.org/project/oyaml/).
 
 The example below shows a very simple text-based implementation that loads a specific bank file and allows the user to select and play its patches.
 
