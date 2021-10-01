@@ -1,5 +1,6 @@
 # File Formats
 
+
 FluidPatcher uses [config files](#config-files) and [bank files](#bank-files) to store the user's preferences and settings. Bank files describe patches - the groups of sound settings a user can switch between while playing - plus rules that describe how MIDI messages are routed, effects settings, etc. Config files contain platform-specific settings, such as the location of bank files and soundfonts and what audio devices to use, allowing bank files to be portable to different systems by simply modifying the config file.
 
 Bank and config files use [YaML](https://yaml.org/) format. Very briefly, YaML is a plain text format that stores data, either as lists or as mappings (sets of `<key>: <value>` pairs). Lists and mappings can be nested within each other, and nesting level is indicated by indenting at least two spaces per level. List elements are placed on separate lines and preceded by a dash, or can be written in compact form as a comma-separated list enclosed in square brackets. Mappings can have their _key: value_ pairs on separate lines, or in a comma-separated list enclosed in curly braces.
@@ -66,12 +67,12 @@ patches:
     10: JazzCombo.sf2:128:004
     sequencers:
       synthpads:
-	    tdiv: 1
+        tdiv: 1
         notes: [note:3:A5:70, note:3:G5:70, note:3:A5:70, note:3:C6:70]
     arpeggiators:
       moody:
-	    tdiv: 12
-		octaves: 2
+        tdiv: 12
+        octaves: 2
     players:
       jazz:
         file: smoothjazz.mid
