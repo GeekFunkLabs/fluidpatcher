@@ -6,20 +6,20 @@ patches: # indented list of patches
     1: FM Piano.sf2:000:000 # <MIDI Channel>: <soundfont>:<bank>:<program>
     
   Multi Part: # can have a different voice on each MIDI channel
-              # useful if your controller can split/play to different channels
+              # play multiple instruments if your controller has a split mode
     1: VintageDreamsWaves-v2.sf2:000:058
     2: VintageDreamsWaves-v2.sf2:000:013
     10: VintageDreamsWaves-v2.sf2:128:002
 
-  Split Keys: # you can also split the keyboard any way you want using MIDI routing
+  Split Keys: # split the keyboard any way you want using MIDI routing
     3: FM Piano.sf2:000:000
     4: VintageDreamsWaves-v2.sf2:000:028
     router_rules: # adds rules for routing MIDI messages
     - {type: note, chan: 1=3, par1: C4-G9}      # note names can be used
-    - {type: note, chan: 1=4, par1: C0-B3*1-12} # drop these down an octave for bass-ness
+    - {type: note, chan: 1=4, par1: C0-B3*1-12} # drops these notes down an octave
     messages: # sends MIDI messages when the patch is selected
     - cc:3:91:127
-    - cc:3:93:127 # sets reverb and chorus level to max
+    - cc:3:93:127 # sets reverb and chorus level to max on channel 3
 
   Weird Keys: # you can get some interesting effects with MIDI routing
     5: VintageDreamsWaves-v2.sf2:000:014
@@ -30,32 +30,63 @@ patches: # indented list of patches
     - {type: pbend, chan: 1=5}
 
   Analog Saw:
-    1: ModSynth_R1.sf2:000:000
+    7: ModSynth_R1.sf2:000:000
     router_rules:
-    - clear # clears all previous router rules, including defaults
-    - {type: note, par2: 1-127=127} # all notes max volume like a retro synth
-    - {type: cc} # pass CC messages unmodified
-    - {type: pbend}
     ladspafx: # recent versions of fluidsynth support LADSPA effects
       delayline1: &delayeffect # this is a YaML anchor
         lib: delay.so
         audio: mono
-        vals: {Delay: 0.3} # can set initial values for control ports
+        vals: {Delay: 0.3, Dry/Wet: 0.2} # can set initial values for control ports
       delayline2: *delayeffect # copies the contents of the anchor node here
       delayline3: *delayeffect # creating a sort of bucket delay
     router_rules:
+    - {type: note, chan: 1=7, par2: 1-127=127} # all notes max volume like a retro synth
+    - {type: cc, chan: 1=7}
+    - {type: pbend, chan: 1=7, par1: 0-8192}
+    - {type: pbend, chan: 1=7, type2: cc, par2: 74, par1: 8192-16383=0-127} # can route midi messages from one type to another
     - {type: cc, chan: 1, par1: 15, par2: 0-127=0-5, ladspafx: delayline1, port: Delay}
     - {type: cc, chan: 1, par1: 15, par2: 0-127=0-5, ladspafx: delayline2, port: Delay}
     - {type: cc, chan: 1, par1: 15, par2: 0-127=0-5, ladspafx: delayline3, port: Delay}
-    - {type: cc, chan: 1, par1: 16, par2: 0-127=0-1, ladspafx: delayline1, port: Dry/Wet}
-    - {type: cc, chan: 1, par1: 16, par2: 0-127=0-1, ladspafx: delayline2, port: Dry/Wet}
-    - {type: cc, chan: 1, par1: 16, par2: 0-127=0-1, ladspafx: delayline3, port: Dry/Wet}
+
+  Elevator Jam:
+    2: VintageDreamsWaves-v2.sf2:000:05
+    3: VintageDreamsWaves-v2.sf2:000:069
+    4: VintageDreamsWaves-v2.sf2:000:017
+    7: VintageDreamsWaves-v2.sf2:000:035
+    8: VintageDreamsWaves-v2.sf2:000:020
+    10: VintageDreamsWaves-v2.sf2:128:004
+    arpeggiators:
+      ep_arp: {tdiv: 8, style: both, octaves: 2} # style can be up, down, both, or nothing
+    sequencers:
+      fluteloop:
+        swing: 0.7
+        notes: [note:4:A5:70, note:4:G5:70, note:4:A5:70, note:4:C6:70]
+    players:
+      groove:
+        file: elevatorgroove.mid
+        chan: 1-2*1+6
+        barlength: 1536 # if given, finishes measure before skipping
+        loops: [15360, 18429] # pairs of begin, end ticks
+    router_rules:
+    - {type: note, chan: 1=2, par1: C4-C9}
+    - {type: note, chan: 1=3, par1: C3-B3, arpeggiator: ep_arp}
+    - {type: note, chan: 1, par1: F#2, par2: 1-127=-1, sequencer: fluteloop}
+    - {type: note, chan: 1, par1: G#2, par2: 1-127=0, sequencer: fluteloop}
+    - {type: note, chan: 1, par1: A#2, par2: 1-127=2, sequencer: fluteloop}
+    - {type: note, chan: 1, par1: F2, par2: 1-127=1, player: groove} # starts song
+    - {type: note, chan: 1, par1: G2, par2: 1-127=0, player: groove} # stops song
+    - {type: note, chan: 1, par1: A2, par2: 1-127=1, player: groove, tick: 10752} # skip to chorus
+    - {type: note, chan: 1, par1: B2, par2: 1-127=1, player: groove, tick: 13824} # skip to verse
+    - {type: cc, chan: 1, par1: 15, par2: 0-127=30-240, tempo: groove}
+    - {type: cc, chan: 1, par1: 15, par2: 0-127=30-240, tempo: fluteloop}
+    - {type: cc, chan: 1, par1: 15, par2: 0-127=30-240, tempo: ep_arp}
+
 
 router_rules: # router rules at this indent level apply to all patches
 - {type: cc, chan: 1=2-16, par1: 7} # CC 7 is volume - route it to all used channels so it's global
 - {type: cc, chan: 1, par1: 23, par2: 0-127=0-1, fluidsetting: synth.reverb.room-size}
 
-# settings to pass to fluidsynth
+# fluidsynth settings for all patches
 # full list at http://www.fluidsynth.org/api/fluidsettings.xml
 fluidsettings:
   synth.reverb.level: 0.9
@@ -64,5 +95,4 @@ fluidsettings:
 init: # init block is processed once, when bank is first loaded
   fluidsettings:
     synth.reverb.room-size: 0.8
-  cc:
-  - 1/74=0 # initial filter cutoff frequency
+  messages: [cc:2:73:0, cc:2:74:0] # initial attack time and filter cutoff
