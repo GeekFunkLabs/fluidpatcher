@@ -1,8 +1,11 @@
-# Patcher API
+# Patcher
 
-All the code necessary to create implementations of FluidPatcher is contained in the _patcher/_ directory of this repository. Import `patcher` in a Python script to share the same functionality and bank file format, and create a "Patcher" object to start FluidSynth and load your banks and patches.
 
-## Example
+The _patcher_ directory contains all the code necessary to interpret [bank and config files](file_formats.md) and control FluidSynth. This API can thus be used to write different Python programs that can read the same bank files and produce the same functionality. To use it, copy this directory to the same location as your Python script and `import patcher` at the top of your script. Patcher requires only Python standard libraries and [oyaml](https://pypi.org/project/oyaml/).
+
+The example below shows a very simple text-based implementation that loads a specific bank file and allows the user to select and play its patches.
+
+### Example
 
 ```python
 import patcher
@@ -15,66 +18,63 @@ p.load_bank(bankfile)
 n = 0
 while True:
     p.select_patch(n)
-    print("Patch %d/%d: %s" % (n + 1, p.patches_count(), p.patch_name(n)))
+    print(f"Patch {n + 1}/{len(p.patches)}: {p.patches[n]}")
     n = int(input("select patch: ")) - 1
 ```
 
-## Public Functions
+## API
 
-**read_yaml**(_text_)
-
-Converts a YAML text stream, which can be a single document or multiple (separated by `---`), into a Python object using the additional FluidPatcher-specific formatting specifications defined by _yamlext.py_. Wraps _oyaml.safe_load_ so that dangerous embedded code will have no effect.
-- Parameters:
-  - _text_: YAML string
-- Returns: a dict or list of dicts if there were multiple documents in the stream
-
-**write_yaml**(_*args_)
-
-Convert a Python object(s) to a (FluidPatcher-style) YAML stream. Wraps `oyaml.safe_dump`.
-- Parameters:
-  - _*args_: one or more Python objects to convert
-- Returns: a YAML string
-
-## class Patcher
+### class Patcher
 
 **Patcher**(_cfgfile="", fluidsettings={}_)
 
 A generic Python object that handles patches and banks and starts an instance of FluidSynth in a separate thread.
 - Parameters:
-  - _cfgfile_: YAML-formatted file with settings for FluidPatcher/FluidSynth
-  - _fluidsettings_: a dict of settings to pass directly to FluidSynth
+  - _cfgfile_: YAML-formatted file with platform-/implementation-specific settings for FluidPatcher/FluidSynth
+  - _fluidsettings_: a dictionary of opt: val settings to pass directly to FluidSynth
 
-### Public Attributes/Properties
+#### Public Attributes/Properties
 
-- _cfgfile_: file used to configure this Patcher
 - _cfg_: data structure holding config info
-- _sfdir_: directory where soundfonts are stored
-- _bankdir_: directory where banks are stored
-- _plugindir_ : path to effects plugins
-- _currentbank_: the filename of the current bank
-- _sfpresets_: when in single-soundfont-browsing state, a list of all presets in the soundfont; otherwise empty. Each element of the list is an _[SFPreset](https://github.com/albedozero/fluidpatcher/blob/5b39a721d2988c00ebbd882260186adcb126390e/patcher/yamlext.py#L9)_ object with the attributes _name_ (the preset name), _bank_, and _prog_.
+- _cfgfile_: Path object to file used to configure this Patcher
+- _currentbank_: Path object to current bank
+- _bankdir_: Path object to directory where banks are stored
+- _sfdir_: Path object to directory where soundfonts are stored
+- _mfilesdir_: Path object to directory for midi files
+- _plugindir_ : Path object to effects plugins
+- _banks_ : list of bank files in _bankdir_ and its directory tree
+- _soundfonts_ : list of soundfonts in _sfdir_ and its directory tree
+- _patches_ : list of patches in the current bank
 
-### Public Methods
+#### Public Methods
+
+**set_midimessage_callback**(_func_)
+
+Sets a function to be called when MIDI events are received by the synth. This can be bypassed by calling this function with _None_
+- Parameters:
+  - _func_: a function that takes a _fswrap.MidiMessage_ object as its single argument
+- Returns: nothing
 
 **read_config**()
 
-Read the config file associated with the Patcher on creation
+Called by the Patcher object on creation. Can be called later to return the full text contents of the file.
 - Parameters:
   - none
 - Returns: the contents of the config file
 
 **write_config**(_raw=None_)
 
-Write _self.cfg_ to _self.cfgfile_ as YAML-formatted text; if _raw_ is provided and parses, write that exactly
+Write _self.cfg_ to _self.cfgfile_ as YAML-formatted text; if _raw_ is provided and parses, write that exactly. Most parameters will not take effect until the next restart.
 - Parameters:
   - _raw_: exact text to write
 - Returns: nothing
 
-**load_bank**(_bank=None_)
+**load_bank**(_bankfile='', raw=''_)
 
-Load a bank file, apply any FluidSynth settings specified in the bank, load all necessary soundfonts and unload any unneeded ones to save memory
+Load a bank file. If successful, reset the synth, apply bank-level settings, and load all necessary soundfonts. Returns the full text of the file that was loaded
 - Parameters:
-  - _bank_: bank file to load or raw yaml string; if not provided, 'currentbank' from config file will be used
+  - _bankfile_: bank file to load
+  - _raw_: raw yaml string to parse as current bank
 - Returns: the contents of the bank file
 
 **save_bank**(_bankfile="", raw=""_)
@@ -82,76 +82,48 @@ Load a bank file, apply any FluidSynth settings specified in the bank, load all 
 Save the current bank to a file
 - Parameters:
   - _bankfile_: bank file to save; if not provided, 'currentbank' from config file will be used
-  - _raw_: full text of the YAML document to save; useful for preserving exact formatting/comments; text is checked for validity first
+  - _raw_: full text of the YAML document to save; text is checked for validity first
 - Returns: nothing
-
-**patch_name**(_patch_index_)
-
-Get the name of a patch in the loaded bank by its index
-- Parameters:
-  - _patch_index_: index of the patch
-- Returns: the patch name
-
-**patch_names**()
-
-Get a list of all patch names
-- Parameters:
-  - none
-- Returns: a list of all patch names
-
-**patch_index**(_patch_name_)
-
-Get the index of a patch in the loaded bank
-- Parameters:
-  - _patch_name_: name of the patch
-- Returns: the patch index
-
-**patches_count**()
-
-Get the total number of patches in the loaded bank
-- Parameters:
-  - none
-- Returns: the number of patches
 
 **select_patch**(_patch_)
 
-Select a patch from the loaded bank by its name or index. Select soundfonts for specified channels, apply router settings, send CC/SYSEX messages, activate effects, etc.
+Select a patch from the loaded bank by its name or index. Select soundfonts for specified channels, apply router rules, activate players and effects, send messages, etc.
 - Parameters:
   - _patch_: index of the patch as int, or patch name as a string
-- Returns: a list of warnings if any
+- Returns: a list of warnings, if any
 
 **add_patch**(_name, addlike=None_)
 
-Create a new patch, possibly copying settings from an existing one
+Create a new empty patch, or one that copies all settings other than instruments from an existing patch
 - Parameters:
   - _name_: a name for the new patch
   - _addlike_: index or name of an existing patch; if specified, copy settings into the new patch
-- Returns: the name of the new patch
-
-**delete_patch**(_patch_)
-
-Delete a new patch and unload its soundfonts if no other patches need them
-- Parameters:
-  - _patch_: index or name of the patch to delete
-- Returns: nothing
+- Returns: the index of the new patch
 
 **update_patch**(_patch_)
 
-Update the current patch with Fluidsynth's channel settings, and save any CC values (excluding those that shouldn't be user-modified) if they have been changed from their defaults
+Update the specified patch with the current instrument settings and any modified continuous controller (CC) messages. This makes it possible to copy a patch by calling **add_patch()** followed by **update_patch()**
 - Parameters:
   - _patch_: index or name of the patch to update
 - Returns: nothing
 
+**delete_patch**(_patch_)
+
+Delete a patch from the currently loaded bank
+- Parameters:
+  - _patch_: index or name of the patch to delete
+- Returns: nothing
+
 **load_soundfont**(_soundfont_)
 
-Load a single soundfont (unloading others first to save memory), scan through all the presets in it and store them as a list of _SFPreset_s in the object's _sfpreset_ attribute
+Load a single soundfont, scan through all the presets in it and store them as a list of _PresetInfo_ objects in _sfpresets_. Also resets the synth to a default state and routes all incoming MIDI messages to channel 1. This function is not used to load the soundfonts in a bank file - that is handled by **load_bank()** - its purpose is for previewing the instruments in a soundfont when creating new patches or bank files. The soundfont is unloaded and _sfpresets_ cleared the next time **select_patch()** or **load_bank()** is called.
 - Parameters:
   - _soundfont_: soundfont file to load
 - Returns: **True** if successful, **False** if loading fails or there are no presets
 
 **select_sfpreset**(_presetnum_)
 
-Select a preset from the loaded soundfont to play on MIDI channel 1 in FluidSynth
+If a single soundfont has been loaded by **load_soundfont()**, load a preset from _sfpresets_ to MIDI channel 1.
 - Parameters:
   - _presetnum_: index of the preset
 - Returns: **False** if a bank is loaded instead of a single soundfont or selecting the preset fails, **True** otherwise
@@ -163,35 +135,31 @@ Get the current value of a fluidsynth [setting](http://www.fluidsynth.org/api/fl
   - _opt_: setting name
 - Returns: the setting's current value as float, int, or str
 
-**fluid_set**(_opt, val, updatebank=False_)
+**fluid_set**(_opt, val, updatebank=False, patch=None_)
 
-Change a fluidsynth setting
+Change a fluidsynth setting. To add the new setting in the current bank, call with _updatebank=True_ and the current patch so that the new bank setting is not overridden by any settings in the patch.
 - Parameters:
   - _opt_: setting name
   - _val_: new value to set
   - _updatebank_: if True, add/update the fluidsetting in the current bank in memory
+  - _patch_: if updating the bank, clear conflicting settings from the patch, specified using name or index
 - Returns: nothing
 
-**link_cc**(_target, link='', type='effect', xfrm=RouterSpec(0, 127, 1, 0), **kwargs_)
+**add_router_rule**(_rule=None, **kwargs_)
 
-Create a link between a CC message and a non-Synth parameter such as an effect control or fluidsynth setting
+Add a rule describing how MIDI messages will be interpreted/acted upon. This function is called by **load_bank()** and **select_patch()** to add the rules in a bank file, but it can be called directly by an implementation to add additional rules if desired
 - Parameters:
-  - _target_: name of the parameter to modify
-  - _link_: <channel>:<cc> to monitor for changes
-  - _type_: the type of parameter being linked
-  - _xfrm_:  how to translate from the 0-127 CC value to the parameter's value, either as a _RouterSpec_ object or a string of the form `"<min>-<max>*<mul>+<add>"`
-  - _**kwargs_: _chan_ and _cc_ can be passed as keyword arguments instead of _link_
-
-**poll_cc**()
-
-Scan through the list of current CC links, see if any have changed, and modify the corresponding parameter(s); must be called in the event loop of your implementation for CC links to work
-- Parameters:
-  - none
-- Returns: a dictionary of return values with the link target as key, for those that need it (i.e. patch change type)
-
-**cclinks_clear**(_type=''_)
-
-Clear CC links of the given type, or all links if no type is given
-- Parameters:
-  - _type_: the type of parameter being linked
+  - _rule_: string containing a router rule [see wiki]
+  - _**kwargs_: router rule as a set of key=value pairs
 - Returns: nothing
+
+### class PresetInfo
+
+**PresetInfo**(_name, bank, prog_)
+
+A simple container for storing information about a soundfont's presets
+
+#### Attributes:
+  - _name_: the preset name in the soundfont file
+  - _bank_: the bank number of the preset
+  - _prog_: the program number of the preset

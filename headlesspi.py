@@ -5,9 +5,8 @@ Description: an implementation of patcher.py for a headless Raspberry Pi
     patches/banks are changed using pads/buttons/knobs on the controller
     should work on other platforms as well
 """
-import time, re, sys, os, traceback, glob, subprocess, mido
+import time, re, sys, os, traceback, subprocess
 import patcher
-from utils import netlink
 
 # change these values to correspond to buttons/pads on your MIDI keyboard/controller
 # or reprogram your controller to use the corresponding functions
@@ -17,6 +16,17 @@ INC_PATCH = 22          # increment the patch number
 SELECT_PATCH = 23       # choose a patch using a knob or slider
 BANK_INC = 24           # load the next bank
 
+# toggling the onboard LEDs requires writing to the SD card, which can cause audio stutters
+# this is not usually noticeable, since it only happens when switching patches or shutting down
+# but if it becomes annoying, LED control can be disabled here
+DISABLE_LED = False
+
+
+def connect_controls():
+    pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=DEC_PATCH, patch=-1)
+    pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=INC_PATCH, patch=1)
+    pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=SELECT_PATCH, patch='select')
+    pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=BANK_INC, par2='1-127', bank=1)
 
 POLL_TIME = 0.025
 ACT_LED = 0
@@ -24,8 +34,8 @@ PWR_LED = 1
 
 if not os.path.exists('/sys/class/leds/led1/brightness'):
     PWR_LED = 0 # Pi Zero only has ACT led
-if not os.path.exists('/sys/class/leds/led0/brightness'):
-    # no leds - testing on non-RPi
+if not os.path.exists('/sys/class/leds/led0/brightness') or DISABLE_LED:
+    # leds don't exist or control disabled
     def onboardled_set(led, state=None, trigger=None):
         pass
         
@@ -33,7 +43,8 @@ if not os.path.exists('/sys/class/leds/led0/brightness'):
         pass
         
     def error_blink(n):
-        pass
+        sys.exit()
+        
 else:
     def onboardled_set(led, state=None, trigger=None):
         if trigger:
@@ -68,217 +79,85 @@ else:
     onboardled_set(PWR_LED, 1, trigger='none') # red PWR led on
     onboardled_set(ACT_LED, 0, trigger='none') # green ACT led off
 
-def list_banks():
-    bpaths = sorted(glob.glob(os.path.join(pxr.bankdir, '**', '*.yaml'), recursive=True), key=str.lower)
-    return [os.path.relpath(x, start=pxr.bankdir) for x in bpaths]
 
-def list_soundfonts():
-    sfpaths = sorted(glob.glob(os.path.join(pxr.sfdir, '**', '*.sf2'), recursive=True), key=str.lower)
-    return [os.path.relpath(x, start=pxr.sfdir) for x in sfpaths]
+class HeadlessSynth:
 
-def select_patch(n):
-    pxr.select_patch(n)
-    onboardled_blink(ACT_LED)
-    print("Selected patch %d/%d: %s" % (n + 1, pxr.patches_count(), pxr.patch_name(n)))
-    
-def load_bank(bfile):
-    onboardled_set(ACT_LED, 1)
-    print("Loading bank '%s' .. " % bfile, end='')
-    pxr.load_bank(bfile)
-    onboardled_set(ACT_LED, 0)
-    print("done!")
+    def __init__(self):
+        self.pno = 0
+        self.shutdowntimer = 0
+        self.lastpoll = time.time()
+        self.load_bank(pxr.currentbank)
+        self.select_patch(self.pno)
+        pxr.set_midimessage_callback(self.listener)
+        onboardled_blink(ACT_LED, 5) # ready to play
+        while True:
+            time.sleep(POLL_TIME)
+            if self.shutdowntimer:
+                t = time.time()
+                if t - self.shutdowntimer > 7:
+                    onboardled_set(ACT_LED, 1, trigger='mmc0')
+                    onboardled_set(PWR_LED, 1, trigger='input')
+                    print("Shutting down..")
+                    subprocess.run('sudo shutdown -h now'.split())
+                if t - self.shutdowntimer > 5:
+                    onboardled_blink(PWR_LED, 10)
+                    onboardled_set(PWR_LED, 1)
+
+    def load_bank(self, bfile):
+        print(f"Loading bank '{bfile}' .. ")
+        onboardled_set(ACT_LED, 1)
+        try:
+            pxr.load_bank(bfile)
+        except Exception as e:
+            print(f"Error loading {bfile}\n{str(e)}")
+            error_blink(3)
+        onboardled_set(ACT_LED, 0)
+        print("Bank loaded.")
+
+    def select_patch(self, n):
+        pxr.select_patch(n)
+        connect_controls()
+        print(f"Selected patch {n + 1}/{len(pxr.patches)}: {pxr.patches[self.pno]}")
+        onboardled_blink(ACT_LED)
+
+    def listener(self, msg):
+    # catches custom midi :msg to change patch/bank
+        if hasattr(msg, 'patch'):
+            if msg.patch == 'select':
+                x = int(msg.val * min(len(pxr.patches), 128) / 128)
+                if x != self.pno:
+                    self.pno = x
+                    self.select_patch(self.pno)
+            else:
+                if msg.val > 0:
+                    self.shutdowntimer = time.time()
+                    self.pno = round(self.pno + msg.patch) % len(pxr.patches)
+                    self.select_patch(self.pno)
+                else:
+                    self.shutdowntimer = 0
+        elif hasattr(msg, 'bank'):
+            if pxr.currentbank in pxr.banks:
+                bno = (pxr.banks.index(pxr.currentbank) + 1 ) % len(pxr.banks)
+            else:
+                bno = 0
+            self.load_bank(pxr.banks[bno])
+            self.pno = 0
+            self.select_patch(self.pno)
+            pxr.write_config()    
 
 
 os.umask(0o002)
-if len(sys.argv) > 1:
-    cfgfile = sys.argv[1]
-else:
-    cfgfile = 'SquishBox/squishboxconf.yaml'
-
-# start the patcher
+cfgfile = sys.argv[1] if len(sys.argv) > 1 else 'SquishBox/squishboxconf.yaml'
 try:
     pxr = patcher.Patcher(cfgfile)
-except patcher.PatcherError as e:
-    print("Error(s) in " + cfgfile, file=sys.stderr)
+except Exception as e:
+    print(f"Error loading config file {cfgfile}\n{str(e)}")
     error_blink(2)
 
 # hack to connect MIDI devices to old versions of fluidsynth
 fport = re.search("client (\d+): 'FLUID Synth", subprocess.check_output(['aconnect', '-o']).decode())[1]
 for port, client in re.findall(" (\d+): '([^\n]*)'", subprocess.check_output(['aconnect', '-i']).decode()):
-    if client == 'Midi Through': continue
     subprocess.run(['aconnect', port, fport])
-        
-# initialize network link
-if pxr.cfg.get('remotelink_active', 1): # allow link by default
-    port = pxr.cfg.get('remotelink_port', netlink.DEFAULT_PORT)
-    passkey = pxr.cfg.get('remotelink_passkey', netlink.DEFAULT_PASSKEY)
-    remote_link = netlink.Server(port, passkey)
-else:
-    remote_link = None
 
-# load bank
-try:
-    load_bank(pxr.currentbank)
-except patcher.PatcherError as e:
-    print("Error(s) in " + pxr.currentbank, file=sys.stderr)
-    error_blink(3)
+mainapp = HeadlessSynth()
 
-pno = 0
-shutdowntimer = 0
-select_patch(pno)
-
-# set up the patch/bank controls
-pxr.link_cc('incpatch', type='user', chan=CTRLS_MIDI_CHANNEL, cc=INC_PATCH, xfrm='1-127*0+1')
-pxr.link_cc('incpatch', type='user', chan=CTRLS_MIDI_CHANNEL, cc=DEC_PATCH, xfrm='1-127*0-1')
-pxr.link_cc('shutdowncancel', type='user', chan=CTRLS_MIDI_CHANNEL, cc=INC_PATCH, xfrm='0-0*1+0')
-pxr.link_cc('shutdowncancel', type='user', chan=CTRLS_MIDI_CHANNEL, cc=DEC_PATCH, xfrm='0-0*1+0')
-pxr.link_cc('selectpatch', type='user', chan=CTRLS_MIDI_CHANNEL, cc=SELECT_PATCH)
-pxr.link_cc('incbank', type='user', chan=CTRLS_MIDI_CHANNEL, cc=BANK_INC, xfrm='1-127*0+1')
-
-onboardled_blink(ACT_LED, 5) # ready to play
-
-# main loop
-while True:
-    time.sleep(POLL_TIME)
-    t=time.time()
-    if shutdowntimer:
-        if t - shutdowntimer > 7:
-            onboardled_set(ACT_LED, 1, trigger='mmc0')
-            onboardled_set(PWR_LED, 1, trigger='input')
-            print("Shutting down..")
-            subprocess.run('sudo shutdown -h now'.split())
-        if t - shutdowntimer > 5:
-            onboardled_blink(PWR_LED, 10)
-            onboardled_set(PWR_LED, 1)
-    changed = pxr.poll_cc()
-    if 'incpatch' in changed:
-        shutdowntimer = t
-        pno = (pno + changed['incpatch']) % pxr.patches_count()
-        select_patch(pno)
-    elif 'shutdowncancel' in changed:
-        shutdowntimer = 0
-    elif 'selectpatch' in changed:
-        x = int(changed['selectpatch'] * min(pxr.patches_count(), 128) / 128)
-        if x != pno:
-            pno = x
-            select_patch(pno)
-    elif 'incbank' in changed:
-        banks = list_banks()
-        if pxr.currentbank in banks:
-            bno = banks.index(pxr.currentbank)
-        else:
-            bno = 0
-        bno = (bno + changed['incbank']) % len(banks)
-        try:
-            load_bank(banks[bno])
-            pno = 0
-            select_patch(pno)
-        except patcher.PatcherError as e:
-            print(repr(e), file=sys.stderr)
-            error_blink(3)
-        else:
-            pxr.write_config()    
-
-
-    # check remote link for requests and process them
-    if remote_link and remote_link.pending():
-        req = remote_link.requests.pop(0)
-
-        if req.type == netlink.SEND_VERSION:
-            remote_link.reply(req, patcher.VERSION)
-        
-        elif req.type == netlink.RECV_BANK:
-            try:
-                pxr.load_bank(req.body)
-            except patcher.PatcherError as e:
-                remote_link.reply(req, str(e), netlink.REQ_ERROR)
-            else:
-                remote_link.reply(req, patcher.write_yaml(pxr.patch_names()))
-                
-        elif req.type == netlink.LIST_BANKS:
-            banks = list_banks()
-            if not banks:
-                remote_link.reply(req, "no banks found!", netlink.REQ_ERROR)
-            else:
-                remote_link.reply(req, patcher.write_yaml(banks))
-            
-        elif req.type == netlink.LOAD_BANK:
-            try:
-                onboardled_set(ACT_LED, 1)
-                if req.body == '':
-                    rawbank = pxr.load_bank()
-                else:
-                    rawbank = pxr.load_bank(req.body)
-                onboardled_set(ACT_LED, 0)
-            except patcher.PatcherError as e:
-                remote_link.reply(req, str(e), netlink.REQ_ERROR)
-            else:
-                info = patcher.write_yaml(pxr.currentbank, rawbank, pxr.patch_names())
-                remote_link.reply(req, info)
-                pxr.write_config()
-                
-        elif req.type == netlink.SAVE_BANK:
-            bfile, rawbank = patcher.read_yaml(req.body)
-            try:
-                pxr.save_bank(bfile, rawbank)
-            except patcher.PatcherError as e:
-                remote_link.reply(req, str(e), netlink.REQ_ERROR)
-            else:
-                remote_link.reply(req)
-                pxr.write_config()
-                        
-        elif req.type == netlink.SELECT_PATCH:
-            try:
-                if req.body.isdecimal():
-                    pno = int(req.body)
-                else:
-                    pno = pxr.patch_index(req.body)
-                warn = pxr.select_patch(pno)
-            except patcher.PatcherError as e:
-                remote_link.reply(req, str(e), netlink.REQ_ERROR)
-            else:
-                remote_link.reply(req, warn)
-                onboardled_blink(ACT_LED)
-                
-        elif req.type == netlink.LIST_SOUNDFONTS:
-            sf = list_soundfonts()
-            if not sf:
-                remote_link.reply(req, "no soundfonts!", netlink.REQ_ERROR)
-            else:
-                remote_link.reply(req, patcher.write_yaml(sf))
-        
-        elif req.type == netlink.LOAD_SOUNDFONT:
-            if not pxr.load_soundfont(req.body):
-                remote_link.reply(req, "Unable to load %s" % req.body, netlink.REQ_ERROR)
-            else:
-                remote_link.reply(req, patcher.write_yaml(pxr.sfpresets))
-        
-        elif req.type == netlink.SELECT_SFPRESET:
-            pno = int(req.body)
-            warn = pxr.select_sfpreset(pno)
-            remote_link.reply(req, warn)
-            onboardled_blink(ACT_LED)
-
-        elif req.type == netlink.LIST_PLUGINS:
-            try:
-                info = subprocess.check_output(['listplugins']).decode()
-            except:
-                remote_link.reply(req, 'No plugins installed')
-            else:
-                remote_link.reply(req, patcher.write_yaml(info))
-
-        elif req.type == netlink.LIST_PORTS:
-            ports = mido.get_input_names()
-            remote_link.reply(req, patcher.write_yaml(ports))
-            
-        elif req.type == netlink.READ_CFG:
-            info = patcher.write_yaml(pxr.cfgfile, pxr.read_config())
-            remote_link.reply(req, info)
-
-        elif req.type == netlink.SAVE_CFG:
-            try:
-                pxr.write_config(req.body)
-            except patcher.PatcherError as e:
-                remote_link.reply(req, str(e), netlink.REQ_ERROR)
-            else:
-                remote_link.reply(req)
