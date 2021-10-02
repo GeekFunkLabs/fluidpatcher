@@ -1,14 +1,16 @@
 soundfontdir: SquishBox/sf2
 bankdir: SquishBox/banks
-pluginpath: /usr/lib/ladspa
+mfilesdir: SquishBox/midi
+plugindir: /usr/lib/ladspa
 currentbank: bank1.yaml
 
-fluidsettings:
+fluidsettings: # http://www.fluidsynth.org/api/fluidsettings.xml
   audio.driver: alsa
   audio.period-size: 64
   audio.periods: 3
   midi.autoconnect: 1
   synth.ladspa.active: 1
+
 fluidsettings-jack:
   audio.driver: jack
   audio.jack.autoconnect: 1
