@@ -14,10 +14,18 @@ VERSION = '0.5'
 MAX_SF_BANK = 129
 MAX_SF_PROGRAM = 128
 
-CC_DEFAULTS = [(7, 7, 100), (11, 11, 127), (12, 31, 0), (44, 63, 0),
-               (65, 65, 0), (70, 79, 64), (80, 83, 0), (84, 84, 255), 
-               (85, 95, 0), (102, 119, 0)]
-               
+CC_DEFAULTS = [(7, 7, 100),    # volume
+               (10, 10, 64),   # pan
+               (11, 11, 127),  # expression
+               (12, 31, 0),
+               (44, 63, 0), 
+               (65, 65, 0),    # portamento on/off
+               (70, 79, 64),   # sound controllers
+               (80, 83, 0),
+               (84, 84, 255),  # roland portamento 
+               (85, 95, 0),
+               (102, 119, 0)]
+
 SYNTH_DEFAULTS = {'synth.chorus.depth': 8.0, 'synth.chorus.level': 2.0,
                   'synth.chorus.nr': 3, 'synth.chorus.speed': 0.3,
                   'synth.reverb.damp': 0.0, 'synth.reverb.level': 0.9,
@@ -156,8 +164,7 @@ class Patcher:
             if rule == 'clear': self._fluid.router_clear()
             else: self.add_router_rule(rule)
         for msg in self._bank.get('messages', []) + patch.get('messages', []):
-            if msg == 'default': self._send_cc_defaults()
-            elif isinstance(msg, fpyaml.SysexMsg): self._send_sysex(msg)
+            if isinstance(msg, fpyaml.SysexMsg): self._send_sysex(msg)
             else: self._fluid.send_event(*msg)
         return warnings
 
@@ -278,12 +285,6 @@ class Patcher:
             patch = self._bank['patches'][name]
         return patch
 
-    def _send_cc_defaults(self, channels=[]):
-        for channel in channels or range(1, self._max_channels + 1):
-            for first, last, default in CC_DEFAULTS:
-                for ctrl in range(first, last + 1):
-                    self._fluid.send_cc(channel - 1, ctrl, default)
-
     def _send_sysex(self, msg):
         try:
             if not msg.data and msg.file:
@@ -315,7 +316,7 @@ class Patcher:
             self._fluid.players_clear(mask=mask)
         else:
             self._fluid.players_clear()
-            self._send_cc_defaults()
+            self._fluid.reset()
             cfg_fset = self.cfg.get('fluidsettings', {})
             for opt, defaultval in SYNTH_DEFAULTS.items():
                 if opt in cfg_fset:
