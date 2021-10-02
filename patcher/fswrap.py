@@ -37,6 +37,7 @@ specfunc(FL.fluid_settings_setstr, c_int, c_void_p, c_char_p, c_char_p)
 # synth
 fl_eventcallback = CFUNCTYPE(c_int, c_void_p, c_void_p)
 specfunc(FL.new_fluid_synth, c_void_p, c_void_p)
+specfunc(FL.fluid_synth_system_reset, c_int, c_void_p)
 specfunc(FL.new_fluid_audio_driver, c_void_p, c_void_p, c_void_p)
 specfunc(FL.new_fluid_midi_router, c_void_p, c_void_p, fl_eventcallback, c_void_p)
 specfunc(FL.new_fluid_midi_driver, c_void_p, c_void_p, fl_eventcallback, c_void_p)
@@ -579,6 +580,9 @@ class Synth:
             midichannels = [set(range(i, nchan, nports)) for i in range(nports)]
             self.hostports_mapping = list(zip(hostports, midichannels))
             self.ladspa = FL.fluid_synth_get_ladspa_fx(self.fsynth)
+            
+    def reset(self):
+        FL.fluid_synth_system_reset(self.fsynth)
 
     def custom_midi_router(self, data, event):
         mevent = MidiEvent(event)
