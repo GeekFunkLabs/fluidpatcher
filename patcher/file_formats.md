@@ -116,7 +116,8 @@ Unrecognized keywords in a bank file will usually just be ignored. Anything on a
 ### Keywords
 
 - `<channel #>` - an integer used as a keyword sets a soundfont preset on that channel, specified with the format `<soundfont file>:<bank>:<preset>`. MIDI channel numbers are numbered starting with channel 1, the way they are on virtually all synthesizers, controllers, DAWs, etc. This is in contrast to FluidSynth, which numbers channels beginning with 0. Patcher handles all of the translation between channel numbering schemes.
-- `router_rules` - contains a list of rules for how to route MIDI messages. Each rule is a mapping that both describes what messages it should apply to, and how to modify those messages. If a rule is the string `clear` instead of a mapping it will clear all previous router rules, including the default one-to-one channel, type, and parameter rules. A rule can have the following parameters:
+
+- `router_rules` - contains a list of rules for how to route MIDI messages. An incoming MIDI event is compared to all router rules, and for each rule that matches, an event is created that is modified according to the rule and sent on to the synth. By default, FluidSynth creates one-to-one routing rules for all channels, event types, and parameters. If an item in `router_rules` is the string `clear` it will clear all previous router rules, including the default rules. A rule can have the following parameters:
   - `type`(required) - can be `note`, `cc`, `prog`, `pbend`, `kpress`, or `cpress`
   - `chan` - the channel(s) from which to route messages and how to route them. This can be specified in any of the following ways:
     - `<channel #>` - selects the single channel to be affected by this rule
