@@ -292,6 +292,7 @@ class SquishBox:
                 self.wifi_settings()
                 return
 
+
     def addfrom_usb(self):
         sb.lcd_clear()
         sb.lcd_write("looking for USB ", 0)
