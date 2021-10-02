@@ -3,10 +3,10 @@
 
 A Python interface for the [FluidSynth](http://www.fluidsynth.org) software synthesizer that lets you create performance patches you can easily switch between while playing. Patches are described in human-readable and -editable [bank files](patcher/file_formats.md), and can be used to create complex combinations of instruments, effects, rules for routing messages from the controls on your MIDI device, play MIDI files, and create sequencers and arpeggiators. Fluidsynth is an open source software synthesizer that uses [soundfonts](https://en.wikipedia.org/wiki/SoundFont) - a [freely-available](https://duckduckgo.com/?q=free+soundfonts) and [well-documented](http://www.synthfont.com/sfspec24.pdf) sound format.
 
-FluidPatcher should work on any platform where FluidSynth and Python can be installed. The [patcher](patcher/README.md) directory contains all the code to interpret bank files and control FluidSynth, and can be used to create your own interfaces/implementations so your bank files can be portable and useful in different contexts (e.g. performing, editing, recording). Several implementations are included:
+FluidPatcher should work on any platform where FluidSynth and Python can be installed. The [patcher/](patcher/README.md) directory contains all the code to interpret bank files and control FluidSynth, and can be used to create your own interfaces/implementations so your bank files can be portable and useful in different contexts (e.g. performing, editing, recording). Several implementations are included:
 - *squishbox.py* - runs the [SquishBox](https://www.tindie.com/products/albedozero/squishbox), a Raspberry Pi synth with a 16x2 character LCD and two buttons in a guitar pedal, designed by [Geek Funk Labs](https://geekfunklabs.com/products/squishbox/)
 - *headlesspi.py* - runs on a Pi with no screen, keyboard, or extras and allows you to change patches and banks using pads/knobs on your MIDI keyboard/controller
-- *fluidpatcher.pyw* - a cross-platform wxpython-based GUI that allows live editing of bank files, playing of patches, and browsing/playing soundfont presets
+- *fluidpatcher.pyw* - a cross-platform wxpython-based GUI that allows live editing of bank files in addition to playing patches and browsing/playing soundfont presets
 
 Check the [wiki](https://github.com/albedozero/fluidpatcher/wiki) for more information about using the scripts, bank/config file formats, the API, etc.
 
@@ -14,11 +14,10 @@ Check the [wiki](https://github.com/albedozero/fluidpatcher/wiki) for more infor
 Requires [Python 3](https://python.org). Installation of FluidSynth and needed Python modules varies a bit by system.
 
 ### Raspberry Pi
-You can run a script that will query you for options, then install and configure FluidSynth and FluidPatcher for you by typing the following at a command line:
+The install script in the [assets/](assets/) directory will install and configure all the needed software for you! You can easily run it from a command line by entering
 ```
-curl https://geekfunklabs.com/squishbox | bash
+curl -L git.io/squishbox | bash
 ```
-To see what the script does first, eliminate the `| bash`.
 
 ### Windows
 Run the setup program in the [latest release](https://github.com/albedozero/fluidpatcher/releases/latest) of FluidPatcher.
