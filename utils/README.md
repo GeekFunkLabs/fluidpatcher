@@ -75,11 +75,11 @@ while True:
     while True:
         event = sb.update()
         if event == SB.RIGHT:
-			x += 1
-			break
-		elif event == SB.LEFT:
-			x -= 1
-			break
+            x += 1
+            break
+        elif event == SB.LEFT:
+            x -= 1
+            break
         elif event == SB.SELECT:
             sb.lcd_clear()
             sb.lcd_write("Choose your pet:")
