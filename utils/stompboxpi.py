@@ -4,37 +4,74 @@ Description: python interface for a raspberry pi with two gpio buttons and a 16x
 
 
 # adjust timings below as needed/desired
-POLL_TIME = 0.01
 HOLD_TIME = 1.0
-LONG_TIME = 3.0
 MENU_TIMEOUT = 5.0
 BLINK_TIME = 0.1
 SCROLL_TIME = 0.4
-
-
-COLS, ROWS = 16, 2
+POLL_TIME = 0.01
+BOUNCE_TIME = 0.02
 
 import time
 import RPLCD, RPi.GPIO as GPIO
-from .hw_overlay import *
 
+COLS, ROWS = 16, 2
+ACTIVE_HIGH = 0
+BTN_R = 3
+BTN_L = 2
+ROT_BTN = 24
+ROT_L = 8
+ROT_R = 25
+LCD_RS = 4
+LCD_EN = 27
+LCD_D4 = 9
+LCD_D5 = 11
+LCD_D6 = 5
+LCD_D7 = 6
+try:
+    from .hw_overlay import *
+except ModuleNotFoundError:
+    pass
 if ACTIVE_HIGH:
     ACTIVE = GPIO.HIGH
 else:
     ACTIVE = GPIO.LOW
+BUTTONS = BTN_L, BTN_R, ROT_BTN
 
+# events
+NULL = 0
+LEFT = 1
+RIGHT = 2
+SELECT = 3
+ESCAPE = 4
+
+# button states
 UP = 0
 DOWN = 1
-TAP = 2
-HOLD = 3
-HELD = 4
-LONG = 5
-LONGER = 6
-CHR_BSP = 0
-CHR_ENT = 1
-INPCHARS = " abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.\/" + chr(CHR_BSP) + chr(CHR_ENT)
-PRNCHARS = ''' abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~''' + chr(CHR_BSP) + chr(CHR_ENT)
-BUTTONS = BTN_L, BTN_R
+HELD = 2
+
+CHR_NO = 0
+CHR_YES = 1
+CHR_BSP = 2
+CHR_NO_BITS = (
+0b00000,
+0b11011,
+0b01110,
+0b00100,
+0b01110,
+0b11011,
+0b00000,
+0b00000)
+CHR_YES_BITS = (
+0b00000,
+0b00001,
+0b00011,
+0b10110,
+0b11100,
+0b01000,
+0b00000,
+0b00000)
+INPCHARS = " abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.\/"
+PRNCHARS = ''' abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~'''
 
 class StompBox():
 
@@ -48,63 +85,68 @@ class StompBox():
                             numbering_mode=GPIO.BCM,
                             cols=COLS, rows=ROWS,
                             compat_mode=True)
-        self.LCD.create_char(CHR_BSP,[0,3,5,9,5,3,0,0])
-        self.LCD.create_char(CHR_ENT,[0,1,5,9,31,8,4,0])
+        self.LCD.create_char(CHR_NO, CHR_NO_BITS)
+        self.LCD.create_char(CHR_YES, CHR_YES_BITS)
         self.lcd_clear()
         self.scrolltext = ''
 
         # set up buttons
         GPIO.setwarnings(False)
         GPIO.setmode(GPIO.BCM)
-        for button in BUTTONS:
+        for button in (*BUTTONS, ROT_R, ROT_L):
             if ACTIVE_HIGH:
                 GPIO.setup(button, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
             else:
                 GPIO.setup(button, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        self.state = {button: UP for button in BUTTONS}
+        self.state = {button: DOWN if GPIO.input(button) == ACTIVE else UP for button in BUTTONS}
         self.timer = {button: 0 for button in BUTTONS}
+        self.encstate = 0b00000000
+        self.encvalue = 0
+        for button in BUTTONS:
+            GPIO.add_event_detect(button, GPIO.BOTH, callback=self.button_event)
+        for channel in ROT_R, ROT_L:
+            GPIO.add_event_detect(channel, GPIO.BOTH, callback=self.encoder_event)
 
-    @property
-    def buttons(self):
-        return self.state.values()
+    def button_event(self, button):
+        t = time.time()
+        self.timer[button] = t
 
-    @property
-    def left(self):
-        return self.state[BTN_L]
+    def encoder_event(self, channel):
+        for channel in ROT_L, ROT_R:
+            self.encstate = (self.encstate << 1) % 256
+            self.encstate += 1 if GPIO.input(channel) == ACTIVE else 0
+        if self.encstate == 0b00011110:
+            self.encvalue += 1
+        elif self.encstate == 0b00101101:
+            self.encvalue -= 1
 
-    @property
-    def right(self):
-        return self.state[BTN_R]
-
-    def button(self, button):
-        return self.state[button]
-        
     def update(self):
         time.sleep(POLL_TIME)
         t = time.time()
+        event = NULL
         for button in BUTTONS:
-            if GPIO.input(button) != ACTIVE:
-                self.timer[button] = t
-                if self.state[button] == DOWN:
-                    self.state[button] = TAP
+            if t - self.timer[button] > BOUNCE_TIME:
+                if GPIO.input(button) == ACTIVE:
+                    if self.state[button] == UP:
+                        self.state[button] = DOWN
+                    elif self.state[button] == DOWN and t - self.timer[button] >= HOLD_TIME:
+                            if button == BTN_R: event = SELECT
+                            if button in (BTN_L, ROT_BTN): event = ESCAPE
+                            self.state[button] = HELD
                 else:
+                    if self.state[button] == DOWN:
+                        if button == BTN_L: event = LEFT
+                        elif button == BTN_R: event = RIGHT
+                        elif button == ROT_BTN: event = SELECT
                     self.state[button] = UP
-            else:
-                if self.state[button] == UP:
-                    self.state[button] = DOWN
-                    self.timer[button] = t
-                elif self.state[button] == DOWN:
-                    if (t - self.timer[button]) >= HOLD_TIME:
-                        self.state[button] = HOLD
-                elif self.state[button] == HOLD:
-                    self.state[button] = HELD
-                elif self.state[button] == HELD:
-                    if (t - self.timer[button]) >= LONG_TIME:
-                        self.state[button] = LONG
-                elif self.state[button] == LONG:
-                    self.state[button] = LONGER
+        if self.encvalue > 0:
+            event = RIGHT
+            self.encvalue -= 1
+        elif self.encvalue < 0:
+            event = LEFT
+            self.encvalue += 1
         if self.scrolltext:
-            if (t - self.lastscroll) >= SCROLL_TIME:
+            if t - self.lastscroll >= SCROLL_TIME:
                 self.lastscroll = t
                 self.s += 1
                 if 0 < self.s <= len(self.scrolltext) - COLS:
@@ -114,6 +156,7 @@ class StompBox():
                     self.s = -4
                     self.LCD.cursor_pos = (self.scrollrow, 0)
                     self.LCD.write_string(self.scrolltext[:COLS])
+        return event
 
     def waitforrelease(self, tmin=0):
         # wait for all buttons to be released and at least :tmin seconds
@@ -132,8 +175,7 @@ class StompBox():
         while True:
             if t and time.time() > tstop:
                 return False
-            self.update()
-            if TAP in self.buttons:
+            if self.update() != NULL:
                 return True
 
     def lcd_clear(self):
@@ -160,15 +202,34 @@ class StompBox():
         while n != 0:
             self.lcd_write(' ' * len(text), row, rjust=rjust)
             time.sleep(BLINK_TIME)
-            self.lcd_write(text, row)
+            self.lcd_write(text, row, rjust=rjust)
             time.sleep(BLINK_TIME)
             n -= 1
 
-    def choose_opt(self, opts, row=0, scroll=False, timeout=MENU_TIMEOUT, passlong=False, rjust=False):
+    def confirm_choice(self, text='', row=1, timeout=MENU_TIMEOUT):
+        self.lcd_write(text[:COLS - 1], row=row)
+        c = 1
+        while True:
+            self.LCD.cursor_pos = row, COLS - 1
+            self.LCD.write_string([chr(CHR_NO), chr(CHR_YES)][c])
+            tstop = time.time() + timeout
+            while time.time() < tstop:
+                event = self.update()
+                if event in (RIGHT, LEFT):
+                    c ^= 1
+                    break
+                elif event == SELECT:
+                    if c: self.lcd_blink(text[:COLS], row=row)
+                    return c
+                elif event == ESCAPE:
+                    return 0
+            else:
+                return 0
+
+    def choose_opt(self, opts, i=0, row=0, scroll=False, timeout=MENU_TIMEOUT, rjust=False):
         # choose from list of options in :opts
         # returns the choice index
         # or -1 if user backs out or time expires
-        i=0
         while True:
             self.lcd_write(opts[i], row=row, scroll=scroll, rjust=rjust)
             tstop = time.time() + timeout
@@ -176,23 +237,18 @@ class StompBox():
                 if timeout and time.time() > tstop:
                     self.lcd_write(' ' * COLS, row)
                     return -1
-                self.update()
-                if self.right == TAP:
+                event = self.update()
+                if event == RIGHT:
                     i = (i + 1) % len(opts)
                     break
-                elif self.left == TAP:
+                elif event == LEFT:
                     i = (i - 1) % len(opts)
                     break
-                elif self.right == HOLD:
+                elif event == SELECT:
                     self.lcd_blink(opts[i], row, rjust=rjust)
                     return i
-                elif self.left == HOLD:
+                elif event == ESCAPE:
                     self.lcd_write(' ' * COLS, row)
-                    return -1
-                elif LONG in self.state.values() and passlong:
-                    for b in self.state:
-                        if self.state[b] == LONG:
-                            self.state[b] = HELD
                     return -1
 
     def choose_val(self, val, inc, minval, maxval, fmt=f'>{COLS}', timeout=MENU_TIMEOUT):
@@ -202,72 +258,61 @@ class StompBox():
             self.lcd_write(format(val, fmt), 1, rjust=True)
             tstop = time.time() + timeout
             while time.time() < tstop:
-                self.update()
-                if self.right > DOWN:
+                event = self.update()
+                if event == RIGHT:
                     val = min(val + inc, maxval)
                     break
-                elif self.left > DOWN:
+                elif event == LEFT:
                     val = max(val - inc, minval)
                     break
+                elif event == SELECT:
+                    self.lcd_blink(format(val, fmt), 1, rjust=True)
+                    return val
+                elif event == ESCAPE:
+                    return None
             else:
-                return val
+                return None
 
-    def char_input(self, text='', row=1, timeout=MENU_TIMEOUT, charset=INPCHARS):
-        # text input using two buttons
+    def char_input(self, text='', i=-1, row=1, timeout=MENU_TIMEOUT, charset=INPCHARS):
         # text: initial text value
-        # tap chooses character, hold left/right to move cursor
-        # at end of input, delete or newline can be selected
-        # newline returns text, timeout returns empty string
-        i = len(text)
-        c = len(charset) - 1
-        self.lcd_write(text[-COLS:], row=row)
-        self.LCD.cursor_mode = 'blink'
+        if i < 0: i = len(text) + i
+        c = charset.find(text[i]) # index in charset
+        self.LCD.cursor_mode = 'line'
         while True:
-            if i < len(text):
-                c = charset.find(text[i])
-            self.LCD.cursor_pos = (row, min(i, COLS - 1))
-            if c > -1:
+            if self.LCD.cursor_mode == 'line':
+                self.lcd_write(text[max(0, i - COLS):max(COLS, i)], row=row)
+            else:
                 self.LCD.write_string(charset[c])
-                self.LCD.cursor_pos = (row, min(i, COLS - 1))
+            self.LCD.cursor_pos = (row, min(i, COLS - 1))
             tstop = time.time() + timeout
             while time.time() < tstop:
-                self.update()
-                if self.right == TAP:
-                    if i < len(text):
-                        c = (c + 1) % (len(charset) - 2)
-                        text = text[0:i] + charset[c] + text[i+1:]
+                event = self.update()
+                if event == NULL: continue
+                if event == RIGHT:
+                    if self.LCD.cursor_mode == 'line':
+                        i = min(i + 1, len(text))
+                        if i == len(text): text += ' '
+                        c = charset.find(text[i])
                     else:
                         c = (c + 1) % len(charset)
-                    break
-                elif self.left == TAP:
-                    if i < len(text):
-                        c = (c - 1) % (len(charset) - 2)
-                        text = text[0:i] + charset[c] + text[i+1:]
+                        text = text[0:i] + charset[c] + text[i + 1:]
+                elif event == LEFT:
+                    if self.LCD.cursor_mode == 'line':
+                        i = max(i - 1, 0)
+                        c = charset.find(text[i])
                     else:
                         c = (c - 1) % len(charset)
-                    break
-                elif self.right == HOLD and c == len(charset) - 1:
-                    self.LCD.cursor_mode = 'hide'
-                    self.lcd_blink(text[:COLS], row)
-                    return text.strip()
-                elif self.right in (HOLD, LONG, LONGER):
-                    if self.right != HOLD: time.sleep(BLINK_TIME)
-                    if c < len(charset) - 2:
                         text = text[0:i] + charset[c] + text[i + 1:]
-                    i = min(i + 1, len(text))
-                    if i == len(text):
-                        c = len(charset) - 1
-                    self.LCD.cursor_pos = (row, 0)
-                    self.lcd_write(text[max(0, i - COLS):max(COLS, i)], row=row)
-                    break
-                elif self.left in (HOLD, LONG, LONGER):
-                    if self.left != HOLD: time.sleep(BLINK_TIME)
-                    i = max(i - 1, 0)
-                    if c == len(charset) - 2:
-                        text = text[0:i] + text[i + 1:]
-                    self.LCD.cursor_pos = (row, 0)
-                    self.lcd_write(text[max(0, i - COLS):max(COLS, i)], row=row)
-                    break
+                elif event == SELECT:
+                    self.LCD.cursor_mode = 'line' if self.LCD.cursor_mode == 'blink' else 'blink'
+                elif event == ESCAPE:
+                    self.LCD.cursor_mode = 'hide'
+                break
             else:
                 self.LCD.cursor_mode = 'hide'
                 return ''
+            if self.LCD.cursor_mode == 'hide':
+                if self.confirm_choice(text.strip()[1 - COLS:], row=row):
+                    return text.strip()
+                else:
+                    return ''
