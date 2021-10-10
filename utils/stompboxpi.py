@@ -103,21 +103,21 @@ class StompBox():
         self.encstate = 0b00000000
         self.encvalue = 0
         for button in BUTTONS:
-            GPIO.add_event_detect(button, GPIO.BOTH, callback=self.button_event)
+            GPIO.add_event_detect(button, GPIO.BOTH, callback=self._button_event)
         for channel in ROT_R, ROT_L:
-            GPIO.add_event_detect(channel, GPIO.BOTH, callback=self.encoder_event)
+            GPIO.add_event_detect(channel, GPIO.BOTH, callback=self._encoder_event)
 
-    def button_event(self, button):
+    def _button_event(self, button):
         t = time.time()
         self.timer[button] = t
 
-    def encoder_event(self, channel):
+    def _encoder_event(self, channel):
         for channel in ROT_L, ROT_R:
-            self.encstate = (self.encstate << 1) % 256
+            self.encstate = (self.encstate << 1) % 1024
             self.encstate += 1 if GPIO.input(channel) == ACTIVE else 0
-        if self.encstate == 0b00011110:
+        if self.encstate == 0b0001111000 or self.encstate % 256 in (0b00111000, 0b00011000, 0b00011100):
             self.encvalue += 1
-        elif self.encstate == 0b00101101:
+        elif self.encstate == 0b0010110100 or self.encstate % 256 in (0b00110100, 0b00100100, 0b00101100):
             self.encvalue -= 1
 
     def update(self):
