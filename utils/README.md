@@ -4,7 +4,7 @@ These files contain code that is used in the _implementations_ of patcher (i.e s
 
 ## stompboxpi.py
 
-This module creates a StompBox object that reads the buttons and/or rotary encoder and controls the LCD connected to a Raspberry Pi, and is used by squishbox.py. The variables imported from _hw_overlay.py_ store what pins on the GPIO header these things are connected to. It uses RPLCD and RPi.GPIO to control them. Create a _StompBox_ object to initialize the LCD, and call its _update()_ method in the main loop of your code to update the display and poll the buttons. Other methods (described below) allow you to write text to the LCD, query the user for a choice between options, input a number or text string, etc.
+This module creates a StompBox object that reads the buttons and/or rotary encoder and controls the LCD connected to a Raspberry Pi, and is used by squishbox.py. It uses RPLCD and RPi.GPIO to control them. Create a _StompBox_ object to initialize the LCD, and call its _update()_ method in the main loop of your code to update the display and poll the buttons. Other methods (described below) allow you to write text to the LCD, query the user for a choice between options, input a number or text string, etc.
 
 ### class StompBox
 
