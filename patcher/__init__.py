@@ -165,7 +165,7 @@ class Patcher:
             else: self.add_router_rule(rule)
         for msg in self._bank.get('messages', []) + patch.get('messages', []):
             if isinstance(msg, fpyaml.SysexMsg): self._send_sysex(msg)
-            else: self._fluid.send_event(*msg)
+            else: self.send_event(*msg)
         return warnings
 
     def add_patch(self, name, addlike=None):
@@ -260,6 +260,8 @@ class Patcher:
                     for par, val in kwargs.items()}
             rule = fpyaml.RouterRule(**rule)
         rule.add(self._fluid.router_addrule)
+
+    def send_event(self, type, chan, par1, par2): self._fluid.send_event(type, chan, par1, par2)
 
     # private functions
     def _reload_bankfonts(self):
