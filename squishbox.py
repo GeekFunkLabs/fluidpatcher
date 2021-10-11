@@ -78,13 +78,13 @@ def update_device():
     u = subprocess.check_output(['sudo', 'apt-get', 'upgrade', '-sy'])
     fup, sysup = 0, 0
     if [int(x) for x in newver.split('.')] > [int(x) for x in patcher.VERSION.split('.')]:
-        fup = True if sb.choose_opt([f"install {newver}?"], row=1, timeout=0) == 0 else False
+        fup = sb.confirm_choice(f"install {newver}", row=1)
     else:
         sb.lcd_write("Up to date", 1, rjust=True)
         sb.waitfortap(10)
     if not re.search('0 upgraded, 0 newly installed', u.decode()):
         sb.lcd_write("OS out of date", 0)
-        sysup = True if sb.choose_opt(['upgrade?'], row=1, timeout=0) == 0 else False
+        sysup = sb.confirm_choice("upgrade OS", row=1)
     if not (fup or sysup):
         return
     sb.lcd_write("updating..", 0)
@@ -191,7 +191,7 @@ class SquishBox:
                 warn = []
             sb.lcd_write(f"preset {p.bank:03}:{p.prog:03}", 1, rjust=True)
             while True:
-                event == sb.update()
+                event = sb.update()
                 if event == SB.RIGHT:
                     i = (i + 1) % len(pxr.sfpresets)
                     warn = pxr.select_sfpreset(i)
@@ -199,7 +199,7 @@ class SquishBox:
                     i = (i - 1) % len(pxr.sfpresets)
                     warn = pxr.select_sfpreset(i)
                 elif event == SB.SELECT:
-                    k = sb.choose_opt(['Add as Patch', 'Load Bank', 'Open Soundfont'], row=1)
+                    k = sb.choose_opt(['Add as Patch', 'Open Soundfont', 'Load Bank'], row=1)
                     if k == 0:
                         sb.lcd_write("Add as Patch:", 0)
                         newname = sb.char_input(p.name)
