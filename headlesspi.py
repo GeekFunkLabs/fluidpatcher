@@ -9,7 +9,7 @@ import time, re, sys, os, traceback, subprocess
 import patcher
 
 # change these values to correspond to buttons/pads on your MIDI keyboard/controller
-# or reprogram your controller to use the corresponding functions
+# or reprogram your controller to send the corresponding messages
 CTRLS_MIDI_CHANNEL = 1
 DEC_PATCH = 21          # decrement the patch number
 INC_PATCH = 22          # increment the patch number
@@ -21,12 +21,13 @@ BANK_INC = 24           # load the next bank
 # but if it becomes annoying, LED control can be disabled here
 DISABLE_LED = False
 
-
+# modify this function directly if you want to change patches using notes or other MIDI messages
 def connect_controls():
     pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=DEC_PATCH, patch=-1)
     pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=INC_PATCH, patch=1)
     pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=SELECT_PATCH, patch='select')
     pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=BANK_INC, par2='1-127', bank=1)
+
 
 POLL_TIME = 0.025
 ACT_LED = 0
@@ -146,7 +147,6 @@ class HeadlessSynth:
             pxr.write_config()    
 
 
-os.umask(0o002)
 cfgfile = sys.argv[1] if len(sys.argv) > 1 else 'SquishBox/squishboxconf.yaml'
 try:
     pxr = patcher.Patcher(cfgfile)
