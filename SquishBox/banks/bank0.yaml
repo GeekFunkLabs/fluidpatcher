@@ -31,7 +31,6 @@ patches: # indented list of patches
 
   Analog Saw:
     7: ModSynth_R1.sf2:000:000
-    router_rules:
     ladspafx: # recent versions of fluidsynth support LADSPA effects
       delayline1: &delayeffect # this is a YaML anchor
         lib: delay.so
@@ -95,4 +94,4 @@ fluidsettings:
 init: # init block is processed once, when bank is first loaded
   fluidsettings:
     synth.reverb.room-size: 0.8
-  messages: [cc:2:73:0, cc:2:74:0] # initial attack time and filter cutoff
+  messages: [cc:7:73:0, cc:7:74:0] # initial attack time and filter cutoff
