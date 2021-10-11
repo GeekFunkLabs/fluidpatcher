@@ -145,7 +145,13 @@ class SquishBox:
                     k = sb.choose_opt(['Load Bank', 'Save Bank', 'Save Patch', 'Delete Patch',
                                        'Open Soundfont', 'Effects..', 'System Menu..'], row=1)
                     if k == 0:
-                        if self.load_bank(): self.select_patch(0)
+                        lastbank = pxr.currentbank
+                        lastpatch = self.pno
+                        if self.load_bank():
+                            if pxr.currentbank == lastbank:
+                                self.select_patch(lastpatch)
+                            else:
+                                self.select_patch(0)
                     elif k == 1:
                         self.save_bank()
                     elif k == 2:
