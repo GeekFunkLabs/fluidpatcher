@@ -80,7 +80,7 @@ patches:
     4: FluidR3_GM.sf2:000:073
     router_rules:
     # CC 13, 28 control porta time, on/off
-    - {type: note, chan: 1=4}
+    - {type: note, chan: 1=4, par1: 0-127*1+12}
     - {type: cc, chan: 10=4, par1: 28=65, par2: 0-127*127+0}
     - {type: cc, chan: 10=4, par1: 28=68, par2: 0-127*127+0}
     - {type: cc, chan: 1=4, par1: 13=37, par2: 0-127*1+0}
@@ -90,7 +90,7 @@ patches:
     1: VintageDreamsWaves-v2.sf2:000:043
   Mod Synth:
     5: ModSynth_R1.sf2:000:000
-    6: ModSynth_R1.sf2:000:005
+    6: ModSynth_R1.sf2:000:000
     router_rules:
     - {type: note, chan: 1-2*1+4}
     - {type: cc, chan: 1=5-6, par1: 13=74} # filter cutoff
@@ -129,13 +129,15 @@ patches:
     - {type: note, chan: 10=1}
 
 init:
-  cc: [4/37=60,            # initial porta time
-       4/65=127, 4/68=127, # porta/legato on
-       5/71=0, 6/71=0,     # initial filter Q
-       5/73=0, 6/73=0,     # initial attack time
-       5/74=0, 6/74=0,     # initial filter cutoff
-       5/78=40, 6/78=40,   # initial modenv attack
-       5/79=40, 6/79=40,   # initial modenv decay
-       5/80=80, 6/80=80,   # initial modenv sustain
-       5/81=127, 6/81=127, # initial modenv release
-       5/82=80, 6/82=80]   # initial modenv release
+  messages: [cc:4:37:60,               # initial porta time
+             cc:4:65:127, cc:4:68:127, # porta/legato on
+             cc:5:71:0,   cc:6:71:0,   # initial filter Q
+             cc:5:73:0,   cc:6:73:0,   # initial attack time
+             cc:5:74:0,   cc:6:74:0,   # initial filter cutoff
+             cc:5:78:40,  cc:6:78:40,  # initial modenv attack
+             cc:5:79:40,  cc:6:79:40,  # initial modenv decay
+             cc:5:80:80,  cc:6:80:80,  # initial modenv sustain
+             cc:5:81:127, cc:6:81:127, # initial modenv release
+             cc:5:82:80,  cc:6:82:80,  # initial modenv->filter
+             cc:6:100:0,  cc:6:101:0,  # modify RPN pitch bend depth
+             cc:6:6:12,   cc:6:38:0]   # pitch bend = 12 steps
