@@ -1,10 +1,10 @@
-This document explains the purpose of, and how to set up and use some of the programs included in this repository. For more information on creating and editing patches and bank files, consult [file_formats.md](patcher/file_formats.md). The [Patcher API](patcher/README.md) documentation provides information on modifying these programs or creating new implementations.
+This document explains the purpose of, and how to set up and use some of the programs included in this repository. For more information on creating and editing patches and bank files, consult [file_formats.md](patcher/file_formats.md). The [Patcher API](patcher/README.md) documentation provides information on modifying these programs or creating new implementations. For info on installing software, see [README.md](README.md).
 
 ## headlesspi.py
 
 This script, when it's set to run on startup, turns a Raspberry Pi into a standalone MIDI sound module. It's more minimalistic than the SquishBox, but doesn't require any extra hardware other than the Pi and a MIDI controller. It uses _SquishBox/squishboxconf.yaml_ by default, but will use an alternate config file if given as a command-line argument.
 
-Plug in headphones and your MIDI controller and start up your Raspberry Pi. The Pi's built-in LEDs are used for visual feedback. When ready to play, the green LED will blink five times. It will blink once when switching patches, and when changing banks will glow steadily until the bank is loaded. The red LED remains on to show power status, but will blink repeatedly if an error occurs:
+Plug in headphones and your MIDI controller and start up your Raspberry Pi. The Pi's built-in LEDs are used for visual feedback. When ready to play, the green activity LED will blink five times. It will blink once when switching patches, and when changing banks will glow steadily until the bank is loaded. The red power LED remains on, but will blink repeatedly if an error occurs:
 - 2 blinks = error in config file
 - 3 blinks = error in bank file
 - 4 blinks = other error
@@ -19,7 +19,9 @@ SELECT_PATCH = 23       # choose a patch using a knob or slider
 BANK_INC = 24           # load the next bank
 ```
 
-These values can be modified to match a MIDI controller's settings, or the MIDI controller can be reprogrammed to send these CC messages. The script can also be made to listen for note messages (or any type of MIDI message) to change patches by modifying the `connect_controls()` function.
+These values can be modified to match a MIDI controller's settings, or the MIDI controller can be reprogrammed to send these CC messages. The script can also be made to listen for note messages (or any type of MIDI message) to change patches by modifying the `connect_controls()` function. The controller should send these as "momentary" messages i.e. send an on/positive value when a key/pad is pressed and off/zero when released.
+
+To safely shut down the Pi when the script is set to run on startup without a keyboard or remote connection, press and hold either the _INC_PATCH_ or _DEC_PATCH_ control for approximately 7 seconds. After 5 seconds, the red power LED starts blinking to warn a shutdown is about to occur, and the green activity LED will begin flickering as the shutdown process happens. Once the green activity LED goes dark, the Pi can be safely unplugged.
 
 
 ## fluidpatcher.pyw
