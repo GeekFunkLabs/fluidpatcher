@@ -71,6 +71,9 @@ else:
             time.sleep(1)
 
     def headless_excepthook(etype, val, tb):
+        # catch all errors, quit if Ctrl+C was pressed
+        # otherwise error_blink(4) forever if headless
+        # and also print error to stdout if running from console
         if etype == KeyboardInterrupt:
             sys.exit()
         traceback.print_exception(etype, val, tb)
@@ -160,4 +163,3 @@ for port, client in re.findall(" (\d+): '([^\n]*)'", subprocess.check_output(['a
     subprocess.run(['aconnect', port, fport])
 
 mainapp = HeadlessSynth()
-

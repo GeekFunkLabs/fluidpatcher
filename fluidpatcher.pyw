@@ -11,7 +11,7 @@ PAD = 10
 FILLSCREEN = False
 
 
-import wx, mido, sys, webbrowser
+import wx, sys, webbrowser
 from pathlib import Path
 import patcher
 
@@ -118,14 +118,26 @@ class MidiMonitor(wx.Dialog):
         self.msglist.SetColumnWidth(0, 60)
         self.msglist.SetColumnWidth(1, 120)
         self.msglist.SetColumnWidth(2, 100)
+        self.timer = wx.Timer(self)
+        self.Bind(wx.EVT_TIMER, self.onTimer)
         self.Bind(wx.EVT_SHOW, self.onHide)
 
     def onHide(self, event):
         event.Skip()
         if not event.IsShown():
-            self.monitor = False
+            self.timer.Stop()
+            self.msglist.DeleteAllItems()
+            
+    def onTimer(self, event):
+        if midimsgs:
+            for msg in midimsgs:
+                self.msglist.Append(msg)
+            midimsgs.clear()
+            n = self.msglist.GetItemCount()
+            pos = self.msglist.GetItemPosition(n - 1)
+            self.msglist.ScrollList(0, pos.y)
 
-
+	
 class SoundfontBrowser(wx.Dialog):
 
     def __init__(self, sf):
@@ -234,15 +246,14 @@ class MainWindow(wx.Frame):
     def listener(self, msg):
         if hasattr(msg, 'val'):
             pass
-        elif getattr(self.midimon, 'monitor', False):
-            t = ('note', 'noteoff', 'cc', 'kpress', 'prog', 'pbend', 'cpress').index(msg.type)
+        elif hasattr(self.midimon, 'timer') and self.midimon.timer.IsRunning():
+            t = ('note', 'noteoff', 'cc', 'kpress', 'prog', 'pbend', 'cpress', None).index(msg.type)
             x = ("Note On", "Note Off", "Control Change", "Key Pressure",
-                 "Program Change", "Pitch Bend", "Aftertouch")[t]
+                 "Program Change", "Pitch Bend", "Aftertouch", "")[t]
             if t < 4:
-                self.midimon.msglist.Append((str(msg.chan + 1), x, f"{msg.par1}={msg.par2}"))
-            else:
-                self.midimon.msglist.Append((str(msg.chan + 1), x, str(msg.par1)))
-            self.midimon.msglist.ScrollList(0, 99)
+            	midimsgs.append((str(msg.chan + 1), x, f"{msg.par1}={msg.par2}"))
+            elif t < 7:
+                midimsgs.append((str(msg.chan + 1), x, str(msg.par1)))
 
     def load_bankfile(self, bfile=''):
         self.display = [bfile, "", "loading patches"]
@@ -392,7 +403,7 @@ class MainWindow(wx.Frame):
             self.bedit.text.WriteText(str(Path(plugin).relative_to(pxr.plugindir)))
 
     def onMidiMon(self, event):
-        self.midimon.monitor = True
+        self.midimon.timer.Start(100)
         self.midimon.Show()
 
     def onSettings(self, event):
@@ -464,6 +475,7 @@ if __name__ == "__main__":
     pxr = patcher.Patcher(cfgfile)
     app = wx.App()
     main = MainWindow()
+    midimsgs = []
     pxr.set_midimessage_callback(main.listener)
     main.Show()
     app.MainLoop()

@@ -261,7 +261,7 @@ class Patcher:
             rule = fpyaml.RouterRule(**rule)
         rule.add(self._fluid.router_addrule)
 
-    def send_event(self, type, chan, par1, par2): self._fluid.send_event(type, chan, par1, par2)
+    def send_event(self, type, chan, par1, par2): self._fluid.send_event(type, chan - 1, par1, par2)
 
     # private functions
     def _reload_bankfonts(self):

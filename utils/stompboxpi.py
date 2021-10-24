@@ -2,7 +2,6 @@
 Description: python interface for a raspberry pi with two gpio buttons and a 16x2 character LCD
 """
 
-
 # adjust timings below as needed/desired
 HOLD_TIME = 1.0
 MENU_TIMEOUT = 5.0
@@ -12,30 +11,17 @@ POLL_TIME = 0.01
 BOUNCE_TIME = 0.02
 
 import time
-import RPLCD, RPi.GPIO as GPIO
+import RPi.GPIO as GPIO
+from RPLCD.gpio import CharLCD
 
 COLS, ROWS = 16, 2
-ACTIVE_HIGH = 0
-BTN_R = 3
-BTN_L = 2
-ROT_BTN = 24
-ROT_L = 8
-ROT_R = 25
-LCD_RS = 4
-LCD_EN = 27
-LCD_D4 = 9
-LCD_D5 = 11
-LCD_D6 = 5
-LCD_D7 = 6
-try:
-    from .hw_overlay import *
-except ModuleNotFoundError:
-    pass
+BTN_L, BTN_R, ROT_L, ROT_R, BTN_ROT, BTN_SW, PIN_LED = 0, 0, 0, 0, 0, 0, 0
+BUTTONS = BTN_L, BTN_R
+from .hw_overlay import *
 if ACTIVE_HIGH:
     ACTIVE = GPIO.HIGH
 else:
     ACTIVE = GPIO.LOW
-BUTTONS = BTN_L, BTN_R, ROT_BTN
 
 # events
 NULL = 0
@@ -49,9 +35,9 @@ UP = 0
 DOWN = 1
 HELD = 2
 
+# custom lcd characters
 CHR_NO = 0
 CHR_YES = 1
-CHR_BSP = 2
 CHR_NO_BITS = (
 0b00000,
 0b11011,
@@ -78,7 +64,7 @@ class StompBox():
     def __init__(self):
     
         # initialize LCD
-        self.LCD = RPLCD.CharLCD(pin_rs=LCD_RS,
+        self.LCD = CharLCD(pin_rs=LCD_RS,
                             pin_e=LCD_EN,
                             pin_rw=None,
                             pins_data=[LCD_D4, LCD_D5, LCD_D6, LCD_D7],
@@ -93,19 +79,24 @@ class StompBox():
         # set up buttons
         GPIO.setwarnings(False)
         GPIO.setmode(GPIO.BCM)
-        for button in (*BUTTONS, ROT_R, ROT_L):
-            if ACTIVE_HIGH:
-                GPIO.setup(button, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-            else:
-                GPIO.setup(button, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        for channel in (*BUTTONS, ROT_R, ROT_L):
+            if channel:
+                if ACTIVE_HIGH:
+                    GPIO.setup(channel, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+                else:
+                    GPIO.setup(channel, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        if PIN_LED: GPIO.setup(PIN_LED, GPIO.OUT)
         self.state = {button: DOWN if GPIO.input(button) == ACTIVE else UP for button in BUTTONS}
         self.timer = {button: 0 for button in BUTTONS}
-        self.encstate = 0b00000000
+        self.encstate = 0b000000
         self.encvalue = 0
         for button in BUTTONS:
-            GPIO.add_event_detect(button, GPIO.BOTH, callback=self._button_event)
+            if button:
+                GPIO.add_event_detect(button, GPIO.BOTH, callback=self._button_event)
         for channel in ROT_R, ROT_L:
-            GPIO.add_event_detect(channel, GPIO.BOTH, callback=self._encoder_event)
+            if channel:
+                GPIO.add_event_detect(channel, GPIO.BOTH, callback=self._encoder_event)
+        self.buttoncallback = None
 
     def _button_event(self, button):
         t = time.time()
@@ -113,11 +104,11 @@ class StompBox():
 
     def _encoder_event(self, channel):
         for channel in ROT_L, ROT_R:
-            self.encstate = (self.encstate << 1) % 1024
+            self.encstate = (self.encstate << 1) % 64
             self.encstate += 1 if GPIO.input(channel) == ACTIVE else 0
-        if self.encstate == 0b0001111000 or self.encstate % 256 in (0b00111000, 0b00011000, 0b00011100):
+        if self.encstate in (0b111000, 0b011000, 0b011100):
             self.encvalue += 1
-        elif self.encstate == 0b0010110100 or self.encstate % 256 in (0b00110100, 0b00100100, 0b00101100):
+        elif self.encstate in (0b110100, 0b100100, 0b101100):
             self.encvalue -= 1
 
     def update(self):
@@ -129,15 +120,19 @@ class StompBox():
                 if GPIO.input(button) == ACTIVE:
                     if self.state[button] == UP:
                         self.state[button] = DOWN
+                        if button == BTN_SW and self.buttoncallback != None:
+                            self.buttoncallback(button, 1)
                     elif self.state[button] == DOWN and t - self.timer[button] >= HOLD_TIME:
                             if button == BTN_R: event = SELECT
-                            if button in (BTN_L, ROT_BTN): event = ESCAPE
-                            self.state[button] = HELD
+                            elif button in (BTN_L, BTN_ROT): event = ESCAPE
+                            if button in (BTN_R, BTN_L, BTN_ROT): self.state[button] = HELD
                 else:
                     if self.state[button] == DOWN:
                         if button == BTN_L: event = LEFT
                         elif button == BTN_R: event = RIGHT
-                        elif button == ROT_BTN: event = SELECT
+                        elif button == BTN_ROT: event = SELECT
+                        elif button == BTN_SW and self.buttoncallback != None:
+                            self.buttoncallback(button, 0)
                     self.state[button] = UP
         if self.encvalue > 0:
             event = RIGHT
@@ -316,3 +311,10 @@ class StompBox():
                     return text.strip()
                 else:
                     return ''
+
+    def statusled_set(self, state):
+        if PIN_LED:
+            if state == 1:
+                GPIO.output(PIN_LED, GPIO.HIGH)
+            else:
+                GPIO.output(PIN_LED, GPIO.LOW)

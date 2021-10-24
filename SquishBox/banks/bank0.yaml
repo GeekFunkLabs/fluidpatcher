@@ -88,8 +88,8 @@ router_rules: # router rules at this indent level apply to all patches
 # fluidsynth settings for all patches
 # full list at http://www.fluidsynth.org/api/fluidsettings.xml
 fluidsettings:
-  synth.reverb.level: 0.9
   synth.reverb.width: 0.5
+  synth.gain: 0.6
 
 init: # init block is processed once, when bank is first loaded
   fluidsettings:

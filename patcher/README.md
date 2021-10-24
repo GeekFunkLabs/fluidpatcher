@@ -155,7 +155,7 @@ Add a rule describing how MIDI messages will be interpreted/acted upon. This fun
 
 **send_event**(_type, chan, par1, par2_)
 
-Add a rule describing how MIDI messages will be interpreted/acted upon. This function is called by **load_bank()** and **select_patch()** to add the rules in a bank file, but it can be called directly by an implementation to add additional rules if desired
+Sends a MIDI event to FluidSynth
 - Parameters:
   - _type_: MIDI message type
   - _chan_: channel on which to send the message

@@ -7,6 +7,10 @@ from pathlib import Path
 import patcher
 from utils import stompboxpi as SB
 
+BUTTON_MIDICHANNEL = 16
+BUTTON_MOM_CC = 30
+BUTTON_TOG_CC = 31
+
 
 def wifi_settings():
     # display current connection
@@ -112,8 +116,9 @@ def update_device():
 class SquishBox:
 
     def __init__(self):
-        self.networks = []
+        self.togglestate = 0
         pxr.set_midimessage_callback(self.listener)
+        sb.buttoncallback = self.handle_buttonevent
         if not self.load_bank(pxr.currentbank):
             while not self.load_bank(): pass
         self.select_patch(0)
@@ -130,7 +135,14 @@ class SquishBox:
                     self.select_patch(self.pno)
         else:
             self.lastmsg = msg
-        
+
+    def handle_buttonevent(self, button, val):
+        pxr.send_event('cc', BUTTON_MIDICHANNEL, BUTTON_MOM_CC, val)
+        if val:
+            self.togglestate ^= 1
+            pxr.send_event('cc', BUTTON_MIDICHANNEL, BUTTON_TOG_CC, self.togglestate)
+            sb.statusled_set(self.togglestate)
+
     def patchmode(self):
         while True:
             sb.lcd_write(pxr.patches[self.pno], 0, scroll=True)

@@ -73,19 +73,6 @@ fl_midi_event_set_par1 = specfunc(FL.fluid_midi_event_set_key, c_int, c_void_p, 
 fl_midi_event_set_par2 = specfunc(FL.fluid_midi_event_set_velocity, c_int, c_void_p, c_int)
 specfunc(FL.fluid_midi_event_set_sysex, c_int, c_void_p, c_void_p, c_int, c_int)
 
-# player
-fl_tickcallback = CFUNCTYPE(None, c_void_p, c_uint)
-specfunc(FL.new_fluid_player, c_void_p, c_void_p)
-specfunc(FL.delete_fluid_player, None, c_void_p)
-specfunc(FL.fluid_player_add, c_int, c_void_p, c_char_p)
-specfunc(FL.fluid_player_set_playback_callback, c_int, c_void_p, fl_eventcallback, c_void_p)
-specfunc(FL.fluid_player_play, c_int, c_void_p)
-specfunc(FL.fluid_player_stop, c_int, c_void_p)
-specfunc(FL.fluid_player_set_loop, c_int, c_void_p, c_int)
-specfunc(FL.fluid_player_get_status, c_int, c_void_p)
-FLUID_PLAYER_TEMPO_INTERNAL = 0
-FLUID_PLAYER_TEMPO_EXTERNAL_MIDI = 2
-
 # sequencer events
 specfunc(FL.new_fluid_event, c_void_p)
 specfunc(FL.delete_fluid_event, None, c_void_p)
@@ -110,6 +97,17 @@ specfunc(FL.fluid_sequencer_get_tick, c_uint, c_void_p)
 FLUID_SEQ_NOTEON = 1
 FLUID_SEQ_TIMER = 17
 FLUID_SEQ_UNREGISTERING = 21
+
+# player
+fl_tickcallback = CFUNCTYPE(None, c_void_p, c_uint)
+specfunc(FL.new_fluid_player, c_void_p, c_void_p)
+specfunc(FL.delete_fluid_player, None, c_void_p)
+specfunc(FL.fluid_player_add, c_int, c_void_p, c_char_p)
+specfunc(FL.fluid_player_set_playback_callback, c_int, c_void_p, fl_eventcallback, c_void_p)
+specfunc(FL.fluid_player_play, c_int, c_void_p)
+specfunc(FL.fluid_player_stop, c_int, c_void_p)
+FLUID_PLAYER_TEMPO_INTERNAL = 0
+FLUID_PLAYER_TEMPO_EXTERNAL_MIDI = 2
 
 try:
     FLUIDSYNTH2 = True
@@ -439,7 +437,9 @@ class Player:
     def __init__(self, synth, file, loops, barlength, chan, filter):
         self.fplayer = FL.new_fluid_player(synth.fsynth)
         self.frouter = synth.frouter
-        FL.fluid_player_add(self.fplayer, str(file).encode())
+        if isinstance(file, list):
+            for f in file: FL.fluid_player_add(self.fplayer, str(f).encode())
+        else: FL.fluid_player_add(self.fplayer, str(file).encode())
         self.loops = list(zip(loops[::2], loops[1::2]))
         self.barlength = barlength
         self.chan = Route(*chan) if chan else None
@@ -500,6 +500,9 @@ class Player:
         else:
             for start, end in self.loops:
                 if self.lasttick < end <= tick:
+                    if start < 0:
+                        self.transport(0)
+                        start = 0
                     FL.fluid_player_seek(self.fplayer, start)
                     self.lasttick = start
                     break

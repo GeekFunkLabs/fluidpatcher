@@ -7,17 +7,19 @@ fluidsettings:
   midi.autoconnect: 1
 
 fluidsettings-windows-lowlatency:
-  midi.autoconnect: 1
   audio.driver: wasapi
   audio.wasapi.exclusive-mode: 1
   audio.periods: 16
   audio.period-size: 144
+  midi.autoconnect: 1
+  player.reset-synth: 0
 
 fluidsettings-linux-alsa:
-  midi.autoconnect: 1
   audio.driver: alsa
   audio.period-size: 64
   audio.periods: 3
+  midi.autoconnect: 1
+  player.reset-synth: 0
   synth.ladspa.active: 1
 
 fluidsettings-linux-jack:
@@ -25,6 +27,7 @@ fluidsettings-linux-jack:
   audio.jack.autoconnect: 1
   audio.jack.multi: 1
   midi.autoconnect: 1
+  player.reset-synth: 0
   synth.audio-channels: 16
   synth.audio-groups: 16
   synth.ladspa.active: 1
