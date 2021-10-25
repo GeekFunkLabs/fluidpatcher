@@ -106,8 +106,12 @@ specfunc(FL.fluid_player_add, c_int, c_void_p, c_char_p)
 specfunc(FL.fluid_player_set_playback_callback, c_int, c_void_p, fl_eventcallback, c_void_p)
 specfunc(FL.fluid_player_play, c_int, c_void_p)
 specfunc(FL.fluid_player_stop, c_int, c_void_p)
+specfunc(FL.fluid_player_get_status, c_int, c_void_p)
+specfunc(FL.fluid_player_get_total_ticks, c_int, c_void_p)
 FLUID_PLAYER_TEMPO_INTERNAL = 0
 FLUID_PLAYER_TEMPO_EXTERNAL_MIDI = 2
+FLUID_PLAYER_PLAYING = 1
+FLUID_PLAYER_DONE = 3
 
 try:
     FLUIDSYNTH2 = True
@@ -444,7 +448,6 @@ class Player:
         self.barlength = barlength
         self.chan = Route(*chan) if chan else None
         self.filter = filter
-        self.playing = False
         self.pendingseek = SEEK_DONE
         self.lasttick = 0
         self.playback_callback = fl_eventcallback(self.player_router)
@@ -455,8 +458,7 @@ class Player:
     def transport(self, play, seek=None):
         if play == 0:
             FL.fluid_player_stop(self.fplayer)
-            self.playing = False
-        elif not self.playing:
+        elif FL.fluid_player_get_status(self.fplayer) != FLUID_PLAYER_PLAYING:
             if seek != None:
                 FL.fluid_player_seek(self.fplayer, seek)
                 if seek > self.lasttick:
@@ -465,7 +467,6 @@ class Player:
                 else:
                     self.pendingseek = SEEK_DONE
             FL.fluid_player_play(self.fplayer)
-            self.playing = True
         else:
             self.pendingseek = seek
 
@@ -499,6 +500,8 @@ class Player:
                 self.lasttick = tick
         else:
             for start, end in self.loops:
+                if end < 0:
+                    end = FL.fluid_player_get_total_ticks(self.fplayer) + end + 1
                 if self.lasttick < end <= tick:
                     if start < 0:
                         self.transport(0)
