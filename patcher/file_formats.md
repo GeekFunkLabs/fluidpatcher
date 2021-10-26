@@ -132,7 +132,7 @@ Unrecognized keywords in a bank file will usually just be ignored. Anything on a
   - `fluidsetting` - a FluidSynth setting to change when a matching MIDI message is received.
   - `sequencer|arpeggiator|player|tempo|ladspafx` - these are used to control MIDI players and external LADSPA effects, described below
   
-  Any other additional parameter(s) in the rule will be sent to a callback function. An implementation can then use these actions to trigger its own events (e.g. changing patches, loading banks, etc.). See the [Patcher API description](README.md) for details.
+  If the rule has other parameters than these, a callback function will be called with the parameters of the rule and the matching MIDI message. An implementation can use these to trigger its own events. An example of this is the `patch` parameter, which the squishbox.py and headlesspi.py implementations will use to change patches. If the value of `patch` is a number, the patch number will be incremented by that amount. If the value is `select`, then the value sent by the MIDI message is used to select the patch.
 
 - `messages` - a list of MIDI messages to send. The format is `<type>:<channel>:<par1>:<par2>`, where the _type_ is `note`, `noteoff`, `cc`, `pbend`, `cpress`, `kpress`, `prog`, or `sysex`. One-parameter messages can omit `par2`. For `sysex` messages a _destination_ is given instead of a channel, and the SysEx bytes are sent to the closest-matching MIDI port name, or FluidSynth itself if the destination matches or is an empty string. The remaining tokens can be a _.syx_ file to read from, or a `:`-separated list of the SysEx message bytes, as decimal or hex.
 
@@ -159,7 +159,7 @@ Unrecognized keywords in a bank file will usually just be ignored. Anything on a
   - `file`(required) - the MIDI file to play
   - `chan` - a channel routing specification, of the same format as for a router rule, for all the messages in the file. This can be useful if your MIDI controller plays on the same channel as one or more of the tracks in the file, and you don't want the messages to interfere.
   - `filter` - a list of message types to ignore in the file. By default this is `['prog']`, so you can set the instruments for each channel played in the song without them being altered by program changes in the file. To use general MIDI instruments, you can instead set this to `[]` and set a preset from a GM font on the first channel, and FluidSynth will in most cases select the appropriate instruments.
-  - `loops` - a list of pairs of _start, end_ ticks. When the song reaches an _end_ tick, it will seek back to the previous _start_ tick in the list.
+  - `loops` - a list of pairs of _start, end_ ticks. When the song reaches an _end_ tick, it will seek back to the previous _start_ tick in the list. A loop _end_ with a negative value refers to ticks starting from the end of the song and going backward. A negative _start_ value rewinds to the beginning of the song and stops playback.
   - `barlength` - the number of ticks corresponding to a whole number of musical measures in the song. If the player is playing and a router rule tells it to seek to a point in the song, it will wait until the end of a bar to do so. By default barlength is 0 and seeking will occur immediately.
   - `tempo` - tempo at which to play the file, in bpm. If not given, the tempo messages in the file will be obeyed
   
