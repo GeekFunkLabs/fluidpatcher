@@ -88,7 +88,7 @@ inform "for the SquishBox or headless Raspberry Pi synth."
 warning "Always be careful when running scripts and commands copied"
 warning "from the internet. Ensure they are from a trusted source."
 echo "If you want to see what this script does before running it,"
-echo "hit ctrl-C and enter 'curl https://geekfunklabs.com/squishbox | more'"
+echo "hit ctrl-C and enter 'curl -L git.io/squishbox | more'"
 echo -e "Report issues with this script at https://github.com/albedozero/fluidpatcher\n"
 
 if test -f /etc/os-release; then
