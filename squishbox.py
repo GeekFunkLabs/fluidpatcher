@@ -74,7 +74,7 @@ def addfrom_usb():
         sb.waitforrelease(1)
 
 def update_device():
-    sb.lcd_write(f"Firmware {patcher.VERSION}", 0, scroll=True)
+    sb.lcd_write(f"version {patcher.VERSION}", 0, scroll=True)
     sb.lcd_write("checking..", 1, rjust=True)
     x = subprocess.check_output(['curl', 'https://raw.githubusercontent.com/albedozero/fluidpatcher/master/patcher/__init__.py'])
     newver = re.search("VERSION = '([0-9\.]+)'", x.decode())[1]
@@ -369,7 +369,7 @@ class SquishBox:
 
 sb = SB.StompBox()
 sb.lcd_clear()
-sb.lcd_write(f"firmware {patcher.VERSION}", 0)
+sb.lcd_write(f"version {patcher.VERSION}", 0)
 
 cfgfile = sys.argv[1] if len(sys.argv) > 1 else '/home/pi/SquishBox/squishboxconf.yaml'
 try: pxr = patcher.Patcher(cfgfile)
