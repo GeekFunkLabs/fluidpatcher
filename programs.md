@@ -1,4 +1,4 @@
-This document explains the purpose and how to set up and use some of the programs included in this repository. For more information on creating and editing patches and bank files, consult [file_formats.md](patcher/file_formats.md). The [Patcher API](patcher/README.md) documentation provides information on modifying these programs or creating new implementations. For info on installing software, see [README.md](README.md).
+This document explains how to set up and use the programs included in this repository. For information on creating and editing patches and bank files, consult [file_formats.md](patcher/file_formats.md). The [Patcher API](patcher/README.md) documentation provides information on modifying these programs or creating new implementations. For info on installing software, see [README.md](README.md).
 
 ## headlesspi.py
 
