@@ -141,7 +141,7 @@ class MidiMonitor(wx.Dialog):
 class SoundfontBrowser(wx.Dialog):
 
     def __init__(self, sf):
-        super(SoundfontBrowser, self).__init__(None, title=sf, size=(400, 650),
+        super(SoundfontBrowser, self).__init__(None, title=str(sf), size=(400, 650),
             style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
         self.sf = sf
         self.copypreset = ''
@@ -381,11 +381,11 @@ class MainWindow(wx.Frame):
     def onChoosePreset(self, event):
         sf = wx.FileSelector("Open Soundfont", str(pxr.sfdir), "", "*.sf2", "Soundfont (*.sf2)|*.sf2", wx.FD_OPEN)
         if sf == '': return
-        sfrel = str(Path(sf).relative_to(pxr.sfdir))
+        sfrel = Path(sf).relative_to(pxr.sfdir)
         if pxr.load_soundfont(sf):
             sfbrowser = SoundfontBrowser(sfrel)
         else:
-            wx.MessageBox(f"Unable to load {sfrel}", "Error", wx.OK|wx.ICON_ERROR)
+            wx.MessageBox(f"Unable to load {str(sfrel)}", "Error", wx.OK|wx.ICON_ERROR)
             return
         if sfbrowser.ShowModal() == wx.ID_OK and self.bedit.IsShown():
             self.bedit.text.WriteText(sfbrowser.copypreset)
