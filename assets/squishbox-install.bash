@@ -91,18 +91,18 @@ echo "If you want to see what this script does before running it,"
 echo "hit ctrl-C and enter 'curl -L git.io/squishbox | more'"
 echo -e "Report issues with this script at https://github.com/albedozero/fluidpatcher\n"
 
+ENVCHECK=true
 if test -f /etc/os-release; then
-	if cat /etc/os-release | grep -q "raspian"; then
-		RASPBIAN=true
+	if ! grep -q "raspbian" /etc/os-release; then
+		ENVCHECK=false
 	fi
-	if cat /etc/os-release | grep -q "buster"; then
-		BUSTER=true
-	fi
-else
-	RASPBIAN=false
+	versioncode=`sed -n '/^VERSION_CODENAME=/s|^.*=||p' /etc/os-release`
+	if ! [[ $versioncode =~ (buster|bullseye) ]]; then
+	    ENVCHECK=false
+    fi
 fi
-if ! ($RASPBIAN && $BUSTER); then
-	warning "These scripts are designed to work on a Raspberry Pi running Raspbian Buster,"
+if ! ($ENVCHECK); then
+	warning "These scripts are designed to run on Raspbian Buster or later,"
 	warning "which does not appear to be the case here. YMMV!"
 	if ! promptorno "Proceed anyway?"; then
 		exit 1
@@ -122,6 +122,18 @@ if promptoryes "Install/update FluidPatcher version $NEW_FP_VER?"; then
 		overwrite="yes"
 	fi 
 fi
+
+if promptorno "OK to upgrade your system (if possible)?"; then
+	UPGRADE=true
+fi
+echo "Software repositories you are currently using:"
+for repo in `sed -n '/^deb /p' /etc/apt/sources.list | cut -d' ' -f2`; do
+    echo "  $repo"
+done
+echo "Some sites may respond too slowly (e.g.  http://raspbian.raspberrypi.org/raspbian),"
+echo "causing installation to fail. For this reason, you may want to add a site near you"
+echo "from the list at https://www.raspbian.org/RaspbianMirrors"
+query "Software repository to add" "none"; mirror=$response
 
 IFS=$'\n'
 AUDIOCARDS=(`aplay -l | grep ^card | cut -d' ' -f 3-`)
@@ -148,16 +160,6 @@ if [[ $startup == 2 ]]; then
 	query "    Previous patch button CC" "use default"; decpatch=$response
 	query "    Patch select knob CC" "use default"; selectpatch=$response
 	query "    Bank change button CC" "use default"; bankinc=$response
-fi
-
-REPO=`sed -n '/^deb /p' /etc/apt/sources.list|cut -d' ' -f2`
-echo "The default software repository (http://raspbian.raspberrypi.org/raspbian/)"
-echo "sometimes responds too slowly, causing installation to time out and fail."
-echo "For this reason, you may want to use a site near you from the list at"
-echo "https://www.raspbian.org/RaspbianMirrors"
-query "Software repository" $REPO; mirror=$response
-if promptorno "OK to upgrade your system (if possible)?"; then
-	UPGRADE=true
 fi
 
 inform "\nOptional tasks/add-ons:"
@@ -201,15 +203,15 @@ sudo mv -f /etc/xdg/autostart/piwiz.desktop /etc/xdg/autostart/piwiz.disabled 2>
 
 # get dependencies
 inform "Installing/Updating required software..."
-if [[ $mirror != $REPO ]]; then
-	sudo sed -i "/^deb/s|$REPO|$mirror|" /etc/apt/sources.list
+if [[ $mirror != "none" ]]; then
+    echo "deb $mirror $versioncode main contrib non-free rpi" | sudo tee -a /etc/apt/sources.list
+    echo "deb-src $mirror $versioncode main contrib non-free rpi" | sudo tee -a /etc/apt/sources.list
 fi
 sysupdate
-apt_pkg_install "git"  # use curl or wget instead?
+apt_pkg_install "git"
 apt_pkg_install "python3-pip"
 apt_pkg_install "python3-rtmidi"
-apt_pkg_install "libfluidsynth1"
-apt_pkg_install "fluid-soundfont-gm"
+apt_pkg_install "fluidsynth"
 apt_pkg_install "jackd1"
 pip_install "oyaml"
 pip_install "mido"
