@@ -255,6 +255,7 @@ class Patcher:
     # :kwargs router rule parameters, as text or values
         if isinstance(rule, str):
             rule = fpyaml.parse(rule)
+            rule = fpyaml.RouterRule(**rule)
         if rule == None:
             rule = {par: fpyaml.parse(str(val))
                     for par, val in kwargs.items()}
