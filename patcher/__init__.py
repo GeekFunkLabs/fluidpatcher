@@ -165,7 +165,7 @@ class Patcher:
             else: self.add_router_rule(rule)
         for msg in self._bank.get('messages', []) + patch.get('messages', []):
             if isinstance(msg, fpyaml.SysexMsg): self._send_sysex(msg)
-            else: self.send_event(*msg)
+            else: self._fluid.send_event(*msg)
         return warnings
 
     def add_patch(self, name, addlike=None):
