@@ -520,6 +520,7 @@ class Player:
             FL.fluid_player_set_tempo(self.fplayer, FLUID_PLAYER_TEMPO_INTERNAL, 1.0)
 
     def delete(self):
+        FL.fluid_player_stop(self.fplayer)
         FL.delete_fluid_player(self.fplayer)
 
 
