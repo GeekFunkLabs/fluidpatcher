@@ -74,7 +74,7 @@ class StompBox():
         self.LCD.create_char(CHR_NO, CHR_NO_BITS)
         self.LCD.create_char(CHR_YES, CHR_YES_BITS)
         self.lcd_clear()
-        self.scrolltext = ''
+        self.lastscroll = time.time()
 
         # set up buttons
         GPIO.setwarnings(False)
@@ -140,17 +140,18 @@ class StompBox():
         elif self.encvalue < 0:
             event = LEFT
             self.encvalue += 1
-        if self.scrolltext:
-            if t - self.lastscroll >= SCROLL_TIME:
-                self.lastscroll = t
-                self.s += 1
-                if 0 < self.s <= len(self.scrolltext) - COLS:
-                    self.LCD.cursor_pos = (self.scrollrow, 0)
-                    self.LCD.write_string(self.scrolltext[self.s:self.s + COLS])
-                elif self.s > len(self.scrolltext) - COLS + 3:
-                    self.s = -4
-                    self.LCD.cursor_pos = (self.scrollrow, 0)
-                    self.LCD.write_string(self.scrolltext[:COLS])
+        if any(self.scrolltext) and t - self.lastscroll >= SCROLL_TIME:
+            self.lastscroll = t
+            for i, text in enumerate(self.scrolltext):
+                if text == "": continue
+                if text[COLS] == "\x07":
+                    self.scrolltext[i] = text[COLS:] + text[:COLS] + "\x08\x08\x08\x08"
+                elif text[COLS] == "\x08":
+                    self.scrolltext[i] = text[:COLS] + text[COLS + 1:]
+                else:
+                    self.scrolltext[i] = text[1:] + text[0]
+                self.LCD.cursor_pos = i, 0
+                self.LCD.write_string(self.scrolltext[i].strip('\x07')[:COLS])
         return event
 
     def waitforrelease(self, tmin=0):
@@ -175,19 +176,16 @@ class StompBox():
 
     def lcd_clear(self):
         self.LCD.clear()
-        self.scrolltext = ''
+        self.scrolltext = [''] * ROWS
 
     def lcd_write(self, text, row=0, scroll=False, rjust=False):
         if scroll and len(text) > COLS:
-            self.scrolltext = text
-            self.scrollrow = row
-            self.s = -4
-            self.lastscroll = time.time()
-            self.LCD.cursor_pos = (row, 0)
-            self.LCD.write_string(self.scrolltext[:COLS])
+            self.scrolltext[row] = "\x07\x07\x07\x07" + text + "\x08\x08\x08\x08"
+            self.LCD.cursor_pos = row, 0
+            self.LCD.write_string(text[:COLS])
         else:
-            self.scrolltext = ''
-            self.LCD.cursor_pos = (row, 0)
+            self.scrolltext[row] = ''
+            self.LCD.cursor_pos = row, 0
             if rjust:
                 self.LCD.write_string(text[:COLS].rjust(COLS))
             else:
@@ -195,7 +193,7 @@ class StompBox():
 
     def lcd_blink(self, text, row=0, n=3, rjust=False):
         while n != 0:
-            self.lcd_write(' ' * len(text), row, rjust=rjust)
+            self.lcd_write(' ' * COLS, row)
             time.sleep(BLINK_TIME)
             self.lcd_write(text, row, rjust=rjust)
             time.sleep(BLINK_TIME)
@@ -278,7 +276,7 @@ class StompBox():
                 self.lcd_write(text[max(0, i - COLS):max(COLS, i)], row=row)
             else:
                 self.LCD.write_string(charset[c])
-            self.LCD.cursor_pos = (row, min(i, COLS - 1))
+            self.LCD.cursor_pos = row, min(i, COLS - 1)
             tstop = time.time() + timeout
             while time.time() < tstop:
                 event = self.update()
