@@ -786,13 +786,13 @@ class Synth:
             FL.fluid_synth_get_channel_info(self.fsynth, 0, byref(info))
             return info.name.decode()
 
-        def player_add(self, name, file, loops, barlength, chan, filter, tempo):
+        def player_add(self, name, file, loops=[], barlength=1, chan=None, filter=['prog'], tempo=0):
             pass
 
         def fxchain_clear(self):
             pass
 
-        def fxunit_add(self, name, lib, plugin, chan, audio, vals):
+        def fxunit_add(self, name, lib, plugin=None, chan=None, audio='stereo', vals={}):
             pass
 
         def fxchain_link(self):
