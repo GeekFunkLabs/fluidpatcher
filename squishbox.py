@@ -66,7 +66,7 @@ def addfrom_usb():
                 shutil.copyfile(src, dest)
             subprocess.run(['sudo', 'umount', usb], timeout=30)
     except Exception as e:
-        sb.lcd_write(f"halted - errors: {str(e)}", 1, scroll=True)
+        sb.lcd_write(f"halted - errors: {exceptstr(e)}", 1, scroll=True)
         sb.waitfortap()
     else:
         sb.lcd_write("copying files..", 0)
@@ -109,8 +109,12 @@ def update_device():
             subprocess.run(['sudo', 'apt-get', 'upgrade', '-y'])
         subprocess.run(['sudo', 'reboot'])
     except Exception as e:
-        sb.lcd_write(f"halted - errors: {str(e)}", 1, scroll=True)
+        sb.lcd_write(f"halted - errors: {exceptstr(e)}", 1, scroll=True)
         sb.waitfortap()
+
+def exceptstr(e):
+    x = re.sub('\n|\^', ' ', str(e))
+    return re.sub(' {2,}', ' ', x)
 
 
 class SquishBox:
@@ -250,7 +254,7 @@ class SquishBox:
         sb.lcd_write("loading patches", 1, rjust=True)
         try: rawbank = pxr.load_bank(bank)
         except Exception as e:
-            sb.lcd_write(f"bank load error: {str(e)}", 1, scroll=True)
+            sb.lcd_write(f"bank load error: {exceptstr(e)}", 1, scroll=True)
             sb.waitfortap()
             return False
         pxr.write_config()
@@ -264,7 +268,7 @@ class SquishBox:
             if bank == '': return
         try: pxr.save_bank(bank)
         except Exception as e:
-            sb.lcd_write(f"bank save error: {str(e)}", 1, scroll=True)
+            sb.lcd_write(f"bank save error: {exceptstr(e)}", 1, scroll=True)
             sb.waitfortap()
         else:
             pxr.write_config()
@@ -374,7 +378,7 @@ sb.lcd_write(f"version {patcher.VERSION}", 0)
 cfgfile = sys.argv[1] if len(sys.argv) > 1 else '/home/pi/SquishBox/squishboxconf.yaml'
 try: pxr = patcher.Patcher(cfgfile)
 except Exception as e:
-    sb.lcd_write(f"bad config file {str(e)}", 1, scroll=True)
+    sb.lcd_write(f"bad config file {exceptstr(e)}", 1, scroll=True)
     sys.exit("bad config file")
 
 os.umask(0o002)

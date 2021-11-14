@@ -142,16 +142,16 @@ class StompBox():
             self.encvalue += 1
         if any(self.scrolltext) and t - self.lastscroll >= SCROLL_TIME:
             self.lastscroll = t
-            for i, text in enumerate(self.scrolltext):
+            for r, text in enumerate(self.scrolltext): # maybe can't edit in place
                 if text == "": continue
-                if text[COLS] == "\x07":
-                    self.scrolltext[i] = text[COLS:] + text[:COLS] + "\x08\x08\x08\x08"
-                elif text[COLS] == "\x08":
-                    self.scrolltext[i] = text[:COLS] + text[COLS + 1:]
+                if text[COLS] == "\x08": # end of text, pause a bit
+                    self.scrolltext[r] = text[:COLS] + text[COLS + 1:]
+                elif text[COLS] == "\x07": # wrap back to beginning
+                    self.scrolltext[r] = text[COLS:] + text[:COLS] + "\x08\x08\x08\x08"
                 else:
-                    self.scrolltext[i] = text[1:] + text[0]
-                self.LCD.cursor_pos = i, 0
-                self.LCD.write_string(self.scrolltext[i].strip('\x07')[:COLS])
+                    self.scrolltext[r] = text[1:] + text[0]
+                self.LCD.cursor_pos = r, 0
+                self.LCD.write_string(self.scrolltext[r].strip('\x07')[:COLS])
         return event
 
     def waitforrelease(self, tmin=0):
