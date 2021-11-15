@@ -160,12 +160,11 @@ class Patcher:
             if fxchannels:
                 self._fluid.fxunit_add(name, **{**info, 'lib': libfile, 'chan': fxchannels})
         self._fluid.fxchain_link()
-        for rule in self._bank.get('router_rules', []) + patch.get('router_rules', []):
-            if rule == 'clear': self._fluid.router_clear()
-            else: self.add_router_rule(rule)
+        for rule in patch.get('router_rules', []):
+            self.add_router_rule(rule)
         for msg in self._bank.get('messages', []) + patch.get('messages', []):
             if isinstance(msg, fpyaml.SysexMsg): self._send_sysex(msg)
-            else: self._fluid.send_event(*msg)
+            else: self.send_event(msg)
         return warnings
 
     def add_patch(self, name, addlike=None):
@@ -253,16 +252,26 @@ class Patcher:
     def add_router_rule(self, rule=None, **kwargs):
     # :rule text or a RouterRule object
     # :kwargs router rule parameters, as text or values
-        if isinstance(rule, str):
-            rule = fpyaml.parse(rule)
-            rule = fpyaml.RouterRule(**rule)
-        if rule == None:
-            rule = {par: fpyaml.parse(str(val))
-                    for par, val in kwargs.items()}
-            rule = fpyaml.RouterRule(**rule)
-        rule.add(self._fluid.router_addrule)
+        if rule == 'clear':
+            self._fluid.router_clear()
+        else:
+            if rule == None:
+                rule = {par: fpyaml.parse(str(val))
+                        for par, val in kwargs.items()}
+                rule = fpyaml.RouterRule(**rule)
+            elif isinstance(rule, str):
+                rule = fpyaml.parse(rule)
+                rule = fpyaml.RouterRule(**rule)
+            rule.add(self._fluid.router_addrule)
 
-    def send_event(self, type, chan, par1, par2): self._fluid.send_event(type, chan - 1, par1, par2)
+    def send_event(self, msg=None, **kwargs):
+        if isinstance(msg, str):
+            msg = fpyaml.parse(msg)
+        elif msg == None:
+            msg = {par: fpyaml.parse(str(val))
+                   for par, val in kwargs.items()}
+            msg = fpyaml.MidiMsg(**msg)
+        self._fluid.send_event(msg.type, msg.chan, msg.par1, msg.par2)
 
     # private functions
     def _reload_bankfonts(self):
@@ -310,8 +319,10 @@ class Patcher:
             pass
 
     def _reset_synth(self, full=True):
-        self._fluid.router_default()
         self._fluid.fxchain_clear()
+        self._fluid.router_default()
+        for rule in self._bank.get('router_rules', []):
+            self.add_router_rule(rule)
         if not full:
             mask = list(self._bank.get('players', {}))
             mask += list(self._bank.get('sequencers', {}))
@@ -320,12 +331,8 @@ class Patcher:
         else:
             self._fluid.players_clear()
             self._fluid.reset()
-            cfg_fset = self.cfg.get('fluidsettings', {})
-            for opt, defaultval in SYNTH_DEFAULTS.items():
-                if opt in cfg_fset:
-                    self.fluid_set(opt, cfg_fset[opt])
-                else:
-                    self.fluid_set(opt, defaultval)
+            for opt, val in {**SYNTH_DEFAULTS, **self.cfg.get('fluidsettings', {})}.items():
+                self.fluid_set(opt, val)
             for name, info in self._bank.get('players', {}).items():
                 fpath = self.mfilesdir / info['file']
                 pchan = fpyaml.tochantups(info['chan'])[0] if 'chan' in info else None
@@ -340,7 +347,7 @@ class Patcher:
                     self.fluid_set(opt, val)
                 for msg in init.get('messages', []):
                     if isinstance(msg, fpyaml.SysexMsg): self._send_sysex(msg)
-                    else: self._fluid.send_event(*msg)
+                    else: self.send_event(msg)
 
 
 class PresetInfo:

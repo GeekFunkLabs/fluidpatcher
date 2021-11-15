@@ -107,7 +107,7 @@ class MidiMsg(oyaml.YAMLObject):
     yaml_loader = oyaml.SafeLoader
     yaml_dumper = oyaml.SafeDumper
 
-    def __init__(self, type, chan, par1, par2, yaml=''):
+    def __init__(self, type, chan, par1, par2=None, yaml=''):
         self.type = type
         self.chan = chan - 1
         self.par1 = scinote_to_val(par1)
@@ -120,9 +120,6 @@ class MidiMsg(oyaml.YAMLObject):
 
     def __str__(self):
         return self.yaml
-
-    def __iter__(self):
-        return iter([self.type, self.chan, self.par1, self.par2])
 
     @classmethod
     def from_yaml(cls, loader, node):
@@ -243,7 +240,7 @@ class RouterRule(oyaml.YAMLObject):
         self.par1 = totups(par1)
         self.par2 = totups(par2)[0]
         self.apars = apars
-        rule = {'type': type}
+        rule = dict(type=type)
         for par, val in [('chan', chan), ('par1', par1), ('par2', par2)]:
             if val != None: rule[par] = val
         self.rule = {**rule, **apars}

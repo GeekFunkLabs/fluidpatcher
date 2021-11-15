@@ -141,10 +141,10 @@ class SquishBox:
             self.lastmsg = msg
 
     def handle_buttonevent(self, button, val):
-        pxr.send_event('cc', BUTTON_MIDICHANNEL, BUTTON_MOM_CC, val)
+        pxr.send_event(f"cc:{BUTTON_MIDICHANNEL}:{BUTTON_MOM_CC}:{val}")
         if val:
             self.togglestate ^= 1
-            pxr.send_event('cc', BUTTON_MIDICHANNEL, BUTTON_TOG_CC, self.togglestate)
+            pxr.send_event(f"cc:{BUTTON_MIDICHANNEL}:{BUTTON_TOG_CC}:{self.togglestate}")
             sb.statusled_set(self.togglestate)
 
     def patchmode(self):

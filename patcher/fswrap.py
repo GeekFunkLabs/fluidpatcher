@@ -160,7 +160,6 @@ class MidiEvent:
 
     def __init__(self, event):
         self.event = event
-        self.cancel = False
 
     @property
     def type(self):
@@ -678,7 +677,7 @@ class Synth:
         sfont = {v: k for k, v in self.sfid.items()}[id.value]
         return sfont, bank.value, prog.value
 
-    def send_event(self, type, chan, par1, par2):
+    def send_event(self, type, chan, par1, par2=None):
         newevent = MidiEvent(FL.new_fluid_midi_event())
         newevent.type = MIDI_TYPES[EVENT_NAMES.index(type)]
         newevent.chan = chan
