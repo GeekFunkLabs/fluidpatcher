@@ -149,18 +149,16 @@ Change a fluidsynth setting. To add the new setting in the current bank, call wi
 
 Add a rule describing how MIDI messages will be interpreted/acted upon. This function is called by **load_bank()** and **select_patch()** to add the rules in a bank file, but it can be called directly by an implementation to add additional rules if desired
 - Parameters:
-  - _rule_: string containing a [router rule](file_formats.md#keywords)
+  - _rule_: string containing a [router rule](file_formats.md#keywords), or 'clear' to erase current router rules
   - _**kwargs_: router rule as a set of key=value pairs
 - Returns: nothing
 
-**send_event**(_type, chan, par1, par2_)
+**send_event**(_msg=None, **kwargs_)
 
 Sends a MIDI event to FluidSynth
 - Parameters:
-  - _type_: MIDI message type
-  - _chan_: channel on which to send the message
-  - _par1_: first parameter of the message
-  - _par2_: second parameter or _None_
+  - _msg_: string containing a [midi message](file_formats.md#keywords)
+  - _**kwargs_: midi message as a set of key=value pairs
 - Returns: nothing
 
 ### class PresetInfo

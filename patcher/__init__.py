@@ -265,6 +265,8 @@ class Patcher:
             rule.add(self._fluid.router_addrule)
 
     def send_event(self, msg=None, **kwargs):
+    # :msg text, RouterRule object, or 'clear'
+    # :kwargs message parameters as list of key=value pairs
         if isinstance(msg, str):
             msg = fpyaml.parse(msg)
         elif msg == None:
