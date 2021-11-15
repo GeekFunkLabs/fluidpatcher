@@ -210,11 +210,9 @@ fi
 sysupdate
 apt_pkg_install "git"
 apt_pkg_install "python3-pip"
-apt_pkg_install "python3-rtmidi"
 apt_pkg_install "fluidsynth"
 apt_pkg_install "jackd1"
 pip_install "oyaml"
-pip_install "mido"
 pip_install "RPi.GPIO"
 pip_install "RPLCD"
 sudo usermod -a -G audio pi
