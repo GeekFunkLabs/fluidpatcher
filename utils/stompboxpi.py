@@ -16,12 +16,12 @@ from RPLCD.gpio import CharLCD
 
 COLS, ROWS = 16, 2
 BTN_L, BTN_R, ROT_L, ROT_R, BTN_ROT, BTN_SW, PIN_LED = 0, 0, 0, 0, 0, 0, 0
-BUTTONS = BTN_L, BTN_R
 from .hw_overlay import *
 if ACTIVE_HIGH:
     ACTIVE = GPIO.HIGH
 else:
     ACTIVE = GPIO.LOW
+BUTTONS = [x for x in BTN_L, BTN_R, BTN_ROT, BTN_SW if x]
 
 # events
 NULL = 0

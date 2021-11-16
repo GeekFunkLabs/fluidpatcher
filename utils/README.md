@@ -4,19 +4,41 @@ These files contain code that is used in the _implementations_ of patcher (i.e s
 
 ## stompboxpi.py
 
-This module creates a StompBox object that reads the buttons and/or rotary encoder and controls the LCD connected to a Raspberry Pi, and is used by squishbox.py. It uses RPLCD and RPi.GPIO to control them. Create a _StompBox_ object to initialize the LCD, and call its _update()_ method in the main loop of your code to update the display and poll the buttons. Other methods (described below) allow you to write text to the LCD, query the user for a choice between options, input a number or text string, etc.
+This module creates a StompBox object that reads the buttons and/or rotary encoder and controls the LCD connected to a Raspberry Pi, and is used by squishbox.py. Create a _StompBox_ object to initialize the LCD, and call its _update()_ method in the main loop of your code to update the button/encoder states. Other methods (described below) allow you to write text to the LCD, query the user for a choice between options, input a number or text string, etc. The constants below are used to define how the LCD and buttons/encoder are connected to the Raspberry Pi, and are read from _hw_overlay.py_.
+
+constant                       | definition
+-------------------------------|--------------------------------
+LCD_RS                         | LCD reset pin
+LCD_EN                         | LCD enable pin
+LCD_D4, LCD_D5, LCD_D6, LCD_D7 | LCD data pins D4-D7
+COLS, ROWS                     | The number of columns and rows on the LCD
+BTN_L, BTN_R                   | left and right stompbuttons*
+ROT_L, ROT_R, BTN_ROT          | rotary encoder pins*
+BTN_SW                         | a button that triggers a callback function*
+PIN_LED                        | the anode (+) pin of an LED*, controlled using **statusled_set()**
+ACTIVE_HIGH                    | 1=buttons connect to 3.3V; 0=buttons connect to ground
+
+*set to 0 if not connected  
+
+The constants _HOLD_TIME, MENU_TIMEOUT, BLINK_TIME, SCROLL_TIME, POLL_TIME, BOUNCE_TIME_ at the top of _squishbox.py_ can be modified as desired, or redefined in hw_overlay.py
 
 ### class StompBox
 
 **StompBox**()
 
-A Python object that acts as an interface for two buttons and a 16x2 character LCD connected to a Raspberry Pi
+A Python object that acts as an interface for buttons/encoder and a 16x2 character LCD connected to a Raspberry Pi.
+
+#### Public Attributes:
+
+**buttoncallback**
+
+The function to call when the button connected to _PIN_SW_ is pressed or released. The function should take two arguments, the pin number of the button that triggered the callback, and a value corresponding to the button state (1=pressed, 0=released).
 
 #### Methods:
 
 **update**()
 
-Call this regularly to scroll the LCD display and check the state of the buttons/rotary encoder. Returns an event code depending on the state of the buttons/encoder.
+Call this in the main loop of your program to scroll the LCD display and check the state of the buttons/rotary encoder. Also sleeps for _POLL_TIME_ seconds to allow other threads (e.g. FluidSynth) to run. Returns an event code depending on the state of the controls.
 - _NULL_: no event
 - _RIGHT_: right button tapped or encoder rotated clockwise
 - _LEFT_: left button tapped or encoder rotated counter-clockwise
@@ -58,6 +80,10 @@ Lets the user choose a numeric value between _minval_ and _maxval_, with a start
 **char_input**(_self, text='', i=-1, row=1, timeout=MENU_TIMEOUT, charset=INPCHARS_)
 
 Allows a user to enter text strings charater by character. _SELECT_ toggles the cursor type. The underline cursor allows moving the insert point, the blink cursor allows changing the current character. _ESCAPE_ ends the text input, and asks the user to confirm the modified text via **confirm_choice()**.
+
+**statusled_set**(_self, state_)
+
+Sets the state of the status LED, if one is connected to _PIN_LED_. 1=on; 0=off
 
 ### Example
 

@@ -2,17 +2,6 @@
 Description: model-dependent wiring and behavior
 """
 
-# model 0000 (prototype)
-LCD_RS = 24
-LCD_EN = 25
-LCD_D4 = 8
-LCD_D5 = 7
-LCD_D6 = 12
-LCD_D7 = 16
-BTN_L = 5
-BTN_R = 6 
-ACTIVE_HIGH = 0
-
 # models 0001-0009 (v2 wiring)
 # LCD pins on exterior edge of board - easier for homebrew/perfboard builds
 LCD_RS = 15
@@ -48,4 +37,3 @@ LCD_D7 = 6
 BTN_L = 2
 BTN_R = 3
 ACTIVE_HIGH = 0
-BUTTONS = BTN_L, BTN_R
