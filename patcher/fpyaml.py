@@ -121,6 +121,9 @@ class MidiMsg(oyaml.YAMLObject):
     def __str__(self):
         return self.yaml
 
+    def __iter__(self):
+        return iter([self.type, self.chan, self.par1, self.par2])
+
     @classmethod
     def from_yaml(cls, loader, node):
         m = msg.search(loader.construct_scalar(node))
