@@ -21,7 +21,7 @@ if ACTIVE_HIGH:
     ACTIVE = GPIO.HIGH
 else:
     ACTIVE = GPIO.LOW
-BUTTONS = [x for x in BTN_L, BTN_R, BTN_ROT, BTN_SW if x]
+BUTTONS = [x for x in (BTN_L, BTN_R, BTN_ROT, BTN_SW) if x]
 
 # events
 NULL = 0
