@@ -17,10 +17,7 @@ from RPLCD.gpio import CharLCD
 COLS, ROWS = 16, 2
 BTN_L, BTN_R, ROT_L, ROT_R, BTN_ROT, BTN_SW, PIN_LED = 0, 0, 0, 0, 0, 0, 0
 from .hw_overlay import *
-if ACTIVE_HIGH:
-    ACTIVE = GPIO.HIGH
-else:
-    ACTIVE = GPIO.LOW
+ACTIVE = GPIO.HIGH if ACTIVE_HIGH else GPIO.LOW
 BUTTONS = [x for x in (BTN_L, BTN_R, BTN_ROT, BTN_SW) if x]
 
 # events
@@ -81,7 +78,7 @@ class StompBox():
         GPIO.setmode(GPIO.BCM)
         for channel in (*BUTTONS, ROT_R, ROT_L):
             if channel:
-                if ACTIVE_HIGH:
+                if ACTIVE == GPIO.HIGH:
                     GPIO.setup(channel, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
                 else:
                     GPIO.setup(channel, GPIO.IN, pull_up_down=GPIO.PUD_UP)
