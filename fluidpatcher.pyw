@@ -39,16 +39,15 @@ class ControlBoard(wx.Panel):
         dc.SetFont(wx.Font(wx.FontInfo(FONTSIZE)))
         fh = dc.GetTextExtent('X')[1]
         h2 = fh * 3 + PAD * 4
-        pwin = self.GetParent()
         dc.Clear()
         dc.SetPen(wx.Pen(wx.BLACK, 5))
         dc.SetBrush(wx.Brush((0, 100, 255)))
         dc.DrawRectangle(0, 0, w, h2)
         dc.SetTextForeground(wx.WHITE)
         dc.SetClippingRegion(PAD, PAD, w - 2 * PAD, fh * 3 + PAD * 2)
-        dc.DrawLabel(pwin.display[0], wx.Rect(PAD, PAD, w - 2 * PAD, fh))
-        dc.DrawLabel(pwin.display[1], wx.Rect(PAD, fh * 1 + PAD * 2, w - 2 * PAD, fh))
-        dc.DrawLabel(pwin.display[2], wx.Rect(PAD, fh * 2 + PAD * 3, w - 2 * PAD, fh), wx.ALIGN_RIGHT)
+        dc.DrawLabel(display[0], wx.Rect(PAD, PAD, w - 2 * PAD, fh))
+        dc.DrawLabel(display[1], wx.Rect(PAD, fh * 1 + PAD * 2, w - 2 * PAD, fh))
+        dc.DrawLabel(display[2], wx.Rect(PAD, fh * 2 + PAD * 3, w - 2 * PAD, fh), wx.ALIGN_RIGHT)
         dc.DestroyClippingRegion()
         
         dc.SetTextForeground(wx.BLACK)
@@ -69,15 +68,13 @@ class ControlBoard(wx.Panel):
         
     def onClick(self, event):
         event.Skip()
-        if event.LeftDown():
-            pwin = self.GetParent()
-            if event.GetY() > self.h2:
-                if event.GetX() < self.w / 3 * 1:
-                    pwin.choose_patch(inc=-1)
-                elif event.GetX() < self.w / 3 * 2:
-                    pwin.choose_patch(inc=1)
-                elif event.GetX() < self.w / 3 * 3:
-                    pwin.next_bankfile()
+        if event.LeftDown() and event.GetY() > self.h2:
+            if event.GetX() < self.w / 3 * 1:
+                main.choose_patch(inc=-1)
+            elif event.GetX() < self.w / 3 * 2:
+                main.choose_patch(inc=1)
+            elif event.GetX() < self.w / 3 * 3:
+                main.next_bankfile()
 
 
 class TextCtrlDialog(wx.Dialog):
@@ -228,7 +225,6 @@ class MainWindow(wx.Frame):
         self.menubar.Append(helpMenu, '&Help')
         self.SetMenuBar(self.menubar)
 
-        self.display = ['', '', '']
         self.ctrlboard = ControlBoard(self)
         self.bedit = TextCtrlDialog('', "Bank Editor", ' ', flags=wx.APPLY|wx.CLOSE, edit=True, size=(500, 450))
         self.midimon = MidiMonitor(self)
@@ -256,14 +252,14 @@ class MainWindow(wx.Frame):
                 midimsgs.append((str(msg.chan + 1), x, str(msg.par1)))
 
     def load_bankfile(self, bfile=''):
-        self.display = [bfile, "", "loading patches"]
+        display[:] = [bfile, "", "loading patches"]
         self.ctrlboard.Refresh()
         self.ctrlboard.Update()
         try:
             rawbank = pxr.load_bank(bfile)
         except Exception as e:
             wx.MessageBox(str(e), "Error", wx.OK|wx.ICON_ERROR)
-            self.display[0] = self.currentfile
+            display[0] = self.currentfile
             return
         pxr.write_config()
         self.currentfile = bfile
@@ -313,7 +309,7 @@ class MainWindow(wx.Frame):
         else:
             self.pno = pno
         warn = pxr.select_patch(self.pno)
-        self.display[1:] = pxr.patches[self.pno], f"patch {self.pno + 1}/{len(pxr.patches)}"
+        display[1:] = pxr.patches[self.pno], f"patch {self.pno + 1}/{len(pxr.patches)}"
         self.ctrlboard.Refresh()
         if warn: wx.MessageBox('\n'.join(warn), "Warning", wx.OK|wx.ICON_WARNING)
 
@@ -327,6 +323,7 @@ class MainWindow(wx.Frame):
         self.bedit.text.SetInsertionPoint(0)
         self.currentfile = ''
         self.parse_bank()
+        display[0] = "(Untitled)"
         self.bedit.caption.SetLabel("(Untitled)")
 
     def onOpen(self, event):
@@ -351,6 +348,7 @@ class MainWindow(wx.Frame):
             return
         pxr.write_config()
         self.bedit.caption.SetLabel(bfile)
+        display[0] = bfile
         self.currentfile = bfile
 
     def onExit(self, event=None):
@@ -471,11 +469,12 @@ geekfunklabs.com
 
 
 if __name__ == "__main__":
+    midimsgs = []
+    display = ["", "", ""]
     cfgfile = sys.argv[1] if len(sys.argv) > 1 else 'fluidpatcherconf.yaml'
     pxr = patcher.Patcher(cfgfile)
     app = wx.App()
     main = MainWindow()
-    midimsgs = []
     pxr.set_midimessage_callback(main.listener)
     main.Show()
     app.MainLoop()
