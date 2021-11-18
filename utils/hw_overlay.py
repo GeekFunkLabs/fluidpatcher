@@ -25,15 +25,3 @@ LCD_D7 = 6
 BTN_L = 2
 BTN_R = 3
 ACTIVE_HIGH = 0
-
-# models 0025-
-# SquishBox PCB v4
-LCD_RS = 4
-LCD_EN = 17
-LCD_D4 = 9
-LCD_D5 = 11
-LCD_D6 = 5
-LCD_D7 = 6
-BTN_L = 2
-BTN_R = 3
-ACTIVE_HIGH = 0
