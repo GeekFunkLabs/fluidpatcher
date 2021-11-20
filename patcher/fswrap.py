@@ -25,6 +25,10 @@ FL = CDLL(lib)
 FLUID_OK = 0
 FLUID_FAILED = -1
 
+a, b, c = c_int(), c_int(), c_int()
+specfunc(FL.fluid_version, c_void_p, POINTER(c_int), POINTER(c_int), POINTER(c_int))(a, b, c)
+FLUID_VERSION = [a.value, b.value, c.value]
+
 # settings
 specfunc(FL.new_fluid_settings, c_void_p)
 specfunc(FL.fluid_settings_getint, c_int, c_void_p, c_char_p, POINTER(c_int))
@@ -113,25 +117,17 @@ FLUID_PLAYER_TEMPO_EXTERNAL_MIDI = 2
 FLUID_PLAYER_PLAYING = 1
 FLUID_PLAYER_DONE = 3
 
-try:
-    FLUIDSYNTH2 = True
+if FLUID_VERSION >= [2, 2, 0]:
+    specfunc(FL.fluid_player_set_tick_callback, c_int, c_void_p, fl_tickcallback, c_void_p)
+    specfunc(FL.fluid_player_set_tempo, c_int, c_void_p, c_int, c_double)
+if FLUID_VERSION >= [2, 0, 0]:
     specfunc(FL.fluid_synth_get_sfont_by_id, c_void_p, c_void_p, c_int)
     specfunc(FL.fluid_sfont_get_preset, c_void_p, c_void_p, c_int, c_int)
     specfunc(FL.fluid_preset_get_name, c_char_p, c_void_p)
-    specfunc(FL.fluid_player_set_tick_callback, c_int, c_void_p, fl_tickcallback, c_void_p)
     specfunc(FL.fluid_player_seek, c_int, c_void_p, c_int)
-    specfunc(FL.fluid_player_set_tempo, c_int, c_void_p, c_int, c_double)
     specfunc(FL.fluid_synth_get_ladspa_fx, c_void_p, c_void_p)
-    specfunc(FL.fluid_ladspa_activate, c_void_p, c_void_p)
-    specfunc(FL.fluid_ladspa_reset, c_int, c_void_p)
-    specfunc(FL.fluid_ladspa_add_effect, c_int, c_void_p, c_char_p, c_char_p, c_char_p)
-    specfunc(FL.fluid_ladspa_add_buffer, c_int, c_void_p, c_char_p)
-    specfunc(FL.fluid_ladspa_buffer_exists, c_int, c_void_p, c_char_p)
-    specfunc(FL.fluid_ladspa_effect_set_control, c_int, c_void_p, c_char_p, c_char_p, c_float)
-    specfunc(FL.fluid_ladspa_effect_link, c_int, c_void_p, c_char_p, c_char_p, c_char_p)
     FLUIDSETTING_EXISTS = FLUID_OK
-except:
-    FLUIDSYNTH2 = False
+else:
     class fluid_synth_channel_info_t(Structure):
         _fields_ = [
             ('assigned', c_int),
@@ -141,8 +137,19 @@ except:
             ('name', c_char*32),
             ('reserved', c_char*32)]
     specfunc(FL.fluid_synth_get_channel_info, c_int, c_void_p, c_int, POINTER(fluid_synth_channel_info_t))
-    specfunc(FL.fluid_player_set_midi_tempo, c_int, c_void_p, c_int)
     FLUIDSETTING_EXISTS = 1
+
+try:
+    specfunc(FL.fluid_ladspa_activate, c_void_p, c_void_p)
+    specfunc(FL.fluid_ladspa_reset, c_int, c_void_p)
+    specfunc(FL.fluid_ladspa_add_effect, c_int, c_void_p, c_char_p, c_char_p, c_char_p)
+    specfunc(FL.fluid_ladspa_add_buffer, c_int, c_void_p, c_char_p)
+    specfunc(FL.fluid_ladspa_buffer_exists, c_int, c_void_p, c_char_p)
+    specfunc(FL.fluid_ladspa_effect_set_control, c_int, c_void_p, c_char_p, c_char_p, c_float)
+    specfunc(FL.fluid_ladspa_effect_link, c_int, c_void_p, c_char_p, c_char_p, c_char_p)
+    LADSPA_SUPPORT = True
+except AttributeError:
+    LADSPA_SUPPORT = False
 
 MIDI_NOTEOFF = 0x80
 MIDI_NOTEON = 0x90
@@ -576,7 +583,7 @@ class Synth:
         self.xrules = []
         self.players = {}
         self.msg_callback = None
-        if FLUIDSYNTH2:
+        if LADSPA_SUPPORT:
             nports = self.get_setting('synth.audio-groups')
             nchan = self.get_setting('synth.midi-channels')
             if nports == 1:
@@ -737,19 +744,31 @@ class Synth:
             self.players[name].delete()
             del self.players[name]
 
-    if FLUIDSYNTH2:
+    if FLUID_VERSION >= [2, 2, 0]:
+        def player_add(self, name, file, loops=[], barlength=1, chan=None, filter=['prog'], tempo=0):
+            self.players[name] = Player(self, file, loops, barlength, chan, filter)
+            if tempo > 0:
+                self.players[name].set_tempo(tempo)
+    else:
+        def player_add(self, name, file, loops=[], barlength=1, chan=None, filter=['prog'], tempo=0):
+            pass
+
+    if FLUID_VERSION >= [2, 0, 0]:
         def get_preset_name(self, sfont, bank, prog):
             sfont_obj = FL.fluid_synth_get_sfont_by_id(self.fsynth, self.sfid[sfont])
             preset_obj = FL.fluid_sfont_get_preset(sfont_obj, bank, prog)
             if not preset_obj:
                 return None
             return FL.fluid_preset_get_name(preset_obj).decode()
+    else:
+        def get_preset_name(self, sfont, bank, prog):
+            if not self.program_select(0, sfont, bank, prog):
+                return None
+            info = fluid_synth_channel_info_t()
+            FL.fluid_synth_get_channel_info(self.fsynth, 0, byref(info))
+            return info.name.decode()
 
-        def player_add(self, name, file, loops=[], barlength=1, chan=None, filter=['prog'], tempo=0):
-            self.players[name] = Player(self, file, loops, barlength, chan, filter)
-            if tempo > 0:
-                self.players[name].set_tempo(tempo)
-
+    if LADSPA_SUPPORT:
         def fxchain_clear(self):
             self.ladspafx = {}
             FL.fluid_ladspa_reset(self.ladspa)
@@ -776,18 +795,7 @@ class Synth:
                     else:
                         ladspafx.link(hostports, lastports, hostports)
             FL.fluid_ladspa_activate(self.ladspa)
-
     else:
-        def get_preset_name(self, sfont, bank, prog):
-            if not self.program_select(0, sfont, bank, prog):
-                return None
-            info = fluid_synth_channel_info_t()
-            FL.fluid_synth_get_channel_info(self.fsynth, 0, byref(info))
-            return info.name.decode()
-
-        def player_add(self, name, file, loops=[], barlength=1, chan=None, filter=['prog'], tempo=0):
-            pass
-
         def fxchain_clear(self):
             pass
 
