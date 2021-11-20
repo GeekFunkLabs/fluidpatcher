@@ -211,6 +211,8 @@ sysupdate
 apt_pkg_install "git"
 apt_pkg_install "python3-pip"
 apt_pkg_install "fluidsynth"
+apt_pkg_install "fluid-soundfont-gm"
+apt_pkg_install "ladspa-sdk"
 apt_pkg_install "jackd1"
 pip_install "oyaml"
 pip_install "RPi.GPIO"
@@ -338,8 +340,9 @@ if [[ $filemgr == "yes" ]]; then
     sysupdate
     apt_pkg_install "nginx"
     apt_pkg_install "php-fpm"
+	phpver=`apt-cache policy php-fpm | sed -n '/Installed:/s/.*://p' | sed 's/[^0-9\.].*//'`
     # enable php in nginx
-    cat <<'EOF' | sudo tee /etc/nginx/sites-available/default
+    cat <<EOF | sudo tee /etc/nginx/sites-available/default
 server {
         listen 80 default_server;
         listen [::]:80 default_server;
@@ -347,11 +350,11 @@ server {
         index index.php index.html index.htm index.nginx-debian.html;
         server_name _;
         location / {
-                try_files $uri $uri/ =404;
+                try_files \$uri \$uri/ =404;
         }
-        location ~ \.php$ {
+        location ~ \.php\$ {
                 include snippets/fastcgi-php.conf;
-                fastcgi_pass unix:/run/php/php7.3-fpm.sock;
+                fastcgi_pass unix:/run/php/php$phpver-fpm.sock;
         }
 }
 EOF
@@ -361,15 +364,15 @@ EOF
     else
         sudo sed -i "/^http {/aclient_max_body_size 900M;" /etc/nginx/nginx.conf
     fi
-    sudo sed -i "/upload_max_filesize/cupload_max_filesize = 900M" /etc/php/7.3/fpm/php.ini
-    sudo sed -i "/post_max_size/cpost_max_size = 999M" /etc/php/7.3/fpm/php.ini
+    sudo sed -i "/upload_max_filesize/cupload_max_filesize = 900M" /etc/php/$phpver/fpm/php.ini
+    sudo sed -i "/post_max_size/cpost_max_size = 999M" /etc/php/$phpver/fpm/php.ini
     # set permissions and umask to avoid permissions problems
     sudo usermod -a -G pi www-data
     sudo chmod -R g+rw $installdir/SquishBox
-    if grep -q "UMask" /lib/systemd/system/php7.3-fpm.service; then
-        sudo sed -i "/UMask/cUMask=0002" /lib/systemd/system/php7.3-fpm.service
+    if grep -q "UMask" /lib/systemd/system/php$phpver-fpm.service; then
+        sudo sed -i "/UMask/cUMask=0002" /lib/systemd/system/php$phpver-fpm.service
     else
-        sudo sed -i "/\[Service\]/aUMask=0002" /lib/systemd/system/php7.3-fpm.service
+        sudo sed -i "/\[Service\]/aUMask=0002" /lib/systemd/system/php$phpver-fpm.service
     fi
     # install and configure [tinyfilemanager](https://tinyfilemanager.github.io)
     wget -q raw.githubusercontent.com/prasathmani/tinyfilemanager/master/tinyfilemanager.php
