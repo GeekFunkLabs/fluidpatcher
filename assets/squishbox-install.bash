@@ -272,6 +272,8 @@ Restart=on-failure
 WantedBy=multi-user.target
 EOF
     sudo systemctl enable squishbox.service
+    sed -i "/  audio.driver/d" $installdir/SquishBox/squishboxconf.yaml
+    sed -i "/^fluidsettings:/a\  audio.driver: jack"  $installdir/SquishBox/squishboxconf.yaml
     ASK_TO_REBOOT=true
 elif [[ $startup == "2" ]]; then
     inform "Enabling headless Pi synth startup service..."
@@ -302,6 +304,8 @@ EOF
 		sed -i "/^SELECT_PATCH/s|[0-9]\+|$selectpatch|" $installdir/headlesspi.py; fi
 	if [[ $ctrls_channel != "use default" ]]; then
 		sed -i "/^CTRLS_MIDI_CHANNEL/s|[0-9]\+|$ctrls_channel|" $installdir/headlesspi.py; fi
+    sed -i "/  audio.driver/d" $installdir/SquishBox/squishboxconf.yaml
+    sed -i "/^fluidsettings:/a\  audio.driver: alsa"  $installdir/SquishBox/squishboxconf.yaml
     ASK_TO_REBOOT=true
 elif [[ $startup == "3" ]]; then
     inform "Disabling startup service..."
