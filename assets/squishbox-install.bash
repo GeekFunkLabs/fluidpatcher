@@ -200,6 +200,12 @@ warning "\nThis may take some time ... go make some coffee.\n"
 umask 002 
 # desktop distros play an audio message when first booting to setup; this disables it
 sudo mv -f /etc/xdg/autostart/piwiz.desktop /etc/xdg/autostart/piwiz.disabled 2> /dev/null
+# realtime audio tweaks
+sudo usermod -a -G audio pi
+cat <<EOF | sudo tee /etc/security/limits.d/audio.conf
+@audio   -  rtprio     95
+@audio   -  memlock    unlimited
+EOF
 
 # get dependencies
 inform "Installing/Updating required software..."
@@ -217,7 +223,6 @@ apt_pkg_install "jackd"
 pip_install "oyaml"
 pip_install "RPi.GPIO"
 pip_install "RPLCD"
-sudo usermod -a -G audio pi
 
 if [[ $update == "yes" ]]; then
     inform "Installing/Updating FluidPatcher version $NEW_FP_VER ..."
