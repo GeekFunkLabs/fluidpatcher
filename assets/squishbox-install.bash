@@ -7,28 +7,28 @@ PYTHON_PKG=""
 ASK_TO_REBOOT=false
 
 promptorno() {
-	read -r -p "$1 (y/[n]) " response < /dev/tty
-	if [[ $response =~ ^(yes|y|Y)$ ]]; then
-		true
-	else
-		false
-	fi
+    read -r -p "$1 (y/[n]) " response < /dev/tty
+    if [[ $response =~ ^(yes|y|Y)$ ]]; then
+        true
+    else
+        false
+    fi
 }
 
 promptoryes() {
-	read -r -p "$1 ([y]/n) " response < /dev/tty
-	if [[ $response =~ ^(no|n|N)$ ]]; then
-		false
-	else
-		true
-	fi
+    read -r -p "$1 ([y]/n) " response < /dev/tty
+    if [[ $response =~ ^(no|n|N)$ ]]; then
+        false
+    else
+        true
+    fi
 }
 
 query() {
-	read -r -p "$1 [$2] " response < /dev/tty
-	if [[ $response == "" ]]; then
-		response=$2
-	fi
+    read -r -p "$1 [$2] " response < /dev/tty
+    if [[ $response == "" ]]; then
+        response=$2
+    fi
 }
 
 success() {
@@ -49,13 +49,13 @@ sysupdate() {
         sudo apt-get -qq update || { warning "Failed to update apt indexes!" && exit 1; }
         sleep 3
         UPDATED=true
-		if $UPGRADE; then
-			echo "Upgrading your system..."
-			sudo DEBIAN_FRONTEND=noninteractive apt-get -qqy upgrade --with-new-pkgs
-			sudo apt-get clean && sudo apt-get autoclean
-			sudo apt-get -qqy autoremove
-			UPGRADE=false
-		fi
+        if $UPGRADE; then
+            echo "Upgrading your system..."
+            sudo DEBIAN_FRONTEND=noninteractive apt-get -qqy upgrade --with-new-pkgs
+            sudo apt-get clean && sudo apt-get autoclean
+            sudo apt-get -qqy autoremove
+            UPGRADE=false
+        fi
     fi
 }
 
@@ -64,7 +64,7 @@ apt_pkg_install() {
     if [[ $APT_CHK == "" ]]; then    
         echo "Aptitude is installing $1..."
         sudo DEBIAN_FRONTEND=noninteractive apt-get --no-install-recommends -qqy install "$1" ||
-			{ warning "Apt failed to install $1!" && exit 1; }
+            { warning "Apt failed to install $1!" && exit 1; }
     fi
 }
 
@@ -93,38 +93,38 @@ echo -e "Report issues with this script at https://github.com/albedozero/fluidpa
 
 ENVCHECK=true
 if test -f /etc/os-release; then
-	if ! grep -q "raspbian" /etc/os-release; then
-		ENVCHECK=false
-	fi
-	versioncode=`sed -n '/^VERSION_CODENAME=/s|^.*=||p' /etc/os-release`
-	if ! [[ $versioncode =~ (buster|bullseye) ]]; then
-	    ENVCHECK=false
+    if ! grep -q "raspbian" /etc/os-release; then
+        ENVCHECK=false
+    fi
+    versioncode=`sed -n '/^VERSION_CODENAME=/s|^.*=||p' /etc/os-release`
+    if ! [[ $versioncode =~ (buster|bullseye) ]]; then
+        ENVCHECK=false
     fi
 fi
 if ! ($ENVCHECK); then
-	warning "These scripts are designed to run on Raspbian Buster or later,"
-	warning "which does not appear to be the case here. YMMV!"
-	if ! promptorno "Proceed anyway?"; then
-		exit 1
-	fi
+    warning "These scripts are designed to run on Raspbian Buster or later,"
+    warning "which does not appear to be the case here. YMMV!"
+    if ! promptorno "Proceed anyway?"; then
+        exit 1
+    fi
 fi
 
 inform "Core software update/install and system settings:"
 query "Install location" `echo ~`; installdir=$response
 if test -f "$installdir/patcher/__init__.py"; then
-	FP_VER=`sed -n '/^VERSION/s|[^0-9\.]*||gp' $installdir/patcher/__init__.py`
-	echo "Installed FluidPatcher is version $FP_VER"
+    FP_VER=`sed -n '/^VERSION/s|[^0-9\.]*||gp' $installdir/patcher/__init__.py`
+    echo "Installed FluidPatcher is version $FP_VER"
 fi
 NEW_FP_VER=`curl -s https://raw.githubusercontent.com/albedozero/fluidpatcher/master/patcher/__init__.py | sed -n '/^VERSION/s|[^0-9\.]*||gp'`
 if promptoryes "Install/update FluidPatcher version $NEW_FP_VER?"; then
-	update="yes"
-	if promptorno "Overwrite existing banks/settings?"; then
-		overwrite="yes"
-	fi 
+    update="yes"
+    if promptorno "Overwrite existing banks/settings?"; then
+        overwrite="yes"
+    fi 
 fi
 
 if promptorno "OK to upgrade your system (if possible)?"; then
-	UPGRADE=true
+    UPGRADE=true
 fi
 echo "Software repositories you are currently using:"
 for repo in `sed -n '/^deb /p' /etc/apt/sources.list | cut -d' ' -f2`; do
@@ -142,8 +142,8 @@ echo "  0. No change"
 echo "  1. Default"
 i=2
 for dev in ${AUDIOCARDS[@]}; do
-	echo "  $i. ${AUDIOCARDS[$i-2]}"
-	((i+=1))
+    echo "  $i. ${AUDIOCARDS[$i-2]}"
+    ((i+=1))
 done
 query "Choose" "0"; audiosetup=$response
 
@@ -154,43 +154,43 @@ echo "  2. headlesspi.py"
 echo "  3. Nothing"
 query "Choose" "0"; startup=$response
 if [[ $startup == 2 ]]; then
-	echo -e "Set up controls for headless pi:"
-	query "    MIDI channel for controls" "use default"; ctrls_channel=$response
-	query "    Next patch button CC" "use default"; incpatch=$response
-	query "    Previous patch button CC" "use default"; decpatch=$response
-	query "    Patch select knob CC" "use default"; selectpatch=$response
-	query "    Bank change button CC" "use default"; bankinc=$response
+    echo -e "Set up controls for headless pi:"
+    query "    MIDI channel for controls" "use default"; ctrls_channel=$response
+    query "    Next patch button CC" "use default"; incpatch=$response
+    query "    Previous patch button CC" "use default"; decpatch=$response
+    query "    Patch select knob CC" "use default"; selectpatch=$response
+    query "    Bank change button CC" "use default"; bankinc=$response
 fi
 
 inform "\nOptional tasks/add-ons:"
 
 if command -v fluidsynth > /dev/null; then
-	INST_VER=`fluidsynth --version | sed -n '/runtime version/s|[^0-9\.]*||gp'`
-	echo "Installed FluidSynth is version $INST_VER"
+    INST_VER=`fluidsynth --version | sed -n '/runtime version/s|[^0-9\.]*||gp'`
+    echo "Installed FluidSynth is version $INST_VER"
 else
-	PKG_VER=`apt-cache policy fluidsynth | sed -n '/Candidate:/s/  Candidate: //p'`
-	echo "FluidSynth version $PKG_VER will be installed"
+    PKG_VER=`apt-cache policy fluidsynth | sed -n '/Candidate:/s/  Candidate: //p'`
+    echo "FluidSynth version $PKG_VER will be installed"
 fi
 BUILD_VER=`curl -s https://github.com/FluidSynth/fluidsynth/releases/latest | sed -e 's|.*tag/v||' -e 's|">redirected.*||'`
 if promptorno "Compile and install FluidSynth $BUILD_VER from source?"; then
-	compile="yes"
+    compile="yes"
 fi
 
 if promptorno "Set up web-based file manager?"; then
-	filemgr="yes"
-	echo "  Please create a user name and password."
-	read -r -p "    username: " fmgr_user < /dev/tty
-	read -r -p "    password: " password < /dev/tty
-	fmgr_hash=`wget -qO- geekfunklabs.com/passhash.php?password=$password`
+    filemgr="yes"
+    echo "  Please create a user name and password."
+    read -r -p "    username: " fmgr_user < /dev/tty
+    read -r -p "    password: " password < /dev/tty
+    fmgr_hash=`wget -qO- geekfunklabs.com/passhash.php?password=$password`
 fi
 
 if promptorno "Download and install ~400MB of additional soundfonts?"; then
-	soundfonts="yes"
+    soundfonts="yes"
 fi
 
 echo ""
 if ! promptoryes "All options chosen. OK to proceed?"; then
-	exit 1
+    exit 1
 fi
 warning "\nThis may take some time ... go make some coffee.\n"
 
@@ -223,7 +223,7 @@ if [[ $update == "yes" ]]; then
     inform "Installing/Updating FluidPatcher version $NEW_FP_VER ..."
     rm -rf fluidpatcher
     git clone https://github.com/albedozero/fluidpatcher
-	cd fluidpatcher
+    cd fluidpatcher
     if [[ $overwrite == "yes" ]]; then
         find . -type d -exec mkdir -p $installdir/{} \;
         find . -type f ! -name "hw_overlay.py" -exec cp -f {} $installdir/{} \;
@@ -234,21 +234,21 @@ if [[ $update == "yes" ]]; then
         find . -type f -name "hw_overlay.py" -exec cp -n {} $installdir/{} \;
         find . -type f -name "*.yaml" -exec cp -n {} $installdir/{} \;        
     fi
-	cd ..
+    cd ..
     rm -rf fluidpatcher
     ln -s /usr/share/sounds/sf2/FluidR3_GM.sf2 $installdir/SquishBox/sf2/
 fi
 
 # set up audio
 if (( $audiosetup > 0 )); then
-	inform "Setting up audio..."
-	sed -i "/  audio.alsa.device/d" $installdir/SquishBox/squishboxconf.yaml
-	echo "/usr/bin/jackd --silent -r -d alsa -s -p 64 -n 3 -r 44100 -P" | sudo tee /etc/jackdrc
-	if (( $audiosetup > 1 )); then
-		AUDIO=`echo ${AUDIOCARDS[$audiosetup-2]} | cut -d' ' -f 1`
-		sed -i "/^fluidsettings:/a\  audio.alsa.device: hw:$AUDIO"  $installdir/SquishBox/squishboxconf.yaml
-		echo "/usr/bin/jackd --silent -r -d alsa -d hw:$AUDIO -s -p 64 -n 3 -r 44100 -P" | sudo tee /etc/jackdrc
-	fi
+    inform "Setting up audio..."
+    sed -i "/  audio.alsa.device/d" $installdir/SquishBox/squishboxconf.yaml
+    echo "/usr/bin/jackd --silent -r -d alsa -s -p 64 -n 3 -r 44100 -P" | sudo tee /etc/jackdrc
+    if (( $audiosetup > 1 )); then
+        AUDIO=`echo ${AUDIOCARDS[$audiosetup-2]} | cut -d' ' -f 1`
+        sed -i "/^fluidsettings:/a\  audio.alsa.device: hw:$AUDIO"  $installdir/SquishBox/squishboxconf.yaml
+        echo "/usr/bin/jackd --silent -r -d alsa -d hw:$AUDIO -s -p 64 -n 3 -r 44100 -P" | sudo tee /etc/jackdrc
+    fi
 fi
 
 # set up services
@@ -294,18 +294,18 @@ Restart=on-failure
 WantedBy=multi-user.target
 EOF
     sudo systemctl enable squishbox.service
-	if [[ $decpatch != "use default" ]]; then
-		sed -i "/^DEC_PATCH/s|[0-9]\+|$decpatch|" $installdir/headlesspi.py; fi
-	if [[ $incpatch != "use default" ]]; then
-		sed -i "/^INC_PATCH/s|[0-9]\+|$incpatch|" $installdir/headlesspi.py; fi
-	if [[ $bankinc != "use default" ]]; then
-		sed -i "/^BANK_INC/s|[0-9]\+|$bankinc|" $installdir/headlesspi.py; fi
-	if [[ $selectpatch != "use default" ]]; then
-		sed -i "/^SELECT_PATCH/s|[0-9]\+|$selectpatch|" $installdir/headlesspi.py; fi
-	if [[ $ctrls_channel != "use default" ]]; then
-		sed -i "/^CTRLS_MIDI_CHANNEL/s|[0-9]\+|$ctrls_channel|" $installdir/headlesspi.py; fi
     sed -i "/  audio.driver/d" $installdir/SquishBox/squishboxconf.yaml
     sed -i "/^fluidsettings:/a\  audio.driver: alsa"  $installdir/SquishBox/squishboxconf.yaml
+    if [[ $decpatch != "use default" ]]; then
+        sed -i "/^DEC_PATCH/s|[0-9]\+|$decpatch|" $installdir/headlesspi.py; fi
+    if [[ $incpatch != "use default" ]]; then
+        sed -i "/^INC_PATCH/s|[0-9]\+|$incpatch|" $installdir/headlesspi.py; fi
+    if [[ $bankinc != "use default" ]]; then
+        sed -i "/^BANK_INC/s|[0-9]\+|$bankinc|" $installdir/headlesspi.py; fi
+    if [[ $selectpatch != "use default" ]]; then
+        sed -i "/^SELECT_PATCH/s|[0-9]\+|$selectpatch|" $installdir/headlesspi.py; fi
+    if [[ $ctrls_channel != "use default" ]]; then
+        sed -i "/^CTRLS_MIDI_CHANNEL/s|[0-9]\+|$ctrls_channel|" $installdir/headlesspi.py; fi
     ASK_TO_REBOOT=true
 elif [[ $startup == "3" ]]; then
     inform "Disabling startup service..."
@@ -344,7 +344,7 @@ if [[ $filemgr == "yes" ]]; then
     sysupdate
     apt_pkg_install "nginx"
     apt_pkg_install "php-fpm"
-	phpver=`apt-cache policy php-fpm | sed -n '/Installed:/s/.*://p' | sed 's/[^0-9\.].*//'`
+    phpver=`apt-cache policy php-fpm | sed -n '/Installed:/s/.*://p' | sed 's/[^0-9\.].*//'`
     # enable php in nginx
     cat <<EOF | sudo tee /etc/nginx/sites-available/default
 server {
@@ -396,9 +396,9 @@ fi
 
 if [[ $soundfonts == "yes" ]]; then
     inform "Downloading free soundfonts..."
-	apt_pkg_install "unzip"
+    apt_pkg_install "unzip"
     apt_pkg_install "tap-plugins"
-	apt_pkg_install "wah-plugins"
+    apt_pkg_install "wah-plugins"
     wget -nv --show-progress geekfunklabs.com/squishbox_soundfonts.zip
     unzip -na squishbox_soundfonts.zip -d $installdir/SquishBox
     rm squishbox_soundfonts.zip
