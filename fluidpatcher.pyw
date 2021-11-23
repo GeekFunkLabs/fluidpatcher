@@ -281,10 +281,11 @@ class MainWindow(wx.Frame):
             bno = 0
         self.load_bankfile(str(pxr.banks[bno]))
 
-    def parse_bank(self, event=None):
+    def parse_bank(self):
         lastpatch = pxr.patches[self.pno]
+        text = self.bedit.text.GetValue().strip() or 'patches: {No Patches: {}}'
         try:
-            pxr.load_bank(raw=self.bedit.text.GetValue())
+            pxr.load_bank(raw=text)
         except Exception as e:
             wx.MessageBox(str(e), "Error", wx.OK|wx.ICON_ERROR)
             return False
@@ -327,9 +328,10 @@ class MainWindow(wx.Frame):
         self.bedit.caption.SetLabel("(Untitled)")
 
     def onOpen(self, event):
-        path = wx.FileSelector("Load Bank", str(pxr.bankdir), "", "*.yaml", "Bank files (*.yaml)|*.yaml", wx.FD_OPEN)
-        if path == '': return
-        self.load_bankfile(str(Path(path).relative_to(pxr.bankdir)))
+        bank = wx.FileSelector("Load Bank", str(lastdir['bank']), "", "*.yaml", "Bank files (*.yaml)|*.yaml", wx.FD_OPEN)
+        if bank == '': return
+        lastdir['bank'] = Path(bank).parent
+        self.load_bankfile(str(Path(bank).relative_to(pxr.bankdir)))
 
     def onSave(self, event):
         self.onSaveAs(bfile=self.currentfile)
@@ -338,9 +340,10 @@ class MainWindow(wx.Frame):
         if not self.parse_bank():
             return
         if bfile == '':
-            path = wx.FileSelector("Save Bank", str(pxr.bankdir), self.currentfile, "*.yaml", "Bank files (*.yaml)|*.yaml", wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT)
-            if path == '': return
-            bfile = str(Path(path).relative_to(pxr.bankdir))
+            bank = wx.FileSelector("Save Bank", str(lastdir['bank']), self.currentfile, "*.yaml", "Bank files (*.yaml)|*.yaml", wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT)
+            if bank == '': return
+            lastdir['bank'] = Path(bank).parent
+            bfile = str(Path(bank).relative_to(pxr.bankdir))
         try:
             pxr.save_bank(bfile, self.bedit.text.GetValue())
         except Exception as e:
@@ -377,14 +380,14 @@ class MainWindow(wx.Frame):
         self.bedit.Show()
 
     def onChoosePreset(self, event):
-        sf = wx.FileSelector("Open Soundfont", str(pxr.sfdir), "", "*.sf2", "Soundfont (*.sf2)|*.sf2", wx.FD_OPEN)
+        sf = wx.FileSelector("Open Soundfont", str(lastdir['sf2']), "", "*.sf2", "Soundfont (*.sf2)|*.sf2", wx.FD_OPEN)
         if sf == '': return
         sfrel = Path(sf).relative_to(pxr.sfdir)
-        if pxr.load_soundfont(sf):
-            sfbrowser = SoundfontBrowser(sfrel)
-        else:
+        if not pxr.load_soundfont(sf):
             wx.MessageBox(f"Unable to load {str(sfrel)}", "Error", wx.OK|wx.ICON_ERROR)
             return
+        lastdir['sf2'] = Path(sf).parent
+        sfbrowser = SoundfontBrowser(sfrel)
         if sfbrowser.ShowModal() == wx.ID_OK and self.bedit.IsShown():
             self.bedit.text.WriteText(sfbrowser.copypreset)
         sfbrowser.Destroy()
@@ -473,6 +476,7 @@ if __name__ == "__main__":
     display = ["", "", ""]
     cfgfile = sys.argv[1] if len(sys.argv) > 1 else 'fluidpatcherconf.yaml'
     pxr = patcher.Patcher(cfgfile)
+    lastdir = dict(bank=pxr.bankdir, sf2=pxr.sfdir)
     app = wx.App()
     main = MainWindow()
     pxr.set_midimessage_callback(main.listener)
