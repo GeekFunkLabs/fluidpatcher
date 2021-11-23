@@ -110,6 +110,7 @@ class Patcher:
             self._bank['patches'].values()
         except (TypeError, NameError, KeyError, AttributeError):
             self._bank = {'patches': {'No Patches': {}}}
+            raise
         else:
             if bankfile:
                 self.cfg['currentbank'] = Path(bankfile).as_posix()

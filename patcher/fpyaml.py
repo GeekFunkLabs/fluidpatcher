@@ -13,60 +13,68 @@ ft1 = re.compile(f'^({nn})-({nn})=?(-?{nn})?-?(-?{nn})?$')
 ft2 = re.compile(f'^({nn})=(-?{nn})?-?(-?{nn})?$')
 ft3 = re.compile(f'^=(-?{nn})-?(-?{nn})?$')
 
-def sift(val):
+def sift(s):
     try:
-        val = float(val)
+        s = float(s)
     except (ValueError, TypeError):
-        return val
+        return s
     else:
-        if val.is_integer():
-            val = int(val)
-        return val
+        if s.is_integer():
+            s = int(s)
+        return s
 
-def scinote_to_val(val):
-    if not isinstance(val, str):
-        return val
-    sci = re.findall('([+-]?)([A-G])([b#]?)([0-9])', val)[0]
+def scinote_to_val(n):
+    if not isinstance(n, str):
+        return n
+    sci = re.findall('([+-]?)([A-G])([b#]?)([0-9])', n)[0]
     sign = -1 if sci[0] == '-' else 1
     note = 'C D EF G A B'.find(sci[1])
     acc = ['b', '', '#'].index(sci[2]) - 1
     octave = int(sci[3])
     return sign * ((octave + 1) * 12 + note + acc)
 
-def totups(obj):
-    if isinstance(obj, RouterSpec):
-        return [(obj.min, obj.max, obj.mul, obj.add)]
-    elif isinstance(obj, list):
-        return [(val, val, 1.0, 0) for val in obj]
-    elif isinstance(obj, int):
-        return [(obj, obj, 1.0, 0)]
-    elif isinstance(obj, str):
-        return [(scinote_to_val(obj), scinote_to_val(obj), 1.0, 0)]
+def totups(x):
+    if isinstance(x, RouterSpec):
+        return [(x.min, x.max, x.mul, x.add)]
+    elif isinstance(x, list):
+        return [(val, val, 1.0, 0) for val in x]
+    elif isinstance(x, int):
+        return [(x, x, 1.0, 0)]
+    elif isinstance(x, str):
+        return [(scinote_to_val(x), scinote_to_val(x), 1.0, 0)]
     else: return [None]
 
-def tochantups(obj):
-    if isinstance(obj, FromToSpec):
-        return [(obj.min - 1, obj.max - 1, 0.0, chto)
-                for chto in range(obj.tomin - 1, obj.tomax)]
-    elif isinstance(obj, RouterSpec):
-        return [(obj.min - 1, obj.max - 1, obj.mul, obj.mul + obj.add - 1)]
-    elif isinstance(obj, list):
-        return [(ch - 1, ch - 1, 1.0, 0) for ch in obj]
-    elif isinstance(obj, int):
-        return [(obj- 1, obj - 1, 1.0, 0)]
+def tochantups(x):
+    if isinstance(x, FromToSpec):
+        return [(x.min - 1, x.max - 1, 0.0, chto)
+                for chto in range(x.tomin - 1, x.tomax)]
+    elif isinstance(x, RouterSpec):
+        return [(x.min - 1, x.max - 1, x.mul, x.mul + x.add - 1)]
+    elif isinstance(x, list):
+        return [(ch - 1, ch - 1, 1.0, 0) for ch in x]
+    elif isinstance(x, int):
+        return [(x- 1, x - 1, 1.0, 0)]
     else: return [None]
-    
-def tochanset(obj):
-    if isinstance(obj, RouterSpec):
-        return set(range(obj.min - 1, obj.max))
-    elif isinstance(obj, list):
-        return set([ch - 1 for ch in obj])
-    elif isinstance(obj, int):
-        return {obj - 1}
+
+def tochanset(x):
+    if isinstance(x, RouterSpec):
+        return set(range(x.min - 1, x.max))
+    elif isinstance(x, list):
+        return set([ch - 1 for ch in x])
+    elif isinstance(x, int):
+        return {x - 1}
     else: return set()
-    
+
+def iterdata(x):
+    if isinstance(x, (list, dict)):
+        for item in x if isinstance(x, list) else x.values():
+            if item is None: return None
+            elif isinstance(item, (list, dict)):
+                if iterdata(item) is None: return None
+    return x
+
 def parse(text):
-    return oyaml.safe_load(text)
+    return iterdata(oyaml.safe_load(text))
 
 def render(data):
     return oyaml.safe_dump(data)
