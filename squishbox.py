@@ -256,7 +256,7 @@ class SquishBox:
                 elif event == SB.ESCAPE:
                     sb.lcd_clear()
                     pxr.load_bank()
-                    self.select_patch(0)
+                    self.select_patch(self.pno)
                     return
                 else: continue
                 break

@@ -401,6 +401,7 @@ class MainWindow(wx.Frame):
         if sfbrowser.ShowModal() == wx.ID_OK and self.bedit.IsShown():
             self.bedit.text.WriteText(sfbrowser.copypreset)
         sfbrowser.Destroy()
+        pxr.load_bank()
         self.choose_patch(pno=self.pno)
 
     def onMidiMon(self, event):
