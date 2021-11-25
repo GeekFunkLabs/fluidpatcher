@@ -43,12 +43,12 @@ class Patcher:
         self._fluid = fswrap.Synth(**fluidsettings)
         self._fluid.msg_callback = None
         self._max_channels = fluidsettings.get('synth.midi-channels', 16)
-        self._bank = {'patches': {'No Patches': {}}}
+        self._bank = {'patches': {}}
         self._soundfonts = set()
 
     @property
     def currentbank(self):
-        return Path(self.cfg['currentbank']) if 'currentbank' in self.cfg else None
+        return Path(self.cfg['currentbank']) if 'currentbank' in self.cfg else ''
 
     @property
     def bankdir(self):
@@ -101,30 +101,35 @@ class Patcher:
     def load_bank(self, bankfile='', raw=''):
     # load patches, settings from :bankfile
     # or parse :raw yaml data as bank
+    # if no arguments just reset the synth
     # returns the yaml string
         if bankfile:
-            raw = (self.bankdir / bankfile).read_text()
-        if raw:
-            self._bank = fpyaml.parse(raw)
-        try:
-            self._bank['patches'].values()
-        except (TypeError, NameError, KeyError, AttributeError):
-            self._bank = {'patches': {'No Patches': {}}}
-            raise
-        else:
-            if bankfile:
+            try:
+                raw = (self.bankdir / bankfile).read_text()
+                bank = fpyaml.parse(raw)
+                bank['patches'].values()
+            except:
+                if Path(bankfile).as_posix() == self.cfg['currentbank']:
+                    self.cfg.pop('currentbank', None)
+                raise
+            else:
+                self._bank = bank
                 self.cfg['currentbank'] = Path(bankfile).as_posix()
+        elif raw:
+            bank = fpyaml.parse(raw)
+            bank['patches'].values()
+            self._bank = bank
         self._reset_synth(full=True)
         self._reload_bankfonts()
         return raw
 
-    def save_bank(self, bankfile='', raw=''):
+    def save_bank(self, bankfile, raw=''):
     # save current patches, settings in :bankfile
     # if :raw is provided, parse and save it exactly
-        if bankfile == '':
-            bankfile = self.currentbank
         if raw:
-            self._bank = fpyaml.parse(raw)
+            bank = fpyaml.parse(raw)
+            bank['patches'].values()
+            self._bank = bank
         else:
             raw = fpyaml.render(self._bank)
         (self.bankdir / bankfile).write_text(raw)
@@ -293,11 +298,9 @@ class Patcher:
 
     def _resolve_patch(self, patch):
         if isinstance(patch, int):
-            name = list(self._bank['patches'])[patch]
-            patch = self._bank['patches'][name]
+            patch = self._bank['patches'][self.patches[patch]]
         elif isinstance(patch, str):
-            name = patch
-            patch = self._bank['patches'][name]
+            patch = self._bank['patches'][patch]
         return patch
 
     def _send_sysex(self, msg):

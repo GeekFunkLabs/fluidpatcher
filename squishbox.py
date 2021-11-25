@@ -121,9 +121,10 @@ class SquishBox:
 
     def __init__(self):
         self.togglestate = 0
+        self.pno = 0
         pxr.set_midimessage_callback(self.listener)
         sb.buttoncallback = self.handle_buttonevent
-        if not self.load_bank(pxr.currentbank):
+        if not (pxr.currentbank and self.load_bank(pxr.currentbank)):
             while not self.load_bank(): pass
         self.select_patch(0)
         self.patchmode()
@@ -137,6 +138,10 @@ class SquishBox:
                 elif msg.val > 0:
                     self.pno = (self.pno + msg.patch) % len(pxr.patches)
                     self.select_patch(self.pno)
+            elif hasattr(msg, 'gpio'):
+                if msg.gpio == 'led':
+                    self.togglestate = 1 if msg.val else 0
+                    sb.statusled_set(self.togglestate)
         else:
             self.lastmsg = msg
 
@@ -149,25 +154,30 @@ class SquishBox:
 
     def patchmode(self):
         while True:
-            sb.lcd_write(pxr.patches[self.pno], 0, scroll=True)
-            sb.lcd_write(f"patch: {self.pno + 1}/{len(pxr.patches)}", 1, rjust=True)
+            sb.lcd_write(self.patchinfo[0], 0, scroll=True)
+            sb.lcd_write(self.patchinfo[1], 1, rjust=True)
             while True:
                 event = sb.update()
-                if event == SB.RIGHT:
+                if event == SB.RIGHT and pxr.patches:
                     self.select_patch((self.pno + 1) % len(pxr.patches))
-                elif event == SB.LEFT:
+                elif event == SB.LEFT and pxr.patches:
                     self.select_patch((self.pno - 1) % len(pxr.patches))
                 elif event == SB.SELECT:
                     k = sb.choose_opt(['Load Bank', 'Save Bank', 'Save Patch', 'Delete Patch',
                                        'Open Soundfont', 'Effects..', 'System Menu..'], row=1)
                     if k == 0:
                         lastbank = pxr.currentbank
-                        lastpatch = self.pno
+                        lastpatch = pxr.patches[self.pno] if pxr.patches else ''
                         if self.load_bank():
-                            if pxr.currentbank == lastbank:
-                                self.select_patch(lastpatch)
+                            if pxr.currentbank != lastbank:
+                                self.select_patch(0)                                
                             else:
-                                self.select_patch(0)
+                                if lastpatch in pxr.patches:
+                                    self.select_patch(pxr.patches.index(lastpatch))
+                                elif self.pno < len(pxr.patches):
+                                    self.select_patch(self.pno)
+                                else:
+                                    self.select_patch(0)
                     elif k == 1:
                         self.save_bank()
                     elif k == 2:
@@ -181,7 +191,6 @@ class SquishBox:
                     elif k == 3:
                         if sb.confirm_choice('Delete', row=1):
                             pxr.delete_patch(self.pno)
-                            self.pno = min(self.pno, len(pxr.patches) - 1)
                             self.select_patch(min(self.pno, len(pxr.patches) - 1))
                     elif k == 4:
                         if self.load_soundfont(): self.sfmode()
@@ -193,6 +202,20 @@ class SquishBox:
                     if sb.confirm_choice("Reset"): sys.exit(1)
                 else: continue
                 break
+
+    def select_patch(self, pno):
+        self.pno = pno
+        sb.lcd_clear()
+        if not pxr.patches:
+            self.patchinfo = "No Patches", "patch 0/0"
+            warn = pxr.select_patch(None)
+        else:
+            self.patchinfo = pxr.patches[pno], f"patch: {pno + 1}/{len(pxr.patches)}"
+            warn = pxr.select_patch(pno)
+        if warn:
+            sb.lcd_write(self.patchinfo[0], 0, scroll=True)
+            sb.lcd_write('; '.join(warn), 1, scroll=True)
+            sb.waitfortap()
 
     def sfmode(self):
         i = 0
@@ -252,7 +275,7 @@ class SquishBox:
             if i < 0: return False
             bank = pxr.banks[i]
         sb.lcd_write("loading patches", 1, rjust=True)
-        try: rawbank = pxr.load_bank(bank)
+        try: pxr.load_bank(bank)
         except Exception as e:
             sb.lcd_write(f"bank load error: {exceptstr(e)}", 1, scroll=True)
             sb.waitfortap()
@@ -292,17 +315,6 @@ class SquishBox:
         sb.lcd_write(f"Unable to load {str(pxr.soundfonts[s])}", 1, scroll=True)
         sb.waitfortap()
         return False
-
-    def select_patch(self, pno):
-        self.pno = pno
-        sb.lcd_clear()
-        warn = pxr.select_patch(self.pno)
-        sb.lcd_write(pxr.patches[self.pno], 0, scroll=True)
-        if warn:
-            sb.lcd_write('; '.join(warn), 1, scroll=True)
-            sb.waitfortap()
-            warn = []
-        sb.lcd_write(f"patch: {self.pno + 1}/{len(pxr.patches)}", 1, rjust=True)
 
     def effects_menu(self):
         i=0

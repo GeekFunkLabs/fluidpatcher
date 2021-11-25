@@ -71,17 +71,17 @@ Write _self.cfg_ to _self.cfgfile_ as YAML-formatted text; if _raw_ is provided 
 
 **load_bank**(_bankfile='', raw=''_)
 
-Load a bank file. If successful, reset the synth, apply bank-level settings, and load all necessary soundfonts. Returns the full text of the file that was loaded
+Load a bank from a file or from raw yaml text. If successful, reset the synth, apply bank-level settings, and load all necessary soundfonts. Returns the full text of the file that was loaded. If called with no arguments, resets the synth with the bank currently in memory.
 - Parameters:
   - _bankfile_: bank file to load
   - _raw_: raw yaml string to parse as current bank
 - Returns: the contents of the bank file
 
-**save_bank**(_bankfile="", raw=""_)
+**save_bank**(_bankfile, raw=""_)
 
 Save the current bank to a file
 - Parameters:
-  - _bankfile_: bank file to save; if not provided, 'currentbank' from config file will be used
+  - _bankfile_: bank file to save
   - _raw_: full text of the YAML document to save; text is checked for validity first
 - Returns: nothing
 
@@ -89,7 +89,7 @@ Save the current bank to a file
 
 Select a patch from the loaded bank by its name or index. Select soundfonts for specified channels, apply router rules, activate players and effects, send messages, etc.
 - Parameters:
-  - _patch_: index of the patch as int, or patch name as a string
+  - _patch_: index of the patch as int, or patch name as a string. If _None_, bank-level keywords are still applied
 - Returns: a list of warnings, if any
 
 **add_patch**(_name, addlike=None_)
@@ -167,7 +167,7 @@ Sends a MIDI event to FluidSynth
 
 A simple container for storing information about a soundfont's presets
 
-#### Attributes:
+#### Attributes
   - _name_: the preset name in the soundfont file
   - _bank_: the bank number of the preset
   - _prog_: the program number of the preset
