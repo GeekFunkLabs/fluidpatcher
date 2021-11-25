@@ -362,10 +362,10 @@ class Sequencer:
         self.fsynth_dest = FL.fluid_sequencer_register_fluidsynth(self.fseq, synth.fsynth)
         self.callback = fl_seqcallback(self.scheduler)
         self.fseq_dest = FL.fluid_sequencer_register_client(self.fseq, b'seq', self.callback, None)
+        self.notes = [SequencerNote(chan, key, vel) for _, chan, key, vel in notes]
         self.tdiv = tdiv
         self.swing = swing
         self.ticksperbeat = 500 # default 120bpm at 1000 ticks/sec
-        self.notes = [SequencerNote(chan, key, vel) for _, chan, key, vel in notes]
 
     def scheduler(self, time=None, event=None, fseq=None, data=None):
         if event and FL.fluid_event_get_type(event) == FLUID_SEQ_UNREGISTERING:
@@ -405,6 +405,7 @@ class Sequencer:
         self.ticksperbeat = 1000 * 60 / bpm
 
     def delete(self):
+        self.notes = []
         FL.fluid_sequencer_remove_events(self.fseq, -1, -1, -1)
         FL.fluid_sequencer_unregister_client(self.fseq, self.fseq_dest)
         FL.delete_fluid_sequencer(self.fseq)
