@@ -139,10 +139,10 @@ class Patcher:
     # :patch number, name, or dict
         warnings = []
         fxchannels = set()
-        patch = self._resolve_patch(patch)
+        patch = self._resolve_patch(patch) if patch != None else {}
         self._reset_synth(full=False)
         for channel in range(1, self._max_channels + 1):
-            preset = self._bank.get(channel) or patch.get(channel)
+            preset = patch.get(channel) or self._bank.get(channel)
             if preset:
                 if preset.sf not in self._soundfonts: self._reload_bankfonts()
                 if self._fluid.program_select(channel - 1, self.sfdir / preset.sf, preset.bank, preset.prog):
@@ -190,8 +190,7 @@ class Patcher:
         for channel in range(1, self._max_channels + 1):
             info = self._fluid.program_info(channel - 1)
             if not info:
-                if channel in patch:
-                    del patch[channel]
+                patch.pop(channel, None)
                 continue
             sfont, bank, prog = info
             sfrel = Path(sfont).relative_to(self.sfdir).as_posix()
@@ -250,10 +249,10 @@ class Patcher:
             if 'fluidsettings' not in self._bank:
                 self._bank['fluidsettings'] = {}
             self._bank['fluidsettings'][opt] = val
-            if patch:
+            if patch != None:
                 patch = self._resolve_patch(patch)
                 if 'fluidsettings' in patch and opt in patch['fluidsettings']:
-                    patch['fluidsettings'].remove(opt)
+                    del patch['fluidsettings'][opt]
 
     def add_router_rule(self, rule=None, **kwargs):
     # :rule text or a RouterRule object
