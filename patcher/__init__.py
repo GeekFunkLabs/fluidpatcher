@@ -229,7 +229,9 @@ class Patcher:
                 if not name: continue
                 self.sfpresets.append(PresetInfo(name, bank, prog))
         self._reset_synth(full=True)
-        self.add_router_rule(type='note', chan=f'2-{self._max_channels}=1')
+        for channel in range(1, self._max_channels + 1):
+            self._fluid.program_unset(channel - 1)
+        self.add_router_rule(type="note", chan=f"2-{self._max_channels}=1")
         return True
         
     def select_sfpreset(self, presetnum):
