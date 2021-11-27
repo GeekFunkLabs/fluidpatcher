@@ -40,18 +40,28 @@ inform() {
 }
 
 warning() {
+    echo -e "$(tput setaf 3)$1$(tput sgr0)"
+}
+
+failout() {
     echo -e "$(tput setaf 1)$1$(tput sgr0)"
+	exit 1
 }
 
 sysupdate() {
     if ! $UPDATED; then
         echo "Updating apt indexes..."
-        sudo apt-get -qq update || { warning "Failed to update apt indexes!" && exit 1; }
+        if { sudo apt-get update 2>&1 || echo E: update failed; } | grep '^[WE]:'; then
+			warning "Updating incomplete"
+		fi
         sleep 3
         UPDATED=true
         if $UPGRADE; then
             echo "Upgrading your system..."
-            sudo DEBIAN_FRONTEND=noninteractive apt-get -qqy upgrade --with-new-pkgs
+            if { sudo DEBIAN_FRONTEND=noninteractive apt-get -y upgrade --with-new-pkgs 2>&1 \
+				|| echo E: upgrade failed; } | grep '^[WE]:'; then
+				warning "Encountered problems during upgrade"
+			fi
             sudo apt-get clean && sudo apt-get autoclean
             sudo apt-get -qqy autoremove
             UPGRADE=false
@@ -61,10 +71,16 @@ sysupdate() {
 
 apt_pkg_install() {
     APT_CHK=$(dpkg-query -W -f='${Status}\n' "$1" 2> /dev/null | grep "install ok installed")
-    if [[ $APT_CHK == "" ]]; then    
+    if [[ $APT_CHK == "" ]]; then
         echo "Aptitude is installing $1..."
-        sudo DEBIAN_FRONTEND=noninteractive apt-get --no-install-recommends -qqy install "$1" ||
-            { warning "Apt failed to install $1!" && exit 1; }
+		if { sudo DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install "$1" 2>&1 \
+			|| echo E: install failed; } | grep '^[WE]:'; then
+			if [[ $2 == "required" ]]; then
+				failout "Problems installing $1!"
+			else
+				warning "Problems installing $1!"
+			fi
+		fi
     fi
 }
 
@@ -74,7 +90,13 @@ pip_install() {
     fi
     if ! [[ $PYTHON_PKG =~ "$1" ]]; then
         echo "Python Package Manager is installing $1..."
-        sudo -H pip3 install "$1" || { warning "Pip failed to install $1!" && exit 1; }
+        if ! { sudo -H pip3 install "$1"; } then
+			if [[ $2 == "required" ]]; then
+				failout "Failed to install $1!"
+			else
+				warning "Failed to install $1!"
+			fi
+		fi
     fi
 }
 
@@ -164,8 +186,10 @@ echo "  1. squishbox.py"
 echo "  2. headlesspi.py"
 echo "  3. Nothing"
 query "Choose" "0"; startup=$response
-if [[ $startup == 2 ]]; then
-    echo -e "Set up controls for headless pi:"
+if [[ $startup == 1 ]]; then
+    squishbox_pkg="required"
+elif [[ $startup == 2 ]]; then
+    echo "Set up controls for headless pi:"
     query "    MIDI channel for controls" "use default"; ctrls_channel=$response
     query "    Next patch button CC" "use default"; incpatch=$response
     query "    Previous patch button CC" "use default"; decpatch=$response
@@ -211,12 +235,8 @@ warning "\nThis may take some time ... go make some coffee.\n"
 umask 002 
 # desktop distros play an audio message when first booting to setup; this disables it
 sudo mv -f /etc/xdg/autostart/piwiz.desktop /etc/xdg/autostart/piwiz.disabled 2> /dev/null
-# realtime audio tweaks
+# add pi user to audio group
 sudo usermod -a -G audio pi
-cat <<EOF | sudo tee /etc/security/limits.d/audio.conf
-@audio   -  rtprio     95
-@audio   -  memlock    unlimited
-EOF
 
 # get dependencies
 inform "Installing/Updating required software..."
@@ -225,20 +245,25 @@ if [[ $mirror != "none" ]]; then
     echo "deb-src $mirror $versioncode main contrib non-free rpi" | sudo tee -a /etc/apt/sources.list
 fi
 sysupdate
-apt_pkg_install "git"
-apt_pkg_install "python3-pip"
-apt_pkg_install "fluidsynth"
-apt_pkg_install "fluid-soundfont-gm"
+apt_pkg_install "git" required
+apt_pkg_install "python3-pip" required
+apt_pkg_install "fluidsynth" required
+apt_pkg_install "fluid-soundfont-gm" required
+apt_pkg_install "jackd2" $squishbox_pkg
+sudo mv /etc/security/limits.d/audio.conf.disabled /etc/security/limits.d/audio.conf 2> /dev/null
 apt_pkg_install "ladspa-sdk"
-apt_pkg_install "jackd2"
-pip_install "oyaml"
-pip_install "RPi.GPIO"
-pip_install "RPLCD"
+apt_pkg_install "tap-plugins"
+apt_pkg_install "wah-plugins"
+pip_install "oyaml" required
+pip_install "RPi.GPIO" $squishbox_pkg
+pip_install "RPLCD" $squishbox_pkg
 
 if [[ $update == "yes" ]]; then
     inform "Installing/Updating FluidPatcher version $NEW_FP_VER ..."
     rm -rf fluidpatcher
-    git clone https://github.com/albedozero/fluidpatcher
+    if ! { git clone https://github.com/albedozero/fluidpatcher; } then
+		failout "Unable to download fluidpatcher"
+	fi
     cd fluidpatcher
     if [[ $overwrite == "yes" ]]; then
         find . -type d -exec mkdir -p $installdir/{} \;
@@ -337,11 +362,13 @@ if [[ $compile == "yes" ]]; then
     fi
     UPDATED=false
     sysupdate
-    apt_pkg_install "tap-plugins"
-    echo "Getting build dependencies..."
-    sudo apt-get build-dep fluidsynth --no-install-recommends --yes
-    rm -rf fluidsynth
 	apt_pkg_install "libjack-jackd2-dev"
+	echo "Getting build dependencies..."
+	if { sudo DEBIAN_FRONTEND=noninteractive apt-get build-dep fluidsynth -y --no-install-recommends 2>&1 \
+		|| echo E: install failed; } | grep '^[WE]:'; then
+		warning "Couldn't get all dependencies!"
+	fi
+	rm -rf fluidsynth
     git clone https://github.com/FluidSynth/fluidsynth
     mkdir fluidsynth/build
     cd fluidsynth/build
@@ -349,7 +376,9 @@ if [[ $compile == "yes" ]]; then
     cmake ..
     echo "Compiling..."
     make
-    sudo make install
+    if ! { sudo make install; } then
+		warning "Unable to compile/install FluidSynth $BUILD_VER"
+	fi
     sudo ldconfig
     cd ../..
     rm -rf fluidsynth
@@ -413,9 +442,8 @@ fi
 
 if [[ $soundfonts == "yes" ]]; then
     inform "Downloading free soundfonts..."
+	sysupdate
     apt_pkg_install "unzip"
-    apt_pkg_install "tap-plugins"
-    apt_pkg_install "wah-plugins"
     wget -nv --show-progress geekfunklabs.com/squishbox_soundfonts.zip
     unzip -na squishbox_soundfonts.zip -d $installdir/SquishBox
     rm squishbox_soundfonts.zip
