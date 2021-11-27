@@ -341,6 +341,7 @@ if [[ $compile == "yes" ]]; then
     echo "Getting build dependencies..."
     sudo apt-get build-dep fluidsynth --no-install-recommends --yes
     rm -rf fluidsynth
+	apt_pkg_install "libjack-jackd2-dev"
     git clone https://github.com/FluidSynth/fluidsynth
     mkdir fluidsynth/build
     cd fluidsynth/build
