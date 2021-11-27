@@ -262,7 +262,7 @@ class MainWindow(wx.Frame):
             rawbank = pxr.load_bank(bfile)
         except Exception as e:
             wx.MessageBox(str(e), "Error", wx.OK|wx.ICON_ERROR)
-            display[0] = str(pxr.currentbank)
+            display[0] = self.currentfile
             self.choose_patch(pno=self.pno)
             return False
         pxr.write_config()
@@ -275,6 +275,7 @@ class MainWindow(wx.Frame):
         for p in pxr.patches:
             x = self.patchMenu.Append(wx.ID_ANY, p)
             self.Bind(wx.EVT_MENU, self.choose_patch, x)
+        self.currentfile = bfile
         self.choose_patch()
         return True
 
@@ -327,6 +328,7 @@ class MainWindow(wx.Frame):
             resp = wx.MessageBox("Unsaved changes in bank - close?", "New", wx.ICON_WARNING|wx.OK|wx.CANCEL)
             if resp != wx.OK:
                 return
+        self.currentfile = ''
         self.pno = 0
         self.bedit.text.Clear()
         self.bedit.text.AppendText(" ")
@@ -343,17 +345,16 @@ class MainWindow(wx.Frame):
         self.load_bankfile(str(Path(bank).relative_to(pxr.bankdir)))
 
     def onSave(self, event):
-        self.onSaveAs(bfile=str(pxr.currentbank))
+        self.onSaveAs(bfile=self.currentfile)
 
     def onSaveAs(self, event=None, bfile=''):
         if not self.parse_bank():
             return
         if bfile == '':
-            bank = wx.FileSelector("Save Bank", str(self.lastdir['bank']), pxr.currentbank, "*.yaml", "Bank files (*.yaml)|*.yaml", wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT)
+            bank = wx.FileSelector("Save Bank", str(self.lastdir['bank']), "", "*.yaml", "Bank files (*.yaml)|*.yaml", wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT)
             if bank == '': return
             self.lastdir['bank'] = Path(bank).parent
             bfile = str(Path(bank).relative_to(pxr.bankdir))
-        print(bfile,pxr.currentbank)
         try:
             pxr.save_bank(bfile, self.bedit.text.GetValue())
         except Exception as e:
@@ -362,6 +363,7 @@ class MainWindow(wx.Frame):
         pxr.write_config()
         display[0] = bfile
         self.bedit.caption.SetLabel(bfile)
+        self.currentfile = bfile
         self.ctrlboard.Refresh()
 
     def onExit(self, event=None):
