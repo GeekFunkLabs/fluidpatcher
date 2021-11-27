@@ -71,7 +71,7 @@ Displays _text_ and allows the user to toggle between a checkmark or an X. Retur
 
 **choose_opt**(_self, opts, i=0, row=0, scroll=False, timeout=MENU_TIMEOUT, rjust=False_)
 
-Allows the user to choose from a list of _opts_. The index _i_ sets the initial option. Returns the index of the option selected. Canceling or waiting longer than _timeout_ will returns -1. 
+Allows the user to choose from a list of _opts_. The index _i_ sets the initial option. Returns the index of the option selected. Canceling or waiting longer than _timeout_ returns -1. 
 
 **choose_val**(_self, val, inc, minval, maxval, fmt=f'>{COLS}', timeout=MENU_TIMEOUT_)
 
