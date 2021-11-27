@@ -81,15 +81,26 @@ pip_install() {
 
 sleep 1 # give curl time to print info
 
-## get options from the user
-
-inform "\nThis script installs/updates software and optonal extras"
-inform "for the SquishBox or headless Raspberry Pi synth."
-warning "Always be careful when running scripts and commands copied"
-warning "from the internet. Ensure they are from a trusted source."
-echo "If you want to see what this script does before running it,"
-echo "hit ctrl-C and enter 'curl -L git.io/squishbox | more'"
-echo -e "Report issues with this script at https://github.com/albedozero/fluidpatcher\n"
+## user interaction part
+echo "
+           o
+    o───┐  │  o
+     ___│__│__│___
+    /             \  o   SquishBox/Headless Pi Synth Installer
+o───┤  _________  │  │     GEEK FUNK LABS
+    │ │ █ │ █ █ │ ├──┘     geekfunklabs.com
+    │ │ █ │ █ █ │ │
+    \_│_│_│_│_│_│_/
+"
+inform "This script installs/updates software and optional extras
+for the SquishBox or headless Raspberry Pi synth."
+warning "Always be careful when running scripts and commands copied
+from the internet. Ensure they are from a trusted source."
+echo "If you want to see what this script does before running it,
+hit ctrl-C and enter 'curl -L git.io/squishbox | more'
+Report issues with this script at
+https://github.com/albedozero/fluidpatcher/issues
+"
 
 ENVCHECK=true
 if test -f /etc/os-release; then
