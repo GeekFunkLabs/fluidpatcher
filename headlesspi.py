@@ -87,12 +87,10 @@ else:
 class HeadlessSynth:
 
     def __init__(self):
-        self.pno = 0
         self.shutdowntimer = 0
         self.lastpoll = time.time()
-        self.load_bank(pxr.currentbank)
-        self.select_patch(self.pno)
         pxr.set_midimessage_callback(self.listener)
+        self.load_bank(pxr.currentbank)
         onboardled_blink(ACT_LED, 5) # ready to play
         while True:
             time.sleep(POLL_TIME)
@@ -115,18 +113,25 @@ class HeadlessSynth:
         except Exception as e:
             print(f"Error loading {bfile}\n{str(e)}")
             error_blink(3)
-        onboardled_set(ACT_LED, 0)
         print("Bank loaded.")
+        onboardled_set(ACT_LED, 0)
+        self.pno = 0
+        if pxr.patches:
+            self.select_patch(self.pno)
+        else:
+            pxr.select_patch(None)
+            connect_controls()
+            print("No patches")
 
     def select_patch(self, n):
         pxr.select_patch(n)
         connect_controls()
-        print(f"Selected patch {n + 1}/{len(pxr.patches)}: {pxr.patches[self.pno]}")
+        print(f"Selected patch {n + 1}/{len(pxr.patches)}: {pxr.patches[n]}")
         onboardled_blink(ACT_LED)
 
     def listener(self, msg):
     # catches custom midi :msg to change patch/bank
-        if hasattr(msg, 'patch'):
+        if hasattr(msg, 'patch') and pxr.patches:
             if msg.patch == 'select':
                 x = int(msg.val * min(len(pxr.patches), 128) / 128)
                 if x != self.pno:
@@ -145,8 +150,6 @@ class HeadlessSynth:
             else:
                 bno = 0
             self.load_bank(pxr.banks[bno])
-            self.pno = 0
-            self.select_patch(self.pno)
             pxr.write_config()    
 
 

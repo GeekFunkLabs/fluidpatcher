@@ -139,7 +139,7 @@ class Patcher:
     # :patch number, name, or dict
         warnings = []
         fxchannels = set()
-        patch = self._resolve_patch(patch) if patch != None else {}
+        patch = {} if patch is None else self._resolve_patch(patch)
         self._reset_synth(full=False)
         for channel in range(1, self._max_channels + 1):
             preset = patch.get(channel) or self._bank.get(channel)

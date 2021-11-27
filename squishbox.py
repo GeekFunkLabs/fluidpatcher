@@ -131,12 +131,12 @@ class SquishBox:
 
     def listener(self, msg):
         if hasattr(msg, 'val'):
-            if hasattr(msg, 'patch'):
+            if hasattr(msg, 'patch') and pxr.patches:
                 if msg.patch == 'select':
                     self.pno = msg.val
                     self.select_patch(self.pno)
                 elif msg.val > 0:
-                    self.pno = (self.pno + msg.patch) % len(pxr.patches)
+                    self.pno = round(self.pno + msg.patch) % len(pxr.patches)
                     self.select_patch(self.pno)
             elif hasattr(msg, 'gpio'):
                 if msg.gpio == 'led':
@@ -206,12 +206,12 @@ class SquishBox:
     def select_patch(self, pno):
         self.pno = pno
         sb.lcd_clear()
-        if not pxr.patches:
-            self.patchinfo = "No Patches", "patch 0/0"
-            warn = pxr.select_patch(None)
-        else:
+        if pxr.patches:
             self.patchinfo = pxr.patches[pno], f"patch: {pno + 1}/{len(pxr.patches)}"
             warn = pxr.select_patch(pno)
+        else:
+            self.patchinfo = "No patches", "patch 0/0"
+            warn = pxr.select_patch(None)
         if warn:
             sb.lcd_write(self.patchinfo[0], 0, scroll=True)
             sb.lcd_write('; '.join(warn), 1, scroll=True)
