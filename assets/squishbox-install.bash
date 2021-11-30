@@ -104,15 +104,18 @@ pip_install() {
 sleep 1 # give curl time to print info
 
 ## user interaction part
-echo "
-           o
-    o───┐  │  o
-     ___│__│__│___
-    /             \  o   SquishBox/Headless Pi Synth Installer
-o───┤  _________  │  │     GEEK FUNK LABS
-    │ │ █ │ █ █ │ ├──┘     geekfunklabs.com
-    │ │ █ │ █ █ │ │
-    \_│_│_│_│_│_│_/
+RED='\033[0;31m'
+YEL='\033[1;33m'
+NC='\033[0m'
+echo -e "
+ ${YEL}           o
+     o───┐  │  o
+      ${RED}___${YEL}│${RED}__${YEL}│${RED}__${YEL}│${RED}___
+     /             \  ${YEL}o   ${NC}SquishBox/Headless Pi Synth Installer
+ ${YEL}o───${RED}┤  ${NC}_________  ${RED}│  ${YEL}│     ${NC}by GEEK FUNK LABS
+     ${RED}│ ${NC}│ █ │ █ █ │ ${RED}├${YEL}──┘     ${NC}geekfunklabs.com
+     ${RED}│ ${NC}│ █ │ █ █ │ ${RED}│
+     \_${NC}│_│_│_│_│_│${RED}_/${NC}
 "
 inform "This script installs/updates software and optional extras
 for the SquishBox or headless Raspberry Pi synth."
@@ -237,6 +240,9 @@ umask 002
 sudo mv -f /etc/xdg/autostart/piwiz.desktop /etc/xdg/autostart/piwiz.disabled 2> /dev/null
 # add pi user to audio group
 sudo usermod -a -G audio pi
+# allow JACK to grant self-connect requests
+sed -i "/export JACK_NO_AUDIO_RESERVATION/d" $HOME/.profile
+echo "export JACK_NO_AUDIO_RESERVATION=1" >> $HOME/.profile
 
 # get dependencies
 inform "Installing/Updating required software..."
