@@ -224,7 +224,7 @@ if promptorno "Download and install ~400MB of additional soundfonts?"; then
 fi
 
 echo ""
-if ! promptoryes "All options chosen. OK to proceed?"; then
+if ! promptoryes "Option selection complete. OK to proceed?"; then
     exit 1
 fi
 warning "\nThis may take some time ... go make some coffee.\n"
@@ -249,7 +249,7 @@ apt_pkg_install "git" required
 apt_pkg_install "python3-pip" required
 apt_pkg_install "fluidsynth" required
 apt_pkg_install "fluid-soundfont-gm" required
-apt_pkg_install "jackd2" $squishbox_pkg
+apt_pkg_install "jackd2" required
 sudo mv /etc/security/limits.d/audio.conf.disabled /etc/security/limits.d/audio.conf 2> /dev/null
 apt_pkg_install "ladspa-sdk"
 apt_pkg_install "tap-plugins"
@@ -283,12 +283,14 @@ fi
 # set up audio
 if (( $audiosetup > 0 )); then
     inform "Setting up audio..."
-    sed -i "/  audio.alsa.device/d" $installdir/SquishBox/squishboxconf.yaml
-    echo "/usr/bin/jackd --silent -r -d alsa -s -p 64 -n 3 -r 44100 -P" | sudo tee /etc/jackdrc
+    echo "/usr/bin/jackd --silent -R -d alsa -s -P" | sudo tee /etc/jackdrc
     if (( $audiosetup > 1 )); then
         AUDIO=`echo ${AUDIOCARDS[$audiosetup-2]} | cut -d' ' -f 1`
-        sed -i "/^fluidsettings:/a\  audio.alsa.device: hw:$AUDIO"  $installdir/SquishBox/squishboxconf.yaml
-        echo "/usr/bin/jackd --silent -r -d alsa -d hw:$AUDIO -s -p 64 -n 3 -r 44100 -P" | sudo tee /etc/jackdrc
+		if [[ $AUDIO == "Headphones" ]]; then
+			echo "/usr/bin/jackd --silent -R -d alsa -d plughw:Headphones -s -p 444 -n 3 -r 22050 -P -S" | sudo tee /etc/jackdrc
+		else
+			echo "/usr/bin/jackd --silent -R -d alsa -d hw:$AUDIO -s -p 64 -n 3 -r 44100 -P -S" | sudo tee /etc/jackdrc
+		fi
     fi
 fi
 
