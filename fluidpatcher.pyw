@@ -145,7 +145,7 @@ class SoundfontBrowser(wx.Dialog):
 
         self.presetlist = wx.ListCtrl(self, style=wx.LC_REPORT|wx.LC_SINGLE_SEL)
         self.presetlist.AppendColumn('Bank')
-        self.presetlist.AppendColumn('Preset')
+        self.presetlist.AppendColumn('Program')
         self.presetlist.AppendColumn('Name')
         vbox = wx.BoxSizer(wx.VERTICAL)
         vbox.Add(self.presetlist, 1, wx.LEFT|wx.RIGHT|wx.EXPAND, 15)
