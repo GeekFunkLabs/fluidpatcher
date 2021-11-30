@@ -89,12 +89,10 @@ class Patcher:
         return raw
 
     def write_config(self, raw=None):
-        if self.cfgfile == None:
-            return
         if raw:
             c = fpyaml.parse(raw)
-            self.cfgfile.write_text(raw)
             self.cfg = c
+            if self.cfgfile: self.cfgfile.write_text(raw)
         else:
             self.cfgfile.write_text(fpyaml.render(self.cfg))
 
