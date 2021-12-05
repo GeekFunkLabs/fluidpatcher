@@ -28,8 +28,10 @@ def wifi_settings():
         j = sb.choose_opt(opts, row=1, scroll=True, timeout=0)
         if j < 0: return
         elif j == len(opts) - 1:
-            sb.lcd_write("scanning..", 1)
+            sb.lcd_write("scanning ", 1, rjust=True)
+            sb.progresswheel_start()
             x = subprocess.check_output('sudo iw wlan0 scan'.split()).decode()
+            sb.progresswheel_stop()
             networks[:] = [s for s in re.findall('SSID: ([^\n]*)', x) if s]
         else:
             sb.lcd_write("Password:", 0)
@@ -37,62 +39,69 @@ def wifi_settings():
             if newpsk == '': return
             sb.lcd_clear()
             sb.lcd_write(networks[j], 0)
-            sb.lcd_write("adding network..", 1)
+            sb.lcd_write("adding network ", 1, rjust=True)
+            sb.progresswheel_start()
             e = subprocess.Popen(('echo', f'network={{\n  ssid="{networks[j]}"\n  psk="{newpsk}"\n}}\n'), stdout=subprocess.PIPE)
             subprocess.run(('sudo', 'tee', '-a', '/etc/wpa_supplicant/wpa_supplicant.conf'), stdin=e.stdout, stdout=subprocess.DEVNULL)
             subprocess.run('sudo systemctl restart dhcpcd'.split())
+            sb.progresswheel_stop()
             wifi_settings()
             return
 
 def addfrom_usb():
     sb.lcd_clear()
-    sb.lcd_write("looking for USB ", 0)
+    sb.lcd_write("looking for USB", 0)
     b = subprocess.check_output(['sudo', 'blkid']).decode()
     x = re.findall('/dev/sd[a-z]\d+', b)
     if not x:
-        sb.lcd_write("USB not found", 1)
-        sb.waitforrelease(2)
+        sb.lcd_write("USB not found", 1, rjust=True)
+        sb.waitfortap(2)
         return
-    sb.lcd_write("copying files..", 1)
+    sb.lcd_write("copying files ", 1, rjust=True)
+    sb.progresswheel_start()
     try:
         subprocess.run(['sudo', 'mkdir', '-p', '/mnt/usbdrv'])
         for usb in x:
             subprocess.run(['sudo', 'mount', usb, '/mnt/usbdrv/'], timeout=30)
-            for src in Path('/mnt/usbdrv').rglob('*'):
+            for src in Path('/mnt/usbdrv/SquishBox').rglob('*'):
                 if not src.is_file(): continue
-                dest = 'SquishBox' / src.relative_to('/mnt/usbdrv')
+                dest = 'SquishBox' / src.relative_to('/mnt/usbdrv/SquishBox')
                 if not dest.parent.exists():
                     dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(src, dest)
             subprocess.run(['sudo', 'umount', usb], timeout=30)
     except Exception as e:
+        sb.progresswheel_stop()
         sb.lcd_write(f"halted - errors: {exceptstr(e)}", 1, scroll=True)
         sb.waitfortap()
     else:
-        sb.lcd_write("copying files..", 0)
+        sb.progresswheel_stop()
         sb.lcd_write("done", 1, rjust=True)
-        sb.waitforrelease(1)
+        sb.waitfortap(1)
 
 def update_device():
     sb.lcd_write(f"version {patcher.VERSION}", 0, scroll=True)
-    sb.lcd_write("checking..", 1, rjust=True)
+    sb.lcd_write("checking ", 1, rjust=True)
+    sb.progresswheel_start()
     x = subprocess.check_output(['curl', 'https://raw.githubusercontent.com/albedozero/fluidpatcher/master/patcher/__init__.py'])
     newver = re.search("VERSION = '([0-9\.]+)'", x.decode())[1]
     subprocess.run(['sudo', 'apt-get', 'update'])
     u = subprocess.check_output(['sudo', 'apt-get', 'upgrade', '-sy'])
+    sb.progresswheel_stop()
     fup, sysup = 0, 0
-    if [int(x) for x in newver.split('.')] > [int(x) for x in patcher.VERSION.split('.')]:
-        fup = sb.confirm_choice(f"install {newver}", row=1)
+    if newver.split('.') > patcher.VERSION.split('.'):
+        fup = sb.confirm_choice(f"install {newver}", row=1, timeout=0)
     else:
         sb.lcd_write("Up to date", 1, rjust=True)
-        sb.waitfortap(10)
+        sb.waitfortap()
     if not re.search('0 upgraded, 0 newly installed', u.decode()):
         sb.lcd_write("OS out of date", 0)
-        sysup = sb.confirm_choice("upgrade OS", row=1)
+        sysup = sb.confirm_choice("upgrade OS", row=1, timeout=0)
     if not (fup or sysup):
         return
-    sb.lcd_write("updating..", 0)
-    sb.lcd_write("please wait", 1, rjust=True)
+    sb.lcd_write("please wait", 0)
+    sb.lcd_write("updating ", 1, rjust=True)
+    sb.progresswheel_start()
     try:
         if fup:
             with tempfile.TemporaryDirectory() as tmp:
@@ -107,8 +116,11 @@ def update_device():
                     shutil.copyfile(src, dest)
         if sysup:
             subprocess.run(['sudo', 'apt-get', 'upgrade', '-y'])
+        sb.progresswheel_stop()
+        sb.lcd_write("rebooting", 1, rjust=True)
         subprocess.run(['sudo', 'reboot'])
     except Exception as e:
+        sb.progresswheel_stop()
         sb.lcd_write(f"halted - errors: {exceptstr(e)}", 1, scroll=True)
         sb.waitfortap()
 
@@ -142,6 +154,12 @@ class SquishBox:
                 if msg.gpio == 'led':
                     self.togglestate = 1 if msg.val else 0
                     sb.statusled_set(self.togglestate)
+            elif hasattr(msg, 'lcdwrite'):
+                if hasattr(msg, 'format'):
+                    val = format(msg.val, msg.format)
+                    self.patchdisplay[1] = f"{msg.lcdwrite} {val}"
+                else:
+                    self.patchdisplay[1] = msg.lcdwrite
         else:
             self.lastmsg = msg
 
@@ -154,11 +172,13 @@ class SquishBox:
 
     def patchmode(self):
         while True:
-            sb.lcd_write(self.patchinfo[0], 0, scroll=True)
-            sb.lcd_write(self.patchinfo[1], 1, rjust=True)
+            display = self.patchdisplay[:]
+            sb.lcd_write(display[0], 0, scroll=True)
+            sb.lcd_write(display[1], 1, rjust=True)
             while True:
                 event = sb.update()
-                if event == SB.RIGHT and pxr.patches:
+                if self.patchdisplay != display: pass
+                elif event == SB.RIGHT and pxr.patches:
                     self.select_patch((self.pno + 1) % len(pxr.patches))
                 elif event == SB.LEFT and pxr.patches:
                     self.select_patch((self.pno - 1) % len(pxr.patches))
@@ -207,13 +227,13 @@ class SquishBox:
         self.pno = pno
         sb.lcd_clear()
         if pxr.patches:
-            self.patchinfo = pxr.patches[pno], f"patch: {pno + 1}/{len(pxr.patches)}"
+            self.patchdisplay = pxr.patches[pno], f"patch: {pno + 1}/{len(pxr.patches)}"
             warn = pxr.select_patch(pno)
         else:
-            self.patchinfo = "No patches", "patch 0/0"
+            self.patchdisplay = "No patches", "patch 0/0"
             warn = pxr.select_patch(None)
         if warn:
-            sb.lcd_write(self.patchinfo[0], 0, scroll=True)
+            sb.lcd_write(self.patchdisplay[0], 0, scroll=True)
             sb.lcd_write('; '.join(warn), 1, scroll=True)
             sb.waitfortap()
 
@@ -266,7 +286,7 @@ class SquishBox:
             sb.lcd_write("Load Bank:", 0)
             if not pxr.banks:
                 sb.lcd_write("no banks found", 1)
-                sb.waitforrelease(2)
+                sb.waitfortap(2)
                 return False
             bno = 0
             if pxr.currentbank in pxr.banks:
@@ -274,14 +294,16 @@ class SquishBox:
             i = sb.choose_opt([str(b) for b in pxr.banks], bno, row=1, scroll=True, timeout=0)
             if i < 0: return False
             bank = pxr.banks[i]
-        sb.lcd_write("loading patches", 1, rjust=True)
+        sb.lcd_write("loading patches ", 1)
+        sb.progresswheel_start()
         try: pxr.load_bank(bank)
         except Exception as e:
+            sb.progresswheel_stop()
             sb.lcd_write(f"bank load error: {exceptstr(e)}", 1, scroll=True)
             sb.waitfortap()
             return False
+        sb.progresswheel_stop()
         pxr.write_config()
-        sb.waitforrelease(1)
         return True
 
     def save_bank(self, bank=''):
@@ -296,25 +318,27 @@ class SquishBox:
         else:
             pxr.write_config()
             sb.lcd_write("bank saved", 1)
-            sb.waitforrelease(1)
+            sb.waitfortap(2)
 
     def load_soundfont(self, sfont=''):
         if sfont == '':
             sb.lcd_write("Open Soundfont:", 0)
             if not pxr.soundfonts:
                 sb.lcd_write("no soundfonts", 1)
-                sb.waitforrelease(2)
+                sb.waitfortap(2)
                 return False
             s = sb.choose_opt([str(sf) for sf in pxr.soundfonts], row=1, scroll=True, timeout=0)
             if s < 0: return False
             sfont = pxr.soundfonts[s]
-        sb.lcd_write("loading..", 1, rjust=True)
-        if pxr.load_soundfont(pxr.soundfonts[s]):
-            sb.waitforrelease(1)
-            return True
-        sb.lcd_write(f"Unable to load {str(pxr.soundfonts[s])}", 1, scroll=True)
-        sb.waitfortap()
-        return False
+        sb.lcd_write("loading presets ", 1)
+        sb.progresswheel_start()
+        if not pxr.load_soundfont(pxr.soundfonts[s]):
+            sb.progresswheel_stop()
+            sb.lcd_write(f"Unable to load {str(pxr.soundfonts[s])}", 1, scroll=True)
+            sb.waitfortap()
+            return False
+        sb.progresswheel_stop()
+        return True
 
     def effects_menu(self):
         i=0
