@@ -72,7 +72,7 @@ sysupdate() {
 apt_pkg_install() {
     APT_CHK=$(dpkg-query -W -f='${Status}\n' "$1" 2> /dev/null | grep "install ok installed")
     if [[ $APT_CHK == "" ]]; then
-        echo "Aptitude is installing $1..."
+        echo "Installing package $1..."
 		if { sudo DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install "$1" 2>&1 \
 			|| echo E: install failed; } | grep '^[WE]:'; then
 			if [[ $2 == "required" ]]; then
@@ -89,7 +89,7 @@ pip_install() {
         PYTHON_PKG=$(pip3 list 2> /dev/null)
     fi
     if ! [[ $PYTHON_PKG =~ "$1" ]]; then
-        echo "Python Package Manager is installing $1..."
+        echo "Installing Python module $1..."
         if ! { sudo -H pip3 install "$1"; } then
 			if [[ $2 == "required" ]]; then
 				failout "Failed to install $1!"
