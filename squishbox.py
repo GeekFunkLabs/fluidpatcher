@@ -50,13 +50,13 @@ def wifi_settings():
 
 def addfrom_usb():
     sb.lcd_clear()
-    sb.lcd_write("looking for USB", 0)
     b = subprocess.check_output(['sudo', 'blkid']).decode()
-    x = re.findall('/dev/sd[a-z]\d+', b)
+    x = re.findall('/dev/sd[a-z]\d*', b)
     if not x:
-        sb.lcd_write("USB not found", 1, rjust=True)
+        sb.lcd_write("USB not found", 0)
         sb.waitfortap(2)
         return
+    sb.lcd_write("USB drive found", 0)
     sb.lcd_write("copying files ", 1, rjust=True)
     sb.progresswheel_start()
     try:
@@ -76,8 +76,6 @@ def addfrom_usb():
         sb.waitfortap()
     else:
         sb.progresswheel_stop()
-        sb.lcd_write("done", 1, rjust=True)
-        sb.waitfortap(1)
 
 def update_device():
     sb.lcd_write(f"version {patcher.VERSION}", 0, scroll=True)
