@@ -45,43 +45,47 @@ Call this in the main loop of your program to scroll the LCD display and check t
 - _SELECT_: open a menu/confirm a choice - right button pressed ~1s or encoder knob tapped
 - _ESCAPE_: exit a menu/cancel a choice - left button or encoder knob pressed ~1s
 
-**waitforrelease**(_self, tmin=0_)
+**waitfortap**(_t=0_)
 
-Wait for all buttons to be released and at least _tmin_ seconds
+Wait _t_ seconds or until a button is tapped. If _t_ is not given, wait forever. Returns _True_ if tapped, _False_ if not
 
-**waitfortap**(_self, t_)
-
-Wait _t_ seconds or until a button is tapped. Returns _True_ if tapped, _False_ if not
-
-**lcd_clear**(_self_)
+**lcd_clear**()
 
 Clears the LCD
 
-**lcd_write**(_self, text, row=0, scroll=False, rjust=False_)
+**lcd_write**(_text, row=0, scroll=False, rjust=False_)
 
 Writes _text_ to _row_, right-justified if _rjust_ is _True_. If the text is longer than 16 characters and _scroll_ is true, the text will scroll.
 
-**lcd_blink**(_self, text, row=0, n=3, rjust=False_)
+**lcd_blink**(_text, row=0, n=3, rjust=False_)
 
 Writes _text_ to _row_ and blinks it _n_ times.
 
-**confirm_choice**(_self, text='', row=1, timeout=MENU_TIMEOUT_)
+**progresswheel_start**(_row=1_)
+
+Show a spinning progress wheel in the rightmost column of _row_. Keeps spinning after the function returns so the main program can do things.
+
+**progresswheel_stop**()
+
+Stop and remove the spinning progress wheel.
+
+**confirm_choice**(_text='', row=1, timeout=MENU_TIMEOUT_)
 
 Displays _text_ and allows the user to toggle between a checkmark or an X. Returns 1 if the user selects the checkmark, 0 otherwise.
 
-**choose_opt**(_self, opts, i=0, row=0, scroll=False, timeout=MENU_TIMEOUT, rjust=False_)
+**choose_opt**(_opts, i=0, row=0, scroll=False, timeout=MENU_TIMEOUT, rjust=False_)
 
 Allows the user to choose from a list of _opts_. The index _i_ sets the initial option. Returns the index of the option selected. Canceling or waiting longer than _timeout_ returns -1. 
 
-**choose_val**(_self, val, inc, minval, maxval, fmt=f'>{COLS}', timeout=MENU_TIMEOUT_)
+**choose_val**(_val, inc, minval, maxval, fmt=f'>{COLS}', timeout=MENU_TIMEOUT_)
 
 Lets the user choose a numeric value between _minval_ and _maxval_, with a starting value of _val_. The value is displayed according to _fmt_. _RIGHT_ or _LEFT_ changes the value by _inc_. Returns the value selected. Canceling or timing out returns _None_.
 
-**char_input**(_self, text='', i=-1, row=1, timeout=MENU_TIMEOUT, charset=INPCHARS_)
+**char_input**(_text='', i=-1, row=1, timeout=MENU_TIMEOUT, charset=INPCHARS_)
 
 Allows a user to enter text strings charater by character. _SELECT_ toggles the cursor type. The underline cursor allows moving the insert point, the blink cursor allows changing the current character. _ESCAPE_ ends the text input, and asks the user to confirm the modified text via **confirm_choice()**.
 
-**statusled_set**(_self, state_)
+**statusled_set**(_state_)
 
 Sets the state of the status LED, if one is connected to _PIN_LED_. 1=on; 0=off
 
