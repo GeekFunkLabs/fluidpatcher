@@ -10,7 +10,7 @@ SCROLL_TIME = 0.4
 POLL_TIME = 0.01
 BOUNCE_TIME = 0.02
 
-import time
+import time, threading
 import RPi.GPIO as GPIO
 from RPLCD.gpio import CharLCD
 
@@ -33,9 +33,12 @@ DOWN = 1
 HELD = 2
 
 # custom lcd characters
-CHR_NO = 0
-CHR_YES = 1
-CHR_NO_BITS = (
+XMARK = chr(0)
+CHECK = chr(1)
+BACKSLASH = chr(2)
+PADLEFT = chr(7)
+PADRIGHT = chr(8)
+XMARK_BITS = (
 0b00000,
 0b11011,
 0b01110,
@@ -44,13 +47,22 @@ CHR_NO_BITS = (
 0b11011,
 0b00000,
 0b00000)
-CHR_YES_BITS = (
+CHECK_BITS = (
 0b00000,
 0b00001,
 0b00011,
 0b10110,
 0b11100,
 0b01000,
+0b00000,
+0b00000)
+BACKSLASH_BITS = (
+0b00000,
+0b10000,
+0b01000,
+0b00100,
+0b00010,
+0b00001,
 0b00000,
 0b00000)
 INPCHARS = " abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.\/"
@@ -68,8 +80,9 @@ class StompBox():
                             numbering_mode=GPIO.BCM,
                             cols=COLS, rows=ROWS,
                             compat_mode=True)
-        self.LCD.create_char(CHR_NO, CHR_NO_BITS)
-        self.LCD.create_char(CHR_YES, CHR_YES_BITS)
+        self.LCD.create_char(ord(XMARK), XMARK_BITS)
+        self.LCD.create_char(ord(CHECK), CHECK_BITS)
+        self.LCD.create_char(ord(BACKSLASH), BACKSLASH_BITS)
         self.lcd_clear()
         self.lastscroll = time.time()
 
@@ -141,24 +154,15 @@ class StompBox():
             self.lastscroll = t
             for r, text in enumerate(self.scrolltext): # maybe can't edit in place
                 if text == "": continue
-                if text[COLS] == "\x08": # end of text, pause a bit
+                if text[COLS] == PADRIGHT: # end of text, pause a bit
                     self.scrolltext[r] = text[:COLS] + text[COLS + 1:]
-                elif text[COLS] == "\x07": # wrap back to beginning
-                    self.scrolltext[r] = text[COLS:] + text[:COLS] + "\x08\x08\x08\x08"
+                elif text[COLS] == PADLEFT: # wrap back to beginning
+                    self.scrolltext[r] = text[COLS:] + text[:COLS] + PADRIGHT * 4
                 else:
                     self.scrolltext[r] = text[1:] + text[0]
                 self.LCD.cursor_pos = r, 0
-                self.LCD.write_string(self.scrolltext[r].strip('\x07')[:COLS])
+                self.LCD.write_string(self.scrolltext[r].strip(PADLEFT)[:COLS])
         return event
-
-    def waitforrelease(self, tmin=0):
-        # wait for all buttons to be released and at least :tmin seconds
-        tmin = time.time() + tmin
-        while True:
-            self.update()
-            if time.time() >= tmin:
-                if all(s == UP for s in self.state.values()):
-                    break
 
     def waitfortap(self, t=0):
         # wait until a button is tapped
@@ -177,7 +181,7 @@ class StompBox():
 
     def lcd_write(self, text, row=0, scroll=False, rjust=False):
         if scroll and len(text) > COLS:
-            self.scrolltext[row] = "\x07\x07\x07\x07" + text + "\x08\x08\x08\x08"
+            self.scrolltext[row] = PADLEFT * 4 + text + PADRIGHT * 4
             self.LCD.cursor_pos = row, 0
             self.LCD.write_string(text[:COLS])
         else:
@@ -195,15 +199,31 @@ class StompBox():
             self.lcd_write(text, row, rjust=rjust)
             time.sleep(BLINK_TIME)
             n -= 1
+            
+    def progresswheel_start(self, row=1):
+        self.spinning = True
+        self.spin = threading.Thread(target=self._progresswheel_spin, args=(row,))
+        self.spin.start()
+    
+    def _progresswheel_spin(self, row):
+        while self.spinning:
+            for x in BACKSLASH, '|', '/', '-':
+                self.LCD.cursor_pos = row, COLS - 1
+                self.LCD.write_string(x)
+                time.sleep(BLINK_TIME)
+
+    def progresswheel_stop(self):
+        self.spinning = False
+        self.spin.join()
 
     def confirm_choice(self, text='', row=1, timeout=MENU_TIMEOUT):
         self.lcd_write(text[:COLS - 1], row=row)
         c = 1
         while True:
             self.LCD.cursor_pos = row, COLS - 1
-            self.LCD.write_string([chr(CHR_NO), chr(CHR_YES)][c])
+            self.LCD.write_string([XMARK, CHECK][c])
             tstop = time.time() + timeout
-            while time.time() < tstop:
+            while timeout == 0 or time.time() < tstop:
                 event = self.update()
                 if event in (RIGHT, LEFT):
                     c ^= 1
@@ -218,15 +238,13 @@ class StompBox():
 
     def choose_opt(self, opts, i=0, row=0, scroll=False, timeout=MENU_TIMEOUT, rjust=False):
         # choose from list of options in :opts
+        # start with option :i
         # returns the choice index
         # or -1 if user backs out or time expires
         while True:
             self.lcd_write(opts[i], row=row, scroll=scroll, rjust=rjust)
             tstop = time.time() + timeout
-            while True:
-                if timeout and time.time() > tstop:
-                    self.lcd_write(' ' * COLS, row)
-                    return -1
+            while timeout == 0 or time.time() < tstop:
                 event = self.update()
                 if event == RIGHT:
                     i = (i + 1) % len(opts)
@@ -240,6 +258,10 @@ class StompBox():
                 elif event == ESCAPE:
                     self.lcd_write(' ' * COLS, row)
                     return -1
+            else:
+                self.lcd_write(' ' * COLS, row)
+                return -1
+
 
     def choose_val(self, val, inc, minval, maxval, fmt=f'>{COLS}', timeout=MENU_TIMEOUT):
         # lets user choose a numeric parameter
