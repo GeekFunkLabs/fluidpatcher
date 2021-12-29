@@ -285,8 +285,9 @@ class StompBox():
             else:
                 return None
 
-    def char_input(self, text='', i=-1, row=1, timeout=MENU_TIMEOUT, charset=INPCHARS):
-        # text: initial text value
+    def char_input(self, text=' ', i=-1, row=1, timeout=MENU_TIMEOUT, charset=INPCHARS):
+        # prompts the user to enter some text with initial value :text
+        # starting cursor position :i, if negative then from end of string
         if i < 0: i = len(text) + i
         c = charset.find(text[i]) # index in charset
         self.LCD.cursor_mode = 'line'
