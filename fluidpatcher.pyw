@@ -79,8 +79,8 @@ class ControlBoard(wx.Panel):
 
 class TextCtrlDialog(wx.Dialog):
 
-    def __init__(self, text, title, caption='', flags=wx.CLOSE, edit=False, **kwargs):
-        super(TextCtrlDialog, self).__init__(None, title=title,
+    def __init__(self, parent, text, title, caption='', flags=wx.CLOSE, edit=False, **kwargs):
+        super(TextCtrlDialog, self).__init__(parent, title=title,
             style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER, **kwargs)
         self.text = wx.TextCtrl(self, style=wx.TE_MULTILINE|wx.TE_RICH|wx.HSCROLL)
         if edit:
@@ -134,11 +134,11 @@ class MidiMonitor(wx.Dialog):
             pos = self.msglist.GetItemPosition(n - 1)
             self.msglist.ScrollList(0, pos.y)
 
-	
+    
 class SoundfontBrowser(wx.Dialog):
 
-    def __init__(self, sf):
-        super(SoundfontBrowser, self).__init__(None, title=str(sf), size=(400, 650),
+    def __init__(self, parent, sf):
+        super(SoundfontBrowser, self).__init__(parent, title=str(sf), size=(400, 650),
             style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
         self.sf = sf
         self.copypreset = ''
@@ -226,7 +226,7 @@ class MainWindow(wx.Frame):
         self.SetMenuBar(self.menubar)
 
         self.ctrlboard = ControlBoard(self)
-        self.bedit = TextCtrlDialog('', "Bank Editor", ' ', flags=wx.APPLY|wx.CLOSE, edit=True, size=(500, 450))
+        self.bedit = TextCtrlDialog(self, '', "Bank Editor", ' ', flags=wx.APPLY|wx.CLOSE, edit=True, size=(500, 450))
         self.midimon = MidiMonitor(self)
         self.bedit.Bind(wx.EVT_TEXT, self.onMod)
         self.bedit.Bind(wx.EVT_BUTTON, self.onBankEditButton)
@@ -246,11 +246,15 @@ class MainWindow(wx.Frame):
         if hasattr(msg, 'val'):
             pass
         elif hasattr(self.midimon, 'timer') and self.midimon.timer.IsRunning():
-            t = ('note', 'noteoff', 'cc', 'kpress', 'prog', 'pbend', 'cpress', None).index(msg.type)
-            x = ("Note On", "Note Off", "Control Change", "Key Pressure",
+            t = ('note', 'noteoff', 'kpress', 'cc', 'prog', 'pbend', 'cpress', None).index(msg.type)
+            x = ("Note On", "Note Off", "Key Pressure", "Control Change",
                  "Program Change", "Pitch Bend", "Aftertouch", "")[t]
-            if t < 4:
-            	midimsgs.append((str(msg.chan + 1), x, f"{msg.par1}={msg.par2}"))
+            if t < 3:
+                octave = int(msg.par1 / 12) - 1
+                note = ('C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B')[msg.par1 % 12]
+                midimsgs.append((str(msg.chan + 1), x, f"{msg.par1} ({note}{octave})={msg.par2}"))
+            elif t < 4:
+                midimsgs.append((str(msg.chan + 1), x, f"{msg.par1}={msg.par2}"))
             elif t < 7:
                 midimsgs.append((str(msg.chan + 1), x, str(msg.par1)))
 
@@ -399,7 +403,7 @@ class MainWindow(wx.Frame):
             wx.MessageBox(f"Unable to load {str(sfrel)}", "Error", wx.OK|wx.ICON_ERROR)
             return
         self.lastdir['sf2'] = Path(sf).parent
-        sfbrowser = SoundfontBrowser(sfrel)
+        sfbrowser = SoundfontBrowser(self, sfrel)
         if sfbrowser.ShowModal() == wx.ID_OK and self.bedit.IsShown():
             self.bedit.text.WriteText(sfbrowser.copypreset)
         sfbrowser.Destroy()
@@ -412,7 +416,7 @@ class MainWindow(wx.Frame):
 
     def onSettings(self, event):
         rawcfg = pxr.read_config()
-        tmsg = TextCtrlDialog(rawcfg, "Settings", cfgfile, wx.OK|wx.CANCEL, edit=True, size=(500, 450))
+        tmsg = TextCtrlDialog(self, rawcfg, "Settings", cfgfile, wx.OK|wx.CANCEL, edit=True, size=(500, 450))
         if tmsg.ShowModal() == wx.ID_OK:
             newcfg = tmsg.text.GetValue()
             try:
