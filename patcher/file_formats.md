@@ -118,13 +118,13 @@ Unrecognized keywords in a bank file will usually just be ignored. Anything on a
 - `<channel #>` - an integer used as a keyword sets a soundfont preset on that channel, specified with the format `<soundfont file>:<bank>:<preset>`. MIDI channel numbers are numbered starting with channel 1, the way they are on virtually all synthesizers, controllers, DAWs, etc. This is in contrast to FluidSynth, which numbers channels beginning with 0. Patcher handles all of the translation between channel numbering schemes.
 
 - `router_rules` - contains a list of rules for how to route MIDI messages. An incoming MIDI event is compared to all router rules, and for each rule that matches, an event is created that is modified according to the rule and sent on to the synth. By default, FluidSynth creates one-to-one routing rules for all channels, event types, and parameters. If an item in `router_rules` is the string `clear` it will clear all previous router rules, including the default rules. A rule can have the following parameters:
-  - `type`(required) - can be `note`, `cc`, `prog`, `pbend`, `kpress`, or `cpress`
+  - `type`(required) - can be `note`, `cc`, `prog`, `pbend`, `kpress`, `cpress`, or `noteoff`
   - `chan` - the channel(s) from which to route messages and how to route them. This can be specified in any of the following ways:
     - `<channel #>` - selects the single channel to be affected by this rule
     - `<from_min>-<from_max>` - selects a range of channels
     - `<from_min>-<from_max>=<to_min>-<to_max>` - a message from any channel in the _from_ range is copied to every channel in the _to_ range. Either range can be a single integer
     - `<from_min>-<from_max>*<mul>+<add>` - messages from channels in the specified range have their channel number multiplied by `mul`, then added to `add`. The multiplier can be a decimal, and `add` can be negative
-  - `par1` - describes how the first parameter of the MIDI message is routed, using the same formats as for `chan`, except that if the form `<from_min>-<from_max>=<to_min>-<to_max>` is used, values in the _from_ range are scaled to values in the _to_ range
+  - `par1` - describes how the first parameter of the MIDI message is routed, using the same formats as for `chan`, except that if the form `<from_min>-<from_max>=<to_min>-<to_max>` is used, values in the _from_ range are **scaled** to values in the _to_ range
   - `par2` - routes the second parameter of the MIDI message for _note on, note off, control change, and key pressure_ messages
   - `type2` - changes the `type` of the MIDI message. If the message has two parameters and the new type has only one, the second parameter of the original message is routed to the single parameter of the new message according to `par2`. If routing a one-parameter message to a two-parameter type, the first parameter of the original message is routed to the second parameter of the new message according to `par1`, and the first parameter of the new message is given by `par2`.
 
@@ -163,7 +163,7 @@ Unrecognized keywords in a bank file will usually just be ignored. Anything on a
   - `barlength` - the number of ticks corresponding to a whole number of musical measures in the song. If the player is playing and a router rule tells it to seek to a point in the song, it will wait until the end of a bar to do so. By default barlength is 0 and seeking will occur immediately.
   - `tempo` - tempo at which to play the file, in bpm. If not given, the tempo messages in the file will be obeyed
   
-  A router rule with a `player` parameter will tell the named player to start if its value is >0, or stop otherwise. If the rule also has a `tick` parameter, the player will seek to that tick value, possibly waiting until the end of a bar as described above.
+  A router rule with a `player` parameter will tell the named player to play if its value is >0, or stop otherwise. If the rule also has a `tick` parameter, the player will seek to that tick value, possibly waiting until the end of a bar as described above.
   
   The tempo of a sequencer, arpeggiator, or player can be set with a router rule that has a `tempo` parameter with the target's name as its value. The names of sequencers, arpeggiators, and players should all be unique.
 
