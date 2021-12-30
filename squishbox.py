@@ -225,10 +225,10 @@ class SquishBox:
         self.pno = pno
         sb.lcd_clear()
         if pxr.patches:
-            self.patchdisplay = pxr.patches[pno], f"patch: {pno + 1}/{len(pxr.patches)}"
+            self.patchdisplay = [pxr.patches[pno], f"patch: {pno + 1}/{len(pxr.patches)}"]
             warn = pxr.select_patch(pno)
         else:
-            self.patchdisplay = "No patches", "patch 0/0"
+            self.patchdisplay = ["No patches", "patch 0/0"]
             warn = pxr.select_patch(None)
         if warn:
             sb.lcd_write(self.patchdisplay[0], 0, scroll=True)
@@ -400,9 +400,9 @@ class SquishBox:
                 t = ('note', 'noteoff', 'cc', 'kpress', 'prog', 'pbend', 'cpress').index(msg.type)
                 x = ("note", "noff", "  cc", "keyp", " prog", "pbend", "press")[t]
                 if t < 4:
-                    sb.lcd_write(f"Ch{msg.chan + 1:<3}{x}{msg.par1:3}={msg.par2:<3}", 1)
+                    sb.lcd_write(f"ch{msg.chan + 1:<3}{x}{msg.par1:3}={msg.par2:<3}", 1)
                 else:
-                    sb.lcd_write(f"Ch{msg.chan + 1:<3}{x}={msg.par1:<5}", 1)
+                    sb.lcd_write(f"ch{msg.chan + 1:<3}{x}={msg.par1:<5}", 1)
 
 
 sb = SB.StompBox()
