@@ -26,7 +26,7 @@ def sift(s):
 def scinote_to_val(n):
     if not isinstance(n, str):
         return n
-    sci = re.findall('([+-]?)([A-G])([b#]?)([0-9])', n)[0]
+    sci = re.findall('([+-]?)([A-G])([b#]?)(-?[0-9])', n)[0]
     sign = -1 if sci[0] == '-' else 1
     note = 'C D EF G A B'.find(sci[1])
     acc = ['b', '', '#'].index(sci[2]) - 1
