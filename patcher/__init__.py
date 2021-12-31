@@ -220,12 +220,7 @@ class Patcher:
                 self._soundfonts = set()
                 return False
         self._soundfonts = {soundfont}
-        self.sfpresets = []
-        for bank in range(MAX_SF_BANK):
-            for prog in range(MAX_SF_PROGRAM):
-                name = self._fluid.get_preset_name(self.sfdir / soundfont, bank, prog)
-                if not name: continue
-                self.sfpresets.append(PresetInfo(name, bank, prog))
+        self.sfpresets = self._fluid.get_sfpresets(self.sfdir / soundfont)
         self._reset_synth(full=True)
         for channel in range(1, self._max_channels + 1):
             self._fluid.program_unset(channel - 1)
