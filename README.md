@@ -32,7 +32,7 @@ ln -s /usr/share/sounds/sf2/FluidR3_GM.sf2 fluidpatcher/SquishBox/sf2/
 
 ### MacOS\*
 ```
-brew install git fluidsynth python3-pip
+brew install git fluidsynth fluid-soundfont-gm python3-pip
 sudo pip3 install oyaml wxpython
 git clone https://github.com/albedozero/fluidpatcher.git
 ln -s /usr/share/sounds/sf2/FluidR3_GM.sf2 fluidpatcher/SquishBox/sf2/
