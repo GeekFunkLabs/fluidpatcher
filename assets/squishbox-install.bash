@@ -133,12 +133,12 @@ if test -f /etc/os-release; then
         ENVCHECK=false
     fi
     versioncode=`sed -n '/^VERSION_CODENAME=/s|^.*=||p' /etc/os-release`
-    if ! [[ $versioncode =~ (buster|bullseye) ]]; then
+    if ! [[ $versioncode =~ (bullseye) ]]; then
         ENVCHECK=false
     fi
 fi
 if ! ($ENVCHECK); then
-    warning "These scripts are designed to run on Raspbian Buster or later,"
+    warning "These scripts are designed to run on Raspberry Pi OS (Bullseye),"
     warning "which does not appear to be the case here. YMMV!"
     if ! promptorno "Proceed anyway?"; then
         exit 1
@@ -293,7 +293,7 @@ if (( $audiosetup > 0 )); then
     if (( $audiosetup > 1 )); then
         AUDIO=`echo ${AUDIOCARDS[$audiosetup-2]} | cut -d' ' -f 1`
 		if [[ $AUDIO == "Headphones" ]]; then
-			echo "/usr/bin/jackd --silent -R -d alsa -d plughw:Headphones -s -p 444 -n 3 -r 22050 -P -S" | sudo tee /etc/jackdrc
+			echo "/usr/bin/jackd --silent -R -d alsa -d hw:Headphones -s -p 444 -n 3 -r 22050 -P -S -i 0 -o 2" | sudo tee /etc/jackdrc
 		else
 			echo "/usr/bin/jackd --silent -R -d alsa -d hw:$AUDIO -s -p 64 -n 3 -r 44100 -P -S" | sudo tee /etc/jackdrc
 		fi
