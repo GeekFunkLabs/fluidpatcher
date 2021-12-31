@@ -24,7 +24,7 @@ Run the setup program in the [latest release](https://github.com/albedozero/flui
 
 ### Linux (Debian/Ubuntu)\*
 ```
-sudo apt install git fluidsynth python3-pip python3-wxgtk4.0
+sudo apt install git fluidsynth fluid-soundfont-gm python3-pip python3-wxgtk4.0
 sudo pip3 install oyaml
 git clone https://github.com/albedozero/fluidpatcher.git
 ln -s /usr/share/sounds/sf2/FluidR3_GM.sf2 fluidpatcher/SquishBox/sf2/
