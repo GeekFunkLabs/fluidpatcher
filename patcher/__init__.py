@@ -22,7 +22,7 @@ CC_DEFAULTS = [(7, 7, 100),    # volume
                (65, 65, 0),    # portamento on/off
                (70, 79, 64),   # sound controllers
                (80, 83, 0),
-               (84, 84, 255),  # roland portamento 
+               (84, 84, 255),  # roland portamento
                (85, 95, 0),
                (102, 119, 0)]
 
@@ -136,16 +136,14 @@ class Patcher:
     def select_patch(self, patch):
     # :patch number, name, or dict
         warnings = []
-        fxchannels = set()
         patch = {} if patch is None else self._resolve_patch(patch)
         self._reset_synth(full=False)
         for channel in range(1, self._max_channels + 1):
             preset = patch.get(channel) or self._bank.get(channel)
             if preset:
                 if preset.sf not in self._soundfonts: self._reload_bankfonts()
-                if self._fluid.program_select(channel - 1, self.sfdir / preset.sf, preset.bank, preset.prog):
-                    fxchannels |= {channel - 1}
-                else: warnings.append(f"Unable to select preset {preset} on channel {channel}")
+                if not self._fluid.program_select(channel - 1, self.sfdir / preset.sf, preset.bank, preset.prog):
+                    warnings.append(f"Unable to select preset {preset} on channel {channel}")
             else:
                 self._fluid.program_unset(channel - 1)
         for name, info in patch.get('players', {}).items():
@@ -160,10 +158,9 @@ class Patcher:
             self.fluid_set(opt, val)
         for name, info in {**self._bank.get('ladspafx', {}), **patch.get('ladspafx', {})}.items():
             libfile = self.plugindir / info['lib']
-            if 'chan' in info: fxchannels &= fpyaml.tochanset(info['chan'])
-            if fxchannels:
-                self._fluid.fxunit_add(name, **{**info, 'lib': libfile, 'chan': fxchannels})
-        self._fluid.fxchain_link()
+            fxchan = fpyaml.tochanset(info['chan']) if 'chan' in info else set(range(self._max_channels))
+            self._fluid.fxchain_add(name, **{**info, 'lib': libfile, 'chan': fxchan})
+        self._fluid.fxchain_connect()
         for rule in patch.get('router_rules', []):
             self.add_router_rule(rule)
         for msg in self._bank.get('messages', []) + patch.get('messages', []):
@@ -319,16 +316,18 @@ class Patcher:
             pass
 
     def _reset_synth(self, full=True):
-        self._fluid.fxchain_clear()
         self._fluid.router_default()
         for rule in self._bank.get('router_rules', []):
             self.add_router_rule(rule)
         if not full:
-            mask = list(self._bank.get('players', {}))
-            mask += list(self._bank.get('sequencers', {}))
-            mask += list(self._bank.get('arpeggiators', {}))
-            self._fluid.players_clear(mask=mask)
+            bankladspafx = list(self._bank.get('ladspafx', {}))
+            self._fluid.fxchain_clear(save=bankladspafx)
+            bankplayers = list(self._bank.get('players', {}))
+            bankplayers += list(self._bank.get('sequencers', {}))
+            bankplayers += list(self._bank.get('arpeggiators', {}))
+            self._fluid.players_clear(save=bankplayers)
         else:
+            self._fluid.fxchain_clear()
             self._fluid.players_clear()
             self._fluid.reset()
             for opt, val in {**SYNTH_DEFAULTS, **self.cfg.get('fluidsettings', {})}.items():
