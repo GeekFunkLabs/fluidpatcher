@@ -333,6 +333,20 @@ class ExtRule(TransRule):
         return msg
 
 
+class PresetInfo:
+    
+    if FLUID_VERSION >= (2, 0, 0):
+        def __init__(self, preset_obj):        
+            self.name = FL.fluid_preset_get_name(preset_obj).decode()
+            self.bank = FL.fluid_preset_get_banknum(preset_obj)
+            self.prog = FL.fluid_preset_get_num(preset_obj)
+    else:
+        def __init__(self, name, bank, prog):        
+            self.name = name
+            self.bank = bank
+            self.prog = prog
+
+
 class SequencerNote:
 
     def __init__(self, chan, key, vel):
