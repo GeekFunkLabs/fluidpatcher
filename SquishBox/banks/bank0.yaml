@@ -48,27 +48,27 @@ patches: # indented list of patches
     - {type: cc, chan: 1, par1: 15, par2: 0-127=0-5, ladspafx: delayline3, port: Delay}
 
   Elevator Jam:
-    2: VintageDreamsWaves-v2.sf2:000:05
-    3: VintageDreamsWaves-v2.sf2:000:069
-    4: VintageDreamsWaves-v2.sf2:000:017
-    7: VintageDreamsWaves-v2.sf2:000:035
-    8: VintageDreamsWaves-v2.sf2:000:020
-    10: VintageDreamsWaves-v2.sf2:128:004
-    arpeggiators:
-      ep_arp: {tdiv: 8, style: both, octaves: 2} # style can be up, down, both, or nothing
-    sequencers:
-      fluteloop:
-        swing: 0.7
-        notes: [note:4:A5:70, note:4:G5:70, note:4:A5:70, note:4:C6:70]
+    3: VintageDreamsWaves-v2.sf2:000:035
+    4: VintageDreamsWaves-v2.sf2:000:020
+    12: VintageDreamsWaves-v2.sf2:128:004
     players:
       groove:
         file: elevatorgroove.mid
-        chan: 1-2*1+6
+        chan: 1-10*1+2
         barlength: 1536 # if given, finishes measure before skipping
         loops: [15360, 18429] # pairs of begin, end ticks
+    5: VintageDreamsWaves-v2.sf2:000:017
+    sequencers:
+      fluteloop:
+        swing: 0.7
+        notes: [note:5:A5:70, note:5:G5:70, note:5:A5:70, note:5:C6:70]
+    arpeggiators:
+      ep_arp: {tdiv: 8, style: both, octaves: 2} # style can be up, down, both, or nothing
+    6: VintageDreamsWaves-v2.sf2:000:05
+    7: VintageDreamsWaves-v2.sf2:000:069
     router_rules:
-    - {type: note, chan: 1=2, par1: C4-C9}
-    - {type: note, chan: 1=3, par1: C3-B3, arpeggiator: ep_arp}
+    - {type: note, chan: 1=6, par1: C4-C9}
+    - {type: note, chan: 1=7, par1: C3-B3, arpeggiator: ep_arp}
     - {type: note, chan: 1, par1: F#2, par2: 1-127=-1, sequencer: fluteloop}
     - {type: note, chan: 1, par1: G#2, par2: 1-127=0, sequencer: fluteloop}
     - {type: note, chan: 1, par1: A#2, par2: 1-127=2, sequencer: fluteloop}
