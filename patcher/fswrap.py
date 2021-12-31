@@ -5,11 +5,6 @@ from ctypes import *
 from ctypes.util import find_library
 import os
 
-def specfunc(func, restype, *argtypes):
-    func.restype = restype
-    func.argtypes = argtypes
-    return func
-
 if hasattr(os, 'add_dll_directory'):
     os.add_dll_directory(os.getcwd())
 
@@ -21,13 +16,16 @@ if lib is None:
     raise ImportError("Couldn't find the FluidSynth library.")
 
 FL = CDLL(lib)
+def specfunc(func, restype, *argtypes):
+    func.restype = restype
+    func.argtypes = argtypes
+    return func
 
+major, minor, micro = c_int(), c_int(), c_int()
+specfunc(FL.fluid_version, c_void_p, POINTER(c_int), POINTER(c_int), POINTER(c_int))(major, minor, micro)
+FLUID_VERSION = major.value, minor.value, micro.value
 FLUID_OK = 0
 FLUID_FAILED = -1
-
-a, b, c = c_int(), c_int(), c_int()
-specfunc(FL.fluid_version, c_void_p, POINTER(c_int), POINTER(c_int), POINTER(c_int))(a, b, c)
-FLUID_VERSION = [a.value, b.value, c.value]
 
 # settings
 specfunc(FL.new_fluid_settings, c_void_p)
@@ -117,13 +115,16 @@ FLUID_PLAYER_TEMPO_EXTERNAL_MIDI = 2
 FLUID_PLAYER_PLAYING = 1
 FLUID_PLAYER_DONE = 3
 
-if FLUID_VERSION >= [2, 2, 0]:
+if FLUID_VERSION >= (2, 2, 0):
     specfunc(FL.fluid_player_set_tick_callback, c_int, c_void_p, fl_tickcallback, c_void_p)
     specfunc(FL.fluid_player_set_tempo, c_int, c_void_p, c_int, c_double)
-if FLUID_VERSION >= [2, 0, 0]:
+if FLUID_VERSION >= (2, 0, 0):
     specfunc(FL.fluid_synth_get_sfont_by_id, c_void_p, c_void_p, c_int)
-    specfunc(FL.fluid_sfont_get_preset, c_void_p, c_void_p, c_int, c_int)
+    specfunc(FL.fluid_sfont_iteration_start, None, c_void_p)
+    specfunc(FL.fluid_sfont_iteration_next, c_void_p, c_void_p)
     specfunc(FL.fluid_preset_get_name, c_char_p, c_void_p)
+    specfunc(FL.fluid_preset_get_banknum, c_int, c_void_p)
+    specfunc(FL.fluid_preset_get_num, c_int, c_void_p)
     specfunc(FL.fluid_player_seek, c_int, c_void_p, c_int)
     specfunc(FL.fluid_synth_get_ladspa_fx, c_void_p, c_void_p)
     FLUIDSETTING_EXISTS = FLUID_OK
@@ -141,6 +142,7 @@ else:
 
 try:
     specfunc(FL.fluid_ladspa_activate, c_void_p, c_void_p)
+    specfunc(FL.fluid_ladspa_is_active, c_int, c_void_p)
     specfunc(FL.fluid_ladspa_reset, c_int, c_void_p)
     specfunc(FL.fluid_ladspa_add_effect, c_int, c_void_p, c_char_p, c_char_p, c_char_p)
     specfunc(FL.fluid_ladspa_add_buffer, c_int, c_void_p, c_char_p)
@@ -162,6 +164,7 @@ EVENT_NAMES = 'note', 'cc', 'prog', 'pbend', 'cpress', 'kpress', 'noteoff'
 MIDI_TYPES = MIDI_NOTEON, MIDI_CONTROL, MIDI_PROG, MIDI_PBEND, MIDI_CPRESS, MIDI_KPRESS, MIDI_NOTEOFF
 SEEK_DONE = -1
 SEEK_WAIT = -2
+
 
 class MidiEvent:
 
