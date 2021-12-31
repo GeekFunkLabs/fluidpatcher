@@ -534,38 +534,45 @@ class Player:
 class LadspaEffect:
     
     def __init__(self, synth, name, lib, plugin, channels, audio):
-        self.ladspa = synth.ladspa
-        plugin = plugin.encode() if plugin else None
+        self.synth = synth
+        self.name = name
+        self.lib = str(lib).encode()
+        self.plugin = plugin.encode() if plugin else None
+        self.channels = channels
         if audio == 'stereo':
             audio = 'Input L', 'Input R', 'Output L', 'Output R'
         elif audio == 'mono':
             audio = 'Input', 'Output'
-        aports = [port.encode() for port in audio]
+        self.aports = [port.encode() for port in audio]
         self.fxunits = []
-        self.fxinfo = {}
+        self.portvals = {}
+
+    def addfxunits(self):
+        self.links = {}
         def addfxunit():
-            fxname = f"{name}{len(self.fxunits)}".encode()
-            if FL.fluid_ladspa_add_effect(self.ladspa, fxname, str(lib).encode(), plugin) == FLUID_OK:
+            fxname = f"{self.name}{len(self.fxunits)}".encode()
+            if FL.fluid_ladspa_add_effect(self.synth.ladspa, fxname, self.lib, self.plugin) == FLUID_OK:
                 self.fxunits.append(fxname)
                 return True
             return False
-        for hostports, midichannels in synth.hostports_mapping:
-            if not channels & midichannels: continue
-            if len(audio) == 4: # stereo effect
+        for hostports, midichannels in self.synth.hostports_mapping:
+            if not self.channels & midichannels: continue
+            if len(self.aports) == 4: # stereo effect
                 if addfxunit():
-                    self.fxinfo[hostports] = self.fxunits[-1:] * 2, aports[0:2], aports[2:4]
-            if len(audio) == 2: # mono effect
+                    self.links[hostports] = self.fxunits[-1:] * 2, self.aports[0:2], self.aports[2:4]
+            if len(self.aports) == 2: # mono effect
                 if addfxunit() and addfxunit():
-                    self.fxinfo[hostports] = self.fxunits[-2:], aports[0:1] * 2, aports[1:2] * 2
-
+                    self.links[hostports] = self.fxunits[-2:], self.aports[0:1] * 2, self.aports[1:2] * 2
+        
     def link(self, hostports, inputs, outputs):
-        for fxunit, fxin, fxout, inp, outp in zip(*self.fxinfo[hostports], inputs, outputs):
-            FL.fluid_ladspa_effect_link(self.ladspa, fxunit, fxin, inp.encode())
-            FL.fluid_ladspa_effect_link(self.ladspa, fxunit, fxout, outp.encode())
+        for fxunit, fxin, fxout, inp, outp in zip(*self.links[hostports], inputs, outputs):
+            FL.fluid_ladspa_effect_link(self.synth.ladspa, fxunit, fxin, inp.encode())
+            FL.fluid_ladspa_effect_link(self.synth.ladspa, fxunit, fxout, outp.encode())
 
     def setcontrol(self, port, val):
+        self.portvals[port] = val
         for fxunit in self.fxunits:
-            FL.fluid_ladspa_effect_set_control(self.ladspa, fxunit, port.encode(), c_float(val))
+            FL.fluid_ladspa_effect_set_control(self.synth.ladspa, fxunit, port.encode(), c_float(val))
 
 
 class Synth:
@@ -594,6 +601,7 @@ class Synth:
             midichannels = [set(range(i, nchan, nports)) for i in range(nports)]
             self.hostports_mapping = list(zip(hostports, midichannels))
             self.ladspa = FL.fluid_synth_get_ladspa_fx(self.fsynth)
+            self.ladspafx = {}
             
     def reset(self):
         FL.fluid_synth_system_reset(self.fsynth)
@@ -776,27 +784,35 @@ class Synth:
             return presets
 
     if LADSPA_SUPPORT:
-        def fxchain_clear(self):
-            self.ladspafx = {}
-            FL.fluid_ladspa_reset(self.ladspa)
+        def fxchain_clear(self, save=[]):
+            clear = [x for x in self.ladspafx if x not in save]
+            if clear:
+                FL.fluid_ladspa_reset(self.ladspa)
+                for name in clear:
+                    del self.ladspafx[name]
+                for ladpsafx in self.ladspafx.values():
+                    ladpsafx.fxunits = []
 
-        def fxunit_add(self, name, lib, plugin=None, chan=None, audio='stereo', vals={}):
-            self.ladspafx[name] = LadspaEffect(self, name, lib, plugin, chan, audio)
-            for ctrl, val in vals.items():
+        def fxchain_add(self, name, lib, plugin=None, chan=None, audio='stereo', vals={}):
+            if name not in self.ladspafx:
+                self.ladspafx[name] = LadspaEffect(self, name, lib, plugin, chan, audio)
+            if not self.ladspafx[name].fxunits:
+                self.ladspafx[name].addfxunits()
+            for ctrl, val in {**vals, **self.ladspafx[name].portvals}.items():
                 self.ladspafx[name].setcontrol(ctrl, val)
 
-        def fxchain_link(self):
-            if self.ladspafx == {}: return
+        def fxchain_connect(self):
+            if self.ladspafx == {} or FL.fluid_ladspa_is_active(self.ladspa): return
             b = 0
             for hostports, midichannels in self.hostports_mapping:
                 lastports = hostports
                 for name, ladspafx in self.ladspafx.items():
-                    if hostports not in ladspafx.fxinfo: continue
+                    if hostports not in ladspafx.links: continue
                     if name != list(self.ladspafx)[-1]:
                         buffers = [f"buffer{b}", f"buffer{b + 1}"]
+                        b += 2
                         FL.fluid_ladspa_add_buffer(self.ladspa, buffers[0].encode())
                         FL.fluid_ladspa_add_buffer(self.ladspa, buffers[1].encode())
-                        b += 2
                         ladspafx.link(hostports, lastports, buffers)
                         lastports = buffers
                     else:
@@ -806,7 +822,7 @@ class Synth:
         def fxchain_clear(self):
             pass
 
-        def fxunit_add(self, name, lib, plugin=None, chan=None, audio='stereo', vals={}):
+        def fxchain_add(self, name, lib, plugin=None, chan=None, audio='stereo', vals={}):
             pass
 
         def fxchain_link(self):
