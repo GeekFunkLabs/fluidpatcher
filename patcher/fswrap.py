@@ -462,7 +462,7 @@ class Arpeggiator(Sequencer):
 
 class Player:
 
-    def __init__(self, synth, file, loops, barlength, chan, masktypes):
+    def __init__(self, synth, file, loops, barlength, chan, mask):
         self.fplayer = FL.new_fluid_player(synth.fsynth)
         if isinstance(file, list):
             for f in file: FL.fluid_player_add(self.fplayer, str(f).encode())
@@ -474,7 +474,7 @@ class Player:
         self.frouter_callback = fl_eventcallback(FL.fluid_midi_router_handle_midi_event)
         self.frouter = FL.new_fluid_midi_router(synth.st, self.frouter_callback, synth.frouter)
         FL.fluid_midi_router_clear_rules(self.frouter)
-        for i in [EVENT_NAMES.index(x) for x in EVENT_NAMES if x not in masktypes]:
+        for i in [EVENT_NAMES.index(x) for x in EVENT_NAMES if x not in mask]:
             rule = FL.new_fluid_midi_router_rule()
             if chan:
                 FL.fluid_midi_router_rule_set_chan(rule, int(chan[0]), int(chan[1]), float(chan[2]), int(chan[3]))
@@ -493,6 +493,7 @@ class Player:
                 FL.fluid_player_stop(self.fplayer)
             elif FL.fluid_player_get_status(self.fplayer) != FLUID_PLAYER_PLAYING:
                 if seek != None:
+                    seek = min(seek, FL.fluid_player_get_total_ticks(self.fplayer))
                     FL.fluid_player_seek(self.fplayer, seek)
                     if seek > self.lasttick:
                         self.lasttick = self.pendingseek
@@ -776,8 +777,8 @@ class Synth:
             self.players[name].delete()
             del self.players[name]
 
-    def player_add(self, name, file, loops=[], barlength=1, chan=None, masktypes=['prog'], tempo=0):
-        self.players[name] = Player(self, file, loops, barlength, chan, masktypes)
+    def player_add(self, name, file, loops=[], barlength=1, chan=None, mask=['prog'], tempo=0):
+        self.players[name] = Player(self, file, loops, barlength, chan, mask)
         if tempo > 0:
             self.players[name].set_tempo(tempo)
 

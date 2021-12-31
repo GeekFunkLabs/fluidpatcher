@@ -156,9 +156,9 @@ Unrecognized keywords in a bank file will usually just be ignored. Anything on a
   To make the arpeggiator work, create a `note` type router rule with an `arpeggiator` parameter that has the arpeggiator's name as its value. There must a soundfont preset assigned on the MIDI channel to which the notes are routed in order to hear them.
   
 - `players` - a mapping of player units that can play, loop, and seek within MIDI files.
-  - `file`(required) - the MIDI file to play
+  - `file`(required) - the MIDI file to play, can also be a list of files to play in sequence
   - `chan` - a channel routing specification, of the same format as for a router rule, for all the messages in the file. This can be useful if your MIDI controller plays on the same channel as one or more of the tracks in the file, and you don't want the messages to interfere.
-  - `filter` - a list of message types to ignore in the file. By default this is `['prog']`, so you can set the instruments for each channel played in the song without them being altered by program changes in the file. To use general MIDI instruments, you can instead set this to `[]` and set a preset from a GM font on the first channel, and FluidSynth will in most cases select the appropriate instruments.
+  - `mask` - a list of MIDI message types to ignore in the file. By default this is `['prog']`, so that program changes in the file won't affect the instrument settings in your patch.
   - `loops` - a list of pairs of _start, end_ ticks. When the song reaches an _end_ tick, it will seek back to the previous _start_ tick in the list. A loop _end_ with a negative value refers to ticks starting from the end of the song and going backward. A negative _start_ value rewinds to the beginning of the song and stops playback.
   - `barlength` - the number of ticks corresponding to a whole number of musical measures in the song. If the player is playing and a router rule tells it to seek to a point in the song, it will wait until the end of a bar to do so. By default barlength is 0 and seeking will occur immediately.
   - `tempo` - tempo at which to play the file, in bpm. If not given, the tempo messages in the file will be obeyed
