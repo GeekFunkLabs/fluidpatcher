@@ -754,20 +754,26 @@ class Synth:
         def player_add(self, name, file, loops=[], barlength=1, chan=None, filter=['prog'], tempo=0):
             pass
 
-    if FLUID_VERSION >= [2, 0, 0]:
-        def get_preset_name(self, sfont, bank, prog):
+    if FLUID_VERSION >= (2, 0, 0):
+        def get_sfpresets(self, sfont):
+            presets = []
             sfont_obj = FL.fluid_synth_get_sfont_by_id(self.fsynth, self.sfid[sfont])
-            preset_obj = FL.fluid_sfont_get_preset(sfont_obj, bank, prog)
-            if not preset_obj:
-                return None
-            return FL.fluid_preset_get_name(preset_obj).decode()
+            FL.fluid_sfont_iteration_start(sfont_obj)
+            while True:
+                p = FL.fluid_sfont_iteration_next(sfont_obj)
+                if p == None: break
+                presets.append(PresetInfo(p))
+            return presets
     else:
-        def get_preset_name(self, sfont, bank, prog):
-            if not self.program_select(0, sfont, bank, prog):
-                return None
-            info = fluid_synth_channel_info_t()
-            FL.fluid_synth_get_channel_info(self.fsynth, 0, byref(info))
-            return info.name.decode()
+        def get_sfpresets(self, sfont):
+            presets = []
+            for bank in range(129):
+                for prog in range(128):
+                    if not self.program_select(0, sfont, bank, prog): continue
+                    info = fluid_synth_channel_info_t()
+                    FL.fluid_synth_get_channel_info(self.fsynth, 0, byref(info))
+                    presets.append(PresetInfo(info.name.decode(), bank, prog))
+            return presets
 
     if LADSPA_SUPPORT:
         def fxchain_clear(self):
