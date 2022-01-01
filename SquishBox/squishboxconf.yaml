@@ -1,3 +1,4 @@
+# config file used by squishbox.py and headlesspi.py
 soundfontdir: SquishBox/sf2
 bankdir: SquishBox/banks
 mfilesdir: SquishBox/midi
@@ -12,6 +13,16 @@ fluidsettings: # http://www.fluidsynth.org/api/fluidsettings.xml
   player.reset-synth: 0
   synth.audio-channels: 16
   synth.audio-groups: 16
+  synth.cpu-cores: 4
+  synth.ladspa.active: 1
+  synth.polyphony: 128
+
+fluidsettings-alsa:
+  audio.driver: alsa
+  audio.period-size: 64
+  audio.periods: 3
+  midi.autoconnect: 1
+  player.reset-synth: 0
   synth.cpu-cores: 4
   synth.ladspa.active: 1
   synth.polyphony: 128
