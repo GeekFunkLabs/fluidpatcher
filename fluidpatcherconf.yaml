@@ -1,3 +1,4 @@
+# config file used by fluidpatcher.pyw
 soundfontdir: SquishBox/sf2
 bankdir: SquishBox/banks
 mfilesdir: SquishBox/midi
@@ -7,6 +8,9 @@ fluidsettings:
   midi.autoconnect: 1
   player.reset-synth: 0
   synth.ladspa.active: 1
+
+# The settings in the nodes below are ignored.
+# To use one of them instead, truncate its name to `fluidsettings`
 
 fluidsettings-windows-lowlatency:
   audio.driver: wasapi
