@@ -80,6 +80,7 @@ patches: # indented list of patches
     - {type: cc, chan: 1, par1: 15, par2: 0-127=30-240, tempo: groove}
     - {type: cc, chan: 1, par1: 15, par2: 0-127=30-240, tempo: fluteloop}
     - {type: cc, chan: 1, par1: 15, par2: 0-127=30-240, tempo: ep_arp}
+    messages: [cc:1:7:40]
 
 
 router_rules: # router rules at this indent level apply to all patches
