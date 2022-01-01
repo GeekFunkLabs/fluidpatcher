@@ -27,7 +27,7 @@ Here are a few (a bit technical) notes about some of the fluidsettings that can 
 - `audio.driver` - the audio driver to use. Varies by platform.
 - `audio.periods` and `audio.period-size` - controls the amount of buffer space available for the audio driver. Has no effect on `jack`, which uses the _/etc/jackdrc_ or _$HOME/.jackdrc_ file as explained on the [jackd manpage](https://linuxcommandlibrary.com/man/jackd#environment).
 - `midi.autoconnect` - set this to 1 to have fluidsynth automatically connect to MIDI controllers when they are plugged in.
-- `player.reset-synth` - if set to 1, when playing a MIDI file fluidsynth will reset completely when it reaches the end of the song, overriding fluidpatcher's settings. If you don't want this, set it to 0
+- `player.reset-synth` - if set to 1, when playing a MIDI file fluidsynth will reset completely when it reaches the end of the song, stopping all sound output and overriding fluidpatcher's settings. If you don't want this, set it to 0
 - `synth.polyphony` - if you play too many voices at once (usually by sustaining lots of notes) fluidsynth will have to stop audio while the processor catches up. This limits the number of active voices, cancelling the oldest notes.
 - `synth.audio.channels` and `synth.audio.groups` - sets the number of audio output channels. Only useful if you want to route MIDI channels to different effects using the `jack` driver.
 - `audio.jack.multi` - set to 1 to enable mult-channel output using `jack`
