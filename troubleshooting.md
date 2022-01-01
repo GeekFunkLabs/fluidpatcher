@@ -125,7 +125,7 @@ Stutters (gaps in the audio) are caused by not having enough audio buffer space 
 
 The audio driver used is set by the `audio.driver` fluidsetting in your [config file](patcher/file_formats.md). For the `alsa` audio driver, the number of audio buffers and their size are determined by the `audio.periods` and `audio.period-size` fluidsettings. To change the settings for the `jack` driver modify the `--period` and `--nperiods` values in the _/home/pi/.jackdrc_ file as described [above](#i-dont-hear-any-sound).
 
-You may also hear audio crackling if the synth is too load, overloading the audio output. Turn the volume down or adjust the `synth.gain` fluidsetting to compensate.
+You may also hear audio crackling if the synth is too loud, overloading the audio output. Turn the volume down or adjust the `synth.gain` fluidsetting to compensate.
 
 ### I can play notes, but I can't switch patches using the buttons on my controller.
 
