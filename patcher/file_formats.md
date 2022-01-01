@@ -21,7 +21,17 @@ fluidsettings:
   ...
 ```
 
-All settings are optional, and the order is flexible. The Patcher will use the default values shown in curly braces above if the settings aren't given or a config file isn't provided. A full list of fluidsynth settings is at [fluidsynth.org/api/fluidsettings.xml](http://www.fluidsynth.org/api/fluidsettings.xml), any that aren't specified in the config file will be given the default value based on platform. Fluidsynth settings in the config file are applied once, when the synth is first activated.
+All settings are optional, and the order is flexible. The Patcher will use the default values shown in curly braces above if the settings aren't given or a config file isn't provided. The settings in `fluidsettings` are passed directly to fluidsynth. A full list of fluidsynth settings is at [fluidsynth.org/api/fluidsettings.xml](http://www.fluidsynth.org/api/fluidsettings.xml), any that aren't specified in the config file will be given the default value based on platform. Fluidsynth settings in the config file are applied when the synth is first activated and each time a bank file is loaded. Only the settings in the node with the exact name `fluidsettings` will be used - nodes with similar names may be included in the config file to store alternative setups.
+
+Here are a few (a bit technical) notes about some of the fluidsettings that can be useful in config files:
+- `audio.driver` - the audio driver to use. Varies by platform.
+- `audio.periods` and `audio.period-size` - controls the amount of buffer space available for the audio driver. Has no effect on `jack`, which uses the _/etc/jackdrc_ or _$HOME/.jackdrc_ file as explained on the [jackd manpage](https://linuxcommandlibrary.com/man/jackd#environment).
+- `midi.autoconnect` - set this to 1 to have fluidsynth automatically connect to MIDI controllers when they are plugged in.
+- `player.reset-synth` - if set to 1, when playing a MIDI file fluidsynth will reset completely when it reaches the end of the song, overriding fluidpatcher's settings. If you don't want this, set it to 0
+- `synth.polyphony` - if you play too many voices at once (usually by sustaining lots of notes) fluidsynth will have to stop audio while the processor catches up. This limits the number of active voices, cancelling the oldest notes.
+- `synth.audio.channels` and `synth.audio.groups` - sets the number of audio output channels. Only useful if you want to route MIDI channels to different effects using the `jack` driver.
+- `audio.jack.multi` - set to 1 to enable mult-channel output using `jack`
+- `synth.gain` - scales the output volume of the synth. This can be in the range 0.0-10.0, but values above 1.0 will be clipped/distorted.
 
 ## Bank Files
 
