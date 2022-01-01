@@ -1,3 +1,6 @@
+# Troubleshooting
+
+
 This document will help you to diagnose and deal with issues when running the _headlesspi.py_ and _squishbox.py_ scripts. These scripts are designed to be run on a Raspberry Pi without a monitor or keyboard attached, so they don't have ways to give you lots of information when an error occurs.
 
 - [First Steps](#first-steps-getting-information) below will help you figure out what might be causing your problem
