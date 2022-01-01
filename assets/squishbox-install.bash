@@ -45,23 +45,23 @@ warning() {
 
 failout() {
     echo -e "$(tput setaf 1)$1$(tput sgr0)"
-	exit 1
+    exit 1
 }
 
 sysupdate() {
     if ! $UPDATED; then
         echo "Updating apt indexes..."
         if { sudo apt-get update 2>&1 || echo E: update failed; } | grep '^[WE]:'; then
-			warning "Updating incomplete"
-		fi
+            warning "Updating incomplete"
+        fi
         sleep 3
         UPDATED=true
         if $UPGRADE; then
             echo "Upgrading your system..."
             if { sudo DEBIAN_FRONTEND=noninteractive apt-get -y upgrade --with-new-pkgs 2>&1 \
-				|| echo E: upgrade failed; } | grep '^[WE]:'; then
-				warning "Encountered problems during upgrade"
-			fi
+                || echo E: upgrade failed; } | grep '^[WE]:'; then
+                warning "Encountered problems during upgrade"
+            fi
             sudo apt-get clean && sudo apt-get autoclean
             sudo apt-get -qqy autoremove
             UPGRADE=false
@@ -73,14 +73,14 @@ apt_pkg_install() {
     APT_CHK=$(dpkg-query -W -f='${Status}\n' "$1" 2> /dev/null | grep "install ok installed")
     if [[ $APT_CHK == "" ]]; then
         echo "Installing package $1..."
-		if { sudo DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install "$1" 2>&1 \
-			|| echo E: install failed; } | grep '^[WE]:'; then
-			if [[ $2 == "required" ]]; then
-				failout "Problems installing $1!"
-			else
-				warning "Problems installing $1!"
-			fi
-		fi
+        if { sudo DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install "$1" 2>&1 \
+            || echo E: install failed; } | grep '^[WE]:'; then
+            if [[ $2 == "required" ]]; then
+                failout "Problems installing $1!"
+            else
+                warning "Problems installing $1!"
+            fi
+        fi
     fi
 }
 
@@ -91,12 +91,12 @@ pip_install() {
     if ! [[ $PYTHON_PKG =~ "$1" ]]; then
         echo "Installing Python module $1..."
         if ! { sudo -H pip3 install "$1"; } then
-			if [[ $2 == "required" ]]; then
-				failout "Failed to install $1!"
-			else
-				warning "Failed to install $1!"
-			fi
-		fi
+            if [[ $2 == "required" ]]; then
+                failout "Failed to install $1!"
+            else
+                warning "Failed to install $1!"
+            fi
+        fi
     fi
 }
 
@@ -268,8 +268,8 @@ if [[ $update == "yes" ]]; then
     inform "Installing/Updating FluidPatcher version $NEW_FP_VER ..."
     rm -rf fluidpatcher
     if ! { git clone https://github.com/albedozero/fluidpatcher; } then
-		failout "Unable to download fluidpatcher"
-	fi
+        failout "Unable to download fluidpatcher"
+    fi
     cd fluidpatcher
     if [[ $overwrite == "yes" ]]; then
         find . -type d -exec mkdir -p $installdir/{} \;
@@ -292,15 +292,15 @@ if (( $audiosetup > 0 )); then
     echo "/usr/bin/jackd --silent -R -d alsa -s -P" | sudo tee /etc/jackdrc
     if (( $audiosetup > 1 )); then
         AUDIO=`echo ${AUDIOCARDS[$audiosetup-2]} | cut -d' ' -f 1`
-		if [[ $AUDIO == "Headphones" ]]; then
-			echo "/usr/bin/jackd --silent --realtime -d alsa \\
+        if [[ $AUDIO == "Headphones" ]]; then
+            echo "/usr/bin/jackd --silent --realtime -d alsa \\
 --softmode --playback -S -i 0 -o 2 \\
 --device hw:Headphones --period 444 --nperiods 3 --rate 22050" > ~/.jackdrc
-		else
-			echo "/usr/bin/jackd --silent --realtime -d alsa \\
+        else
+            echo "/usr/bin/jackd --silent --realtime -d alsa \\
 --softmode --playback -S \\
 --device hw:$AUDIO --period 64 --nperiods 3 --rate 44100" > ~/.jackdrc
-		fi
+        fi
     fi
 fi
 
@@ -374,13 +374,13 @@ if [[ $compile == "yes" ]]; then
     fi
     UPDATED=false
     sysupdate
-	apt_pkg_install "libjack-jackd2-dev"
-	echo "Getting build dependencies..."
-	if { sudo DEBIAN_FRONTEND=noninteractive apt-get build-dep fluidsynth -y --no-install-recommends 2>&1 \
-		|| echo E: install failed; } | grep '^[WE]:'; then
-		warning "Couldn't get all dependencies!"
-	fi
-	rm -rf fluidsynth
+    apt_pkg_install "libjack-jackd2-dev"
+    echo "Getting build dependencies..."
+    if { sudo DEBIAN_FRONTEND=noninteractive apt-get build-dep fluidsynth -y --no-install-recommends 2>&1 \
+        || echo E: install failed; } | grep '^[WE]:'; then
+        warning "Couldn't get all dependencies!"
+    fi
+    rm -rf fluidsynth
     git clone https://github.com/FluidSynth/fluidsynth
     mkdir fluidsynth/build
     cd fluidsynth/build
@@ -389,8 +389,8 @@ if [[ $compile == "yes" ]]; then
     echo "Compiling..."
     make
     if ! { sudo make install; } then
-		warning "Unable to compile/install FluidSynth $BUILD_VER"
-	fi
+        warning "Unable to compile/install FluidSynth $BUILD_VER"
+    fi
     sudo ldconfig
     cd ../..
     rm -rf fluidsynth
@@ -454,7 +454,7 @@ fi
 
 if [[ $soundfonts == "yes" ]]; then
     inform "Downloading free soundfonts..."
-	sysupdate
+    sysupdate
     apt_pkg_install "unzip"
     wget -nv --show-progress geekfunklabs.com/squishbox_soundfonts.zip
     unzip -na squishbox_soundfonts.zip -d $installdir/SquishBox
