@@ -36,12 +36,11 @@ class Patcher:
         self.cfgfile = Path(cfgfile) if cfgfile else None
         self.cfg = {}
         self.read_config()
-        fluidsettings.update(self.cfg.get('fluidsettings', {}))
-        self._fluid = fswrap.Synth(**fluidsettings)
-        self._fluid.msg_callback = None
-        self._max_channels = fluidsettings.get('synth.midi-channels', 16)
         self._bank = {'patches': {}}
         self._soundfonts = set()
+        self._fluid = fswrap.Synth(**{**self.cfg.get('fluidsettings', {}), **fluidsettings})
+        self._fluid.msg_callback = None
+        self._max_channels = fluidsettings.get('synth.midi-channels', 16)
 
     @property
     def currentbank(self):

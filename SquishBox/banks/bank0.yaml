@@ -35,6 +35,7 @@ patches: # indented list of patches
       delayline1: &delayeffect # this is a YaML anchor
         lib: delay.so
         audio: mono
+        chan: 7
         vals: {Delay: 0.3, Dry/Wet: 0.2} # can set initial values for control ports
       delayline2: *delayeffect # copies the contents of the anchor node here
       delayline3: *delayeffect # creating a sort of bucket delay
