@@ -493,7 +493,8 @@ class Player:
                 FL.fluid_player_stop(self.fplayer)
             elif FL.fluid_player_get_status(self.fplayer) != FLUID_PLAYER_PLAYING:
                 if seek != None:
-                    seek = min(seek, FL.fluid_player_get_total_ticks(self.fplayer))
+                    maxticks = FL.fluid_player_get_total_ticks(self.fplayer)
+                    if maxticks: seek = min(seek, maxticks)
                     FL.fluid_player_seek(self.fplayer, seek)
                     if seek > self.lasttick:
                         self.lasttick = self.pendingseek
@@ -544,6 +545,8 @@ class Player:
                 FL.fluid_player_stop(self.fplayer)
             else:
                 if FLUID_VERSION >= (2, 0, 0) and seek != None:
+                    maxticks = FL.fluid_player_get_total_ticks(self.fplayer)
+                    if maxticks: seek = min(seek, maxticks)
                     FL.fluid_player_seek(self.fplayer, seek)
                 FL.fluid_player_play(self.fplayer)
 
