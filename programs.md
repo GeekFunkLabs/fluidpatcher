@@ -7,7 +7,7 @@ This document explains how to set up and use the programs included in this repos
 
 This script, when it's set to run on startup, turns a Raspberry Pi into a standalone MIDI sound module. It's more minimalistic than the SquishBox, but doesn't require any extra hardware other than the Pi and a MIDI controller. It uses _SquishBox/squishboxconf.yaml_ by default, but will use an alternate config file if given as a command-line argument.
 
-Plug in headphones and your MIDI controller and start up your Raspberry Pi. The Pi's built-in LEDs are used for visual feedback. When ready to play, the green activity LED will blink five times. It will blink once when switching patches, and when changing banks will glow steadily until the bank is loaded. The red power LED remains on, but will blink repeatedly if an error occurs:
+Plug in headphones and your MIDI controller and start up your Raspberry Pi. The Pi's built-in LEDs are used for visual feedback. When ready to play, the green activity LED will blink five times. It will blink once when switching patches, and when changing banks will glow steadily until the bank is loaded. The red power LED remains on when the synth is active, but will blink in a repeating pattern if an error occurs. If you encounter errors or other issues with _headlesspi.py_, see the [troubleshooting](troubleshooting.md) document.
 - 2 blinks = error in config file
 - 3 blinks = error in bank file
 - 4 blinks = other error
