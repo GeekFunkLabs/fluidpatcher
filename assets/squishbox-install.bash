@@ -293,12 +293,10 @@ if (( $audiosetup > 0 )); then
     if (( $audiosetup > 1 )); then
         AUDIO=`echo ${AUDIOCARDS[$audiosetup-2]} | cut -d' ' -f 1`
         if [[ $AUDIO == "Headphones" ]]; then
-            echo "/usr/bin/jackd --silent --realtime -d alsa \\
---softmode --playback -S -i 0 -o 2 \\
+            echo "/usr/bin/jackd --silent --realtime -d alsa --softmode --playback -S -i 0 -o 2 \\
 --device hw:Headphones --period 444 --nperiods 3 --rate 22050" > ~/.jackdrc
         else
-            echo "/usr/bin/jackd --silent --realtime -d alsa \\
---softmode --playback -S \\
+            echo "/usr/bin/jackd --silent --realtime -d alsa --softmode --playback -S \\
 --device hw:$AUDIO --period 64 --nperiods 3 --rate 44100" > ~/.jackdrc
         fi
     fi
