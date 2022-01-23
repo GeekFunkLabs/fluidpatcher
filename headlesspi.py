@@ -21,6 +21,11 @@ BANK_INC = 24           # load the next bank
 # but if it becomes annoying, LED control can be disabled here
 DISABLE_LED = False
 
+LONGPRESS_SHUTDOWN = False
+DOUBLEPRESS_SHUTDOWN = True
+DOUBLEPRESS_SHUTDOWN_COUNT = 5
+DOUBLEPRESS_SHUTDOWN_TIMEFRAME_MS = 600
+
 # modify this function directly if you want to change patches using notes or other MIDI messages
 def connect_controls():
     pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=DEC_PATCH, patch=-1)
@@ -89,6 +94,9 @@ class HeadlessSynth:
     def __init__(self):
         self.shutdowntimer = 0
         self.lastpoll = time.time()
+        self.lastIncPatchPressed = 0
+        self.lastDecPatchPressed = 0
+        self.incDecDoublePressed = 0
         pxr.set_midimessage_callback(self.listener)
         self.load_bank(pxr.currentbank)
         onboardled_blink(ACT_LED, 5) # ready to play
@@ -104,6 +112,13 @@ class HeadlessSynth:
                 if t - self.shutdowntimer > 5:
                     onboardled_blink(PWR_LED, 10)
                     onboardled_set(PWR_LED, 1)
+            if self.incDecDoublePressed >= DOUBLEPRESS_SHUTDOWN_COUNT:
+                    onboardled_blink(PWR_LED, 10)
+                    onboardled_set(PWR_LED, 1)
+                    onboardled_set(ACT_LED, 1, trigger='mmc0')
+                    onboardled_set(PWR_LED, 1, trigger='input')
+                    print("Shutting down..")
+                    subprocess.run('sudo shutdown -h now'.split())
 
     def load_bank(self, bfile):
         print(f"Loading bank '{bfile}' .. ")
@@ -139,7 +154,14 @@ class HeadlessSynth:
                     self.select_patch(self.pno)
             else:
                 if msg.val > 0:
-                    self.shutdowntimer = time.time()
+                    if LONGPRESS_SHUTDOWN:
+                        self.shutdowntimer = time.time()
+                    if DOUBLEPRESS_SHUTDOWN:
+                        if msg.patch == -1:
+                            self.lastDecPatchPressed = time.time_ns()
+                        if msg.patch == 1:
+                            self.lastIncPatchPressed = time.time_ns()
+                        self.doublePressHandler()
                     self.pno = round(self.pno + msg.patch) % len(pxr.patches)
                     self.select_patch(self.pno)
                 else:
@@ -152,6 +174,16 @@ class HeadlessSynth:
             self.load_bank(pxr.banks[bno])
             pxr.write_config()    
 
+    def doublePressHandler(self):
+        if self.lastIncPatchPressed and self.lastDecPatchPressed:
+            if abs(self.lastIncPatchPressed - self.lastDecPatchPressed) < DOUBLEPRESS_SHUTDOWN_TIMEFRAME_MS * 1000000:
+                self.incDecDoublePressed += 1
+                print('double pressed count: ' + str(self.incDecDoublePressed))
+                self.lastDecPatchPressed = 0
+                self.lastIncPatchPressed = 0
+            else:
+                self.incDecDoublePressed = 0
+                print('double press counter reset')
 
 cfgfile = sys.argv[1] if len(sys.argv) > 1 else 'SquishBox/squishboxconf.yaml'
 try:
