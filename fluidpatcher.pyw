@@ -70,9 +70,9 @@ class ControlBoard(wx.Panel):
         event.Skip()
         if event.LeftDown() and event.GetY() > self.h2:
             if event.GetX() < self.w / 3 * 1:
-                main.choose_patch(inc=-1)
+                main.select_patch(pno=(main.pno - 1) % len(pxr.patches))
             elif event.GetX() < self.w / 3 * 2:
-                main.choose_patch(inc=1)
+                main.select_patch(pno=(main.pno + 1) % len(pxr.patches))
             elif event.GetX() < self.w / 3 * 3:
                 main.next_bankfile()
 
@@ -244,7 +244,11 @@ class MainWindow(wx.Frame):
 
     def listener(self, msg):
         if hasattr(msg, 'val'):
-            pass
+            if hasattr(msg, 'patch') and pxr.patches:
+                if msg.patch == 'select':
+                    self.select_patch(pno=int(msg.val))
+                elif msg.val > 0:
+                    self.select_patch(pno=(self.pno + msg.patch) % len(pxr.patches))
         elif hasattr(self.midimon, 'timer') and self.midimon.timer.IsRunning():
             t = ('note', 'noteoff', 'kpress', 'cc', 'prog', 'pbend', 'cpress', None).index(msg.type)
             x = ("Note On", "Note Off", "Key Pressure", "Control Change",
@@ -267,7 +271,7 @@ class MainWindow(wx.Frame):
         except Exception as e:
             wx.MessageBox(str(e), "Error", wx.OK|wx.ICON_ERROR)
             display[0] = self.currentfile
-            self.choose_patch(pno=self.pno)
+            self.select_patch(pno=self.pno, force=True)
             return False
         pxr.write_config()
         self.bedit.text.Clear()
@@ -278,9 +282,9 @@ class MainWindow(wx.Frame):
             self.patchMenu.Delete(i)
         for p in pxr.patches:
             x = self.patchMenu.Append(wx.ID_ANY, p)
-            self.Bind(wx.EVT_MENU, self.choose_patch, x)
+            self.Bind(wx.EVT_MENU, self.select_patch, x)
         self.currentfile = bfile
-        self.choose_patch()
+        self.select_patch(pno=0, force=True)
         return True
 
     def next_bankfile(self):
@@ -301,28 +305,28 @@ class MainWindow(wx.Frame):
             self.patchMenu.Delete(i)
         for p in pxr.patches:
             x = self.patchMenu.Append(wx.ID_ANY, p)
-            self.Bind(wx.EVT_MENU, self.choose_patch, x)
+            self.Bind(wx.EVT_MENU, self.select_patch, x)
         if lastpatch in pxr.patches:
-            self.choose_patch(pno=pxr.patches.index(lastpatch))
+            self.select_patch(pno=pxr.patches.index(lastpatch), force=True)
         elif self.pno < len(pxr.patches):
-            self.choose_patch(pno=self.pno)
+            self.select_patch(pno=self.pno, force=True)
         else:
-            self.choose_patch(pno=0)
+            self.select_patch(pno=0, force=True)
         return True
         
-    def choose_patch(self, event=None, inc=0, pno=0):
+    def select_patch(self, event=None, pno=0, force=False):
         if not pxr.patches:
             display[1:] = "No Patches", "patch 0/0"
-            warn = pxr.select_patch(None)
+            warn = pxr.apply_patch(None)
         else:
             if event:
                 p = self.patchMenu.FindItemById(event.GetId()).GetItemLabelText()
                 self.pno = pxr.patches.index(p)
-            elif inc:
-                self.pno = (self.pno + inc) % len(pxr.patches)
+            elif pno == self.pno and not force:
+                return
             else:
                 self.pno = pno
-            warn = pxr.select_patch(self.pno)
+            warn = pxr.apply_patch(self.pno)
             display[1:] = pxr.patches[self.pno], f"patch {self.pno + 1}/{len(pxr.patches)}"
         self.ctrlboard.Refresh()
         if warn: wx.MessageBox('\n'.join(warn), "Warning", wx.OK|wx.ICON_WARNING)
@@ -408,7 +412,7 @@ class MainWindow(wx.Frame):
             self.bedit.text.WriteText(sfbrowser.copypreset)
         sfbrowser.Destroy()
         pxr.load_bank()
-        self.choose_patch(pno=self.pno)
+        self.select_patch(pno=self.pno)
 
     def onMidiMon(self, event):
         self.midimon.timer.Start(100)
@@ -445,8 +449,10 @@ geekfunklabs.com
         if event.HasAnyModifiers():
             event.Skip()
         else:
-            if event.GetKeyCode() == wx.WXK_F3: self.choose_patch(inc=-1)
-            elif event.GetKeyCode() == wx.WXK_F4: self.choose_patch(inc=1)
+            if event.GetKeyCode() == wx.WXK_F3:
+                self.select_patch(pno=(self.pno - 1) % len(pxr.patches))
+            elif event.GetKeyCode() == wx.WXK_F4:
+                self.select_patch(pno=(self.pno + 1) % len(pxr.patches))
             elif event.GetKeyCode() == wx.WXK_F6: self.next_bankfile()
             elif event.GetKeyCode() == wx.WXK_F11: self.onFillScreen()
             else: event.Skip()
@@ -467,8 +473,10 @@ geekfunklabs.com
                 else: event.Skip()
             else: event.Skip()
         else:
-            if event.GetKeyCode() == wx.WXK_F3: self.choose_patch(inc=-1)
-            elif event.GetKeyCode() == wx.WXK_F4: self.choose_patch(inc=1)
+            if event.GetKeyCode() == wx.WXK_F3:
+                self.select_patch(pno=(self.pno - 1) % len(pxr.patches))
+            elif event.GetKeyCode() == wx.WXK_F4:
+                self.select_patch(pno=(self.pno + 1) % len(pxr.patches))
             elif event.GetKeyCode() == wx.WXK_F6: self.next_bankfile()
             else: event.Skip()
 
