@@ -136,18 +136,16 @@ class SquishBox:
         sb.buttoncallback = self.handle_buttonevent
         if not (pxr.currentbank and self.load_bank(pxr.currentbank)):
             while not self.load_bank(): pass
-        self.select_patch(0)
+        self.select_patch(0, force=True)
         self.patchmode()
 
     def listener(self, msg):
         if hasattr(msg, 'val'):
             if hasattr(msg, 'patch') and pxr.patches:
                 if msg.patch == 'select':
-                    self.pno = msg.val
-                    self.select_patch(self.pno)
+                    self.select_patch(int(msg.val))
                 elif msg.val > 0:
-                    self.pno = round(self.pno + msg.patch) % len(pxr.patches)
-                    self.select_patch(self.pno)
+                    self.select_patch((self.pno + msg.patch) % len(pxr.patches))
             elif hasattr(msg, 'gpio'):
                 if msg.gpio == 'led':
                     self.togglestate = 1 if msg.val else 0
@@ -188,14 +186,14 @@ class SquishBox:
                         lastpatch = pxr.patches[self.pno] if pxr.patches else ''
                         if self.load_bank():
                             if pxr.currentbank != lastbank:
-                                self.select_patch(0)                                
+                                self.select_patch(0, force=True)                                
                             else:
                                 if lastpatch in pxr.patches:
-                                    self.select_patch(pxr.patches.index(lastpatch))
+                                    self.select_patch(pxr.patches.index(lastpatch), force=True)
                                 elif self.pno < len(pxr.patches):
-                                    self.select_patch(self.pno)
+                                    self.select_patch(self.pno, force=True)
                                 else:
-                                    self.select_patch(0)
+                                    self.select_patch(0, force=True)
                     elif k == 1:
                         self.save_bank()
                     elif k == 2:
@@ -221,15 +219,16 @@ class SquishBox:
                 else: continue
                 break
 
-    def select_patch(self, pno):
+    def select_patch(self, pno, force=False):
+        if pno == self.pno and not force: return
         self.pno = pno
         sb.lcd_clear()
         if pxr.patches:
             self.patchdisplay = [pxr.patches[pno], f"patch: {pno + 1}/{len(pxr.patches)}"]
-            warn = pxr.select_patch(pno)
+            warn = pxr.apply_patch(pno)
         else:
             self.patchdisplay = ["No patches", "patch 0/0"]
-            warn = pxr.select_patch(None)
+            warn = pxr.apply_patch(None)
         if warn:
             sb.lcd_write(self.patchdisplay[0], 0, scroll=True)
             sb.lcd_write('; '.join(warn), 1, scroll=True)
@@ -265,7 +264,7 @@ class SquishBox:
                         pxr.update_patch(newname)
                     elif k == 1:
                         if self.load_bank():
-                            self.select_patch(0)
+                            self.select_patch(0, force=True)
                             return
                     elif k == 2:
                         if self.load_soundfont():
@@ -274,7 +273,7 @@ class SquishBox:
                 elif event == SB.ESCAPE:
                     sb.lcd_clear()
                     pxr.load_bank()
-                    self.select_patch(self.pno)
+                    self.select_patch(self.pno, force=True)
                     return
                 else: continue
                 break

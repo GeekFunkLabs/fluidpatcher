@@ -130,10 +130,10 @@ class Patcher:
         (self.bankdir / bankfile).write_text(raw)
         self.cfg['currentbank'] = Path(bankfile).as_posix()
 
-    def select_patch(self, patch):
+    def apply_patch(self, patch):
     # :patch number, name, or dict
         warnings = []
-        patch = {} if patch is None else self._resolve_patch(patch)
+        patch = self._resolve_patch(patch)
         self._reset_synth(full=False)
         for channel in range(1, self._max_channels + 1):
             preset = patch.get(channel) or self._bank.get(channel)
@@ -286,10 +286,10 @@ class Patcher:
 
     def _resolve_patch(self, patch):
         if isinstance(patch, int):
-            patch = self._bank['patches'][self.patches[patch]]
-        elif isinstance(patch, str):
-            patch = self._bank['patches'][patch]
-        return patch
+            patch = self.patches[patch] if patch < len(self.patches) else {}
+        if isinstance(patch, str):
+            patch = self._bank['patches'].get(patch, {})
+        return patch if isinstance(patch, dict) else {}
 
     def _send_sysex(self, msg):
         try:

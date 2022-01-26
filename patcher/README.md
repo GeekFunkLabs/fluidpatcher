@@ -85,7 +85,7 @@ Save the current bank to a file
   - _raw_: full text of the YAML document to save; text is checked for validity first
 - Returns: nothing
 
-**select_patch**(_patch_)
+**apply_patch**(_patch_)
 
 Select a patch from the loaded bank by its name or index. Select soundfonts for specified channels, apply router rules, activate players and effects, send messages, etc.
 - Parameters:
