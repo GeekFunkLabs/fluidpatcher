@@ -16,17 +16,28 @@ INC_PATCH = 22          # increment the patch number
 SELECT_PATCH = 23       # choose a patch using a knob or slider
 BANK_INC = 24           # load the next bank
 
-# toggling the onboard LEDs requires writing to the SD card, which can cause audio stutters
-# this is not usually noticeable, since it only happens when switching patches or shutting down
-# but if it becomes annoying, LED control can be disabled here
-DISABLE_LED = False
+# hold this button down for 7 seconds to safely shut down the Pi
+# if this = None the patch change buttons are used
+SHUTDOWN_BTN = None
 
+# this function creates MIDI router rules that connect MIDI messages to the desired functions
 # modify this function directly if you want to change patches using notes or other MIDI messages
 def connect_controls():
     pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=DEC_PATCH, patch=-1)
     pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=INC_PATCH, patch=1)
-    pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=SELECT_PATCH, patch='select')
-    pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=BANK_INC, par2='1-127', bank=1)
+    selectspec =  f"0-127=0-{min(len(pxr.patches) - 1, 127)}" # transform CC values into patch numbers
+    pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=SELECT_PATCH, par2=selectspec, patch='select')
+    pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=BANK_INC, bank=1)
+    if SHUTDOWN_BTN != None:
+        pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=SHUTDOWN_BTN, shutdown=1)
+    else:
+        pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=DEC_PATCH, shutdown=1)
+        pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=INC_PATCH, shutdown=1)
+
+# toggling the onboard LEDs requires writing to the SD card, which can cause audio stutters
+# this is not usually noticeable, since it only happens when switching patches or shutting down
+# but if it becomes annoying, LED control can be disabled here
+DISABLE_LED = False
 
 
 POLL_TIME = 0.025
@@ -50,10 +61,10 @@ else:
     def onboardled_set(led, state=None, trigger=None):
         if trigger:
             e = subprocess.Popen(('echo', trigger), stdout=subprocess.PIPE)
-            subprocess.run(('sudo', 'tee', '/sys/class/leds/led%s/trigger' % led), stdin=e.stdout, stdout=subprocess.DEVNULL)
+            subprocess.run(('sudo', 'tee', f'/sys/class/leds/led{led}/trigger'), stdin=e.stdout, stdout=subprocess.DEVNULL)
         if state != None:
             e = subprocess.Popen(('echo', str(state)), stdout=subprocess.PIPE)
-            subprocess.run(('sudo', 'tee', '/sys/class/leds/led%s/brightness' % led), stdin=e.stdout, stdout=subprocess.DEVNULL)
+            subprocess.run(('sudo', 'tee', f'/sys/class/leds/led{led}/brightness'), stdin=e.stdout, stdout=subprocess.DEVNULL)
 
     def onboardled_blink(led, n=1):
         while True:
@@ -88,7 +99,7 @@ class HeadlessSynth:
 
     def __init__(self):
         self.shutdowntimer = 0
-        self.lastpoll = time.time()
+        self.pno = 0
         pxr.set_midimessage_callback(self.listener)
         self.load_bank(pxr.currentbank)
         onboardled_blink(ACT_LED, 5) # ready to play
@@ -115,16 +126,17 @@ class HeadlessSynth:
             error_blink(3)
         print("Bank loaded.")
         onboardled_set(ACT_LED, 0)
-        self.pno = 0
         if pxr.patches:
-            self.select_patch(self.pno)
+            self.select_patch(0, force=True)
         else:
-            pxr.select_patch(None)
+            pxr.apply_patch(None)
             connect_controls()
             print("No patches")
 
-    def select_patch(self, n):
-        pxr.select_patch(n)
+    def select_patch(self, n, force=False):
+        if n == self.pno and not force: return
+        self.pno = n
+        pxr.apply_patch(self.pno)
         connect_controls()
         print(f"Selected patch {n + 1}/{len(pxr.patches)}: {pxr.patches[n]}")
         onboardled_blink(ACT_LED)
@@ -133,24 +145,21 @@ class HeadlessSynth:
     # catches custom midi :msg to change patch/bank
         if hasattr(msg, 'patch') and pxr.patches:
             if msg.patch == 'select':
-                x = int(msg.val * min(len(pxr.patches), 128) / 128)
-                if x != self.pno:
-                    self.pno = x
-                    self.select_patch(self.pno)
-            else:
-                if msg.val > 0:
-                    self.shutdowntimer = time.time()
-                    self.pno = round(self.pno + msg.patch) % len(pxr.patches)
-                    self.select_patch(self.pno)
-                else:
-                    self.shutdowntimer = 0
-        elif hasattr(msg, 'bank'):
+                self.select_patch(int(msg.val))
+            elif msg.val > 0:
+                self.select_patch((self.pno + msg.patch) % len(pxr.patches))
+        if hasattr(msg, 'bank') and msg.val > 0:
             if pxr.currentbank in pxr.banks:
                 bno = (pxr.banks.index(pxr.currentbank) + 1 ) % len(pxr.banks)
             else:
                 bno = 0
             self.load_bank(pxr.banks[bno])
-            pxr.write_config()    
+            pxr.write_config()
+        if hasattr(msg, 'shutdown'):
+            if msg.val > 0:
+                self.shutdowntimer = time.time()
+            else:
+                self.shutdowntimer = 0
 
 
 cfgfile = sys.argv[1] if len(sys.argv) > 1 else 'SquishBox/squishboxconf.yaml'
