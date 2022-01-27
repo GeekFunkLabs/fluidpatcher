@@ -133,9 +133,9 @@ The channel and controller numbers sent by the pads/knobs/sliders/etc. on your c
 
 ### When I switch patches using the buttons on my controller, the Pi shuts down.
 
-The buttons/pads on your controller should be programmed to send _momentary_ control change (CC) values. This means the controller sends a nonzero value when you press it, and a zero value when you release. Buttons/pads on a controller can usually be set to either _momentary_ or _toggle_ behavior. In the latter case the pad sends a nonzero value on the first press, nothing when released, and a zero value only when it is pressed a second time. Until the second press, the program is fooled into thinking you are holding the button down, which is the signal to shut down the Pi. There are also some controllers that never send the zero CC value for some/all buttons, even when they're set to _momentary_.
+The buttons/pads on your controller should be programmed to send _momentary_ control change (CC) values. This means the controller sends a nonzero value when you press it, and a zero value when you release. Buttons/pads on a controller can usually be set to either _momentary_ or _toggle_ behavior. In the latter case the pad sends a nonzero value on the first press, nothing when released, and a zero value only when it is pressed a second time. Until the second press, the program is fooled into thinking you are holding the button down, which is the signal to shut down the Pi. Some controllers have buttons that never send a zero CC value at all, causing the same issue.
 
-You can reprogram your controller to send the appropriate messages or change the values at the top of the [_headlesspi.py_](headlesspi.py) script. One could also modify the `connect_controls()` function to use note messages instead of control changes, or edit the `listener()` function so that the `shutdowntimer` is never set.
+You can reprogram your controller to send the appropriate momentary messages or change the values at the top of the [_headlesspi.py_](headlesspi.py) script. You can also set `SHUTDOWN_BTN` to be something other than the patch change buttons. One could also modify the `connect_controls()` function to use note messages instead of control changes.
 
 ### The Pi displays an error or crashes/reboots.
 
