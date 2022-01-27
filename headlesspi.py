@@ -67,13 +67,12 @@ else:
             subprocess.run(('sudo', 'tee', f'/sys/class/leds/led{led}/brightness'), stdin=e.stdout, stdout=subprocess.DEVNULL)
 
     def onboardled_blink(led, n=1):
-        while True:
+        while n:
             onboardled_set(led, 1)
             time.sleep(0.1)
             onboardled_set(led, 0)
             n -= 1
-            if n < 1: break
-            time.sleep(0.1)
+            if n: time.sleep(0.1)
             
     def error_blink(n):
         # indicate a problem by blinking the PWR led and block forever
@@ -113,7 +112,8 @@ class HeadlessSynth:
                     print("Shutting down..")
                     subprocess.run('sudo shutdown -h now'.split())
                 if t - self.shutdowntimer > 5:
-                    onboardled_blink(PWR_LED, 10)
+                    onboardled_set(PWR_LED, 0)
+                    time.sleep(POLL_TIME)
                     onboardled_set(PWR_LED, 1)
 
     def load_bank(self, bfile):
@@ -156,10 +156,10 @@ class HeadlessSynth:
             self.load_bank(pxr.banks[bno])
             pxr.write_config()
         if hasattr(msg, 'shutdown'):
-            if msg.val > 0:
-                self.shutdowntimer = time.time()
-            else:
+            if self.shutdowntimer:
                 self.shutdowntimer = 0
+            elif msg.val > 0:
+                self.shutdowntimer = time.time()
 
 
 cfgfile = sys.argv[1] if len(sys.argv) > 1 else 'SquishBox/squishboxconf.yaml'
