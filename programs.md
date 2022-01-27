@@ -24,7 +24,7 @@ BANK_INC = 24           # load the next bank
 
 These values can be modified to match a MIDI controller's settings, or the MIDI controller can be reprogrammed to send these CC messages. The script can also be made to listen for note messages (or any type of MIDI message) to change patches by modifying the `connect_controls()` function. The controller should send these as "momentary" messages i.e. send an on/positive value when a key/pad is pressed and off/zero when released.
 
-To safely shut down the Pi when the script is set to run on startup without a keyboard or remote connection, press and hold either the _INC_PATCH_ or _DEC_PATCH_ control for approximately 7 seconds. After 5 seconds, the red power LED starts blinking to warn a shutdown is about to occur, and the green activity LED will begin flickering as the shutdown process happens. Once the green activity LED goes dark, the Pi can be safely unplugged.
+To safely shut down the Pi when the script is set to run on startup without a keyboard or remote connection, press and hold either the _INC_PATCH_ or _DEC_PATCH_ control for approximately 7 seconds. After 5 seconds, the red power LED starts blinking to warn a shutdown is about to occur, and the green activity LED will begin flickering as the shutdown process happens. Once the green activity LED goes dark, the Pi can be safely unplugged. The value of `SHUTDOWN_BTN` can be set to use a different control from the patch buttons.
 
 
 ## fluidpatcher.pyw
