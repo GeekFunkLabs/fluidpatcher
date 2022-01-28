@@ -14,7 +14,7 @@ Fill out the sections below where it makes sense to do so - add/remove sections 
 -->
 
 **Describe the bug**
-A clear and concise description of what the bug is. If possible provide additional information found by following the [Troubleshooting Tips](https://github.com/albedozero/fluidpatcher/wiki/Troubleshooting-Tips).
+A clear and concise description of what the bug is. If possible provide additional information found by following the [Troubleshooting Tips](https://github.com/albedozero/fluidpatcher/blob/master/troubleshooting.md).
 ```
 post command-line output from following Troubleshooting Tips here
 ```
