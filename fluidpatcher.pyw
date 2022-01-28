@@ -316,6 +316,7 @@ class MainWindow(wx.Frame):
         
     def select_patch(self, event=None, pno=0, force=False):
         if not pxr.patches:
+            self.pno = 0
             display[1:] = "No Patches", "patch 0/0"
             warn = pxr.apply_patch(None)
         else:
