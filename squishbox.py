@@ -13,7 +13,6 @@ BUTTON_TOG_CC = 31
 
 
 def wifi_settings():
-    # display current connection
     x = re.search("SSID: ([^\n]+)", subprocess.check_output('iw dev wlan0 link'.split()).decode())
     ssid = x[1] if x else "Not connected"
     ip = subprocess.check_output(['hostname', '-I']).decode().strip()
@@ -21,14 +20,13 @@ def wifi_settings():
     sb.lcd_write(ssid, 0)
     sb.lcd_write(ip, 1, rjust=True)
     if not sb.waitfortap(10): return
-    # connections menu
     while True:
         sb.lcd_write("Connections:", 0)
         opts = [*networks, 'Rescan..']
         j = sb.choose_opt(opts, row=1, scroll=True, timeout=0)
         if j < 0: return
         elif j == len(opts) - 1:
-            sb.lcd_write("scanning ", 1, rjust=True)
+            sb.lcd_write("scanning ", 1, rjust=True, now=True)
             sb.progresswheel_start()
             x = subprocess.check_output('sudo iw wlan0 scan'.split()).decode()
             sb.progresswheel_stop()
@@ -39,7 +37,7 @@ def wifi_settings():
             if newpsk == '': return
             sb.lcd_clear()
             sb.lcd_write(networks[j], 0)
-            sb.lcd_write("adding network ", 1, rjust=True)
+            sb.lcd_write("adding network ", 1, rjust=True, now=True)
             sb.progresswheel_start()
             e = subprocess.Popen(('echo', f'network={{\n  ssid="{networks[j]}"\n  psk="{newpsk}"\n}}\n'), stdout=subprocess.PIPE)
             subprocess.run(('sudo', 'tee', '-a', '/etc/wpa_supplicant/wpa_supplicant.conf'), stdin=e.stdout, stdout=subprocess.DEVNULL)
@@ -57,7 +55,7 @@ def addfrom_usb():
         sb.waitfortap(2)
         return
     sb.lcd_write("USB drive found", 0)
-    sb.lcd_write("copying files ", 1, rjust=True)
+    sb.lcd_write("copying files ", 1, rjust=True, now=True)
     sb.progresswheel_start()
     try:
         subprocess.run(['sudo', 'mkdir', '-p', '/mnt/usbdrv'])
@@ -79,7 +77,7 @@ def addfrom_usb():
 
 def update_device():
     sb.lcd_write(f"version {patcher.VERSION}", 0, scroll=True)
-    sb.lcd_write("checking ", 1, rjust=True)
+    sb.lcd_write("checking ", 1, rjust=True, now=True)
     sb.progresswheel_start()
     x = subprocess.check_output(['curl', 'https://raw.githubusercontent.com/albedozero/fluidpatcher/master/patcher/__init__.py'])
     newver = re.search("VERSION = '([0-9\.]+)'", x.decode())[1]
@@ -98,7 +96,7 @@ def update_device():
     if not (fup or sysup):
         return
     sb.lcd_write("please wait", 0)
-    sb.lcd_write("updating ", 1, rjust=True)
+    sb.lcd_write("updating ", 1, rjust=True, now=True)
     sb.progresswheel_start()
     try:
         if fup:
@@ -115,7 +113,7 @@ def update_device():
         if sysup:
             subprocess.run(['sudo', 'apt-get', 'upgrade', '-y'])
         sb.progresswheel_stop()
-        sb.lcd_write("rebooting", 1, rjust=True)
+        sb.lcd_write("rebooting", 1, rjust=True, now=True)
         subprocess.run(['sudo', 'reboot'])
     except Exception as e:
         sb.progresswheel_stop()
@@ -130,22 +128,21 @@ def exceptstr(e):
 class SquishBox:
 
     def __init__(self):
-        self.togglestate = 0
         self.pno = 0
+        self.togglestate = 0
         pxr.set_midimessage_callback(self.listener)
         sb.buttoncallback = self.handle_buttonevent
         if not (pxr.currentbank and self.load_bank(pxr.currentbank)):
             while not self.load_bank(): pass
-        self.select_patch(0, force=True)
         self.patchmode()
 
     def listener(self, msg):
         if hasattr(msg, 'val'):
             if hasattr(msg, 'patch') and pxr.patches:
                 if msg.patch == 'select':
-                    self.select_patch(int(msg.val))
+                    self.pno = int(msg.val)
                 elif msg.val > 0:
-                    self.select_patch((self.pno + msg.patch) % len(pxr.patches))
+                    self.pno = (self.pno + msg.patch) % len(pxr.patches)
             elif hasattr(msg, 'gpio'):
                 if msg.gpio == 'led':
                     self.togglestate = 1 if msg.val else 0
@@ -167,33 +164,38 @@ class SquishBox:
             sb.statusled_set(self.togglestate)
 
     def patchmode(self):
+        pno = -1
         while True:
+            sb.lcd_clear()
+            if self.pno != pno:
+                if pxr.patches:
+                    pno = self.pno
+                    self.patchdisplay = [pxr.patches[pno], f"patch: {pno + 1}/{len(pxr.patches)}"]
+                    warn = pxr.apply_patch(pno)
+                else:
+                    pno, self.pno = 0, 0
+                    self.patchdisplay = ["No patches", "patch 0/0"]
+                    warn = pxr.apply_patch(None)
+                if warn:
+                    sb.lcd_write(self.patchdisplay[0], 0, scroll=True)
+                    sb.lcd_write('; '.join(warn), 1, scroll=True)
+                    sb.waitfortap()
             display = self.patchdisplay[:]
             sb.lcd_write(display[0], 0, scroll=True)
             sb.lcd_write(display[1], 1, rjust=True)
             while True:
+                if self.pno != pno: break
+                if self.patchdisplay != display: break
                 event = sb.update()
-                if self.patchdisplay != display: pass
-                elif event == SB.RIGHT and pxr.patches:
-                    self.select_patch((self.pno + 1) % len(pxr.patches))
+                if event == SB.RIGHT and pxr.patches:
+                    self.pno = (self.pno + 1) % len(pxr.patches)
                 elif event == SB.LEFT and pxr.patches:
-                    self.select_patch((self.pno - 1) % len(pxr.patches))
+                    self.pno = (self.pno - 1) % len(pxr.patches)
                 elif event == SB.SELECT:
                     k = sb.choose_opt(['Load Bank', 'Save Bank', 'Save Patch', 'Delete Patch',
                                        'Open Soundfont', 'Effects..', 'System Menu..'], row=1)
                     if k == 0:
-                        lastbank = pxr.currentbank
-                        lastpatch = pxr.patches[self.pno] if pxr.patches else ''
-                        if self.load_bank():
-                            if pxr.currentbank != lastbank:
-                                self.select_patch(0, force=True)                                
-                            else:
-                                if lastpatch in pxr.patches:
-                                    self.select_patch(pxr.patches.index(lastpatch), force=True)
-                                elif self.pno < len(pxr.patches):
-                                    self.select_patch(self.pno, force=True)
-                                else:
-                                    self.select_patch(0, force=True)
+                        if self.load_bank(): pno = -1
                     elif k == 1:
                         self.save_bank()
                     elif k == 2:
@@ -203,13 +205,15 @@ class SquishBox:
                             if newname != pxr.patches[self.pno]:
                                 pxr.add_patch(newname, addlike=self.pno)
                             pxr.update_patch(newname)
-                            self.select_patch(pxr.patches.index(newname))
+                            self.pno = pxr.patches.index(newname)
                     elif k == 3:
                         if sb.confirm_choice('Delete', row=1):
                             pxr.delete_patch(self.pno)
-                            self.select_patch(min(self.pno, len(pxr.patches) - 1))
+                            self.pno = min(self.pno, len(pxr.patches) - 1)
                     elif k == 4:
-                        if self.load_soundfont(): self.sfmode()
+                        if self.load_soundfont():
+                            self.sfmode()
+                            pno = -1
                     elif k == 5:
                         self.effects_menu()
                     elif k == 6:
@@ -218,21 +222,6 @@ class SquishBox:
                     if sb.confirm_choice("Reset"): sys.exit(1)
                 else: continue
                 break
-
-    def select_patch(self, pno, force=False):
-        if pno == self.pno and not force: return
-        self.pno = pno
-        sb.lcd_clear()
-        if pxr.patches:
-            self.patchdisplay = [pxr.patches[pno], f"patch: {pno + 1}/{len(pxr.patches)}"]
-            warn = pxr.apply_patch(pno)
-        else:
-            self.patchdisplay = ["No patches", "patch 0/0"]
-            warn = pxr.apply_patch(None)
-        if warn:
-            sb.lcd_write(self.patchdisplay[0], 0, scroll=True)
-            sb.lcd_write('; '.join(warn), 1, scroll=True)
-            sb.waitfortap()
 
     def sfmode(self):
         i = 0
@@ -263,22 +252,21 @@ class SquishBox:
                         self.pno = pxr.add_patch(newname)
                         pxr.update_patch(newname)
                     elif k == 1:
-                        if self.load_bank():
-                            self.select_patch(0, force=True)
-                            return
-                    elif k == 2:
                         if self.load_soundfont():
                             i = 0
                             warn = pxr.select_sfpreset(i)
+                    elif k == 2:
+                        if self.load_bank(): return
                 elif event == SB.ESCAPE:
                     sb.lcd_clear()
                     pxr.load_bank()
-                    self.select_patch(self.pno, force=True)
                     return
                 else: continue
                 break
 
     def load_bank(self, bank=''):
+        lastbank = pxr.currentbank
+        lastpatch = pxr.patches[self.pno] if pxr.patches else ''
         if bank == '':
             sb.lcd_write("Load Bank:", 0)
             if not pxr.banks:
@@ -291,7 +279,7 @@ class SquishBox:
             i = sb.choose_opt([str(b) for b in pxr.banks], bno, row=1, scroll=True, timeout=0)
             if i < 0: return False
             bank = pxr.banks[i]
-        sb.lcd_write("loading patches ", 1)
+        sb.lcd_write("loading patches ", 1, now=True)
         sb.progresswheel_start()
         try: pxr.load_bank(bank)
         except Exception as e:
@@ -301,6 +289,13 @@ class SquishBox:
             return False
         sb.progresswheel_stop()
         pxr.write_config()
+        if pxr.currentbank != lastbank:
+            self.pno = 0
+        else:
+            if lastpatch in pxr.patches:
+                self.pno = pxr.patches.index(lastpatch)
+            elif self.pno >= len(pxr.patches):
+                self.pno = 0
         return True
 
     def save_bank(self, bank=''):
@@ -327,7 +322,7 @@ class SquishBox:
             s = sb.choose_opt([str(sf) for sf in pxr.soundfonts], row=1, scroll=True, timeout=0)
             if s < 0: return False
             sfont = pxr.soundfonts[s]
-        sb.lcd_write("loading presets ", 1)
+        sb.lcd_write("loading presets ", 1, now=True)
         sb.progresswheel_start()
         if not pxr.load_soundfont(pxr.soundfonts[s]):
             sb.progresswheel_stop()
@@ -369,7 +364,7 @@ class SquishBox:
         k = sb.choose_opt(['Power Down', 'MIDI Devices', 'Wifi Settings', 'Add From USB', 'Update Device'], row=1)
         if k == 0:
             sb.lcd_write("Shutting down..", 0)
-            sb.lcd_write("Wait 30s, unplug", 1)
+            sb.lcd_write("Wait 30s, unplug", 1, now=True)
             subprocess.run('sudo shutdown -h now'.split())            
         elif k == 1: self.midi_devices()
         elif k == 2: wifi_settings()
@@ -406,7 +401,7 @@ class SquishBox:
 
 sb = SB.StompBox()
 sb.lcd_clear()
-sb.lcd_write(f"version {patcher.VERSION}", 0)
+sb.lcd_write(f"version {patcher.VERSION}", 0, now=True)
 
 cfgfile = sys.argv[1] if len(sys.argv) > 1 else '/home/pi/SquishBox/squishboxconf.yaml'
 try: pxr = patcher.Patcher(cfgfile)

@@ -122,8 +122,22 @@ class StompBox():
             self.encvalue -= 1
 
     def update(self):
-        time.sleep(POLL_TIME)
         t = time.time()
+        for r, text in enumerate(self.lines):
+            if text == "": continue
+            self.LCD.cursor_pos = r, 0
+            self.LCD.write_string(text.strip(PADLEFT)[:COLS])
+            if len(text) > COLS:
+                if t - self.lastscroll < SCROLL_TIME: continue
+                self.lastscroll = t
+                if text[COLS] == PADRIGHT: # end of text, pause a bit
+                    self.lines[r] = text[:COLS] + text[COLS + 1:]
+                elif text[COLS] == PADLEFT: # wrap back to beginning
+                    self.lines[r] = text[COLS:] + text[:COLS] + PADRIGHT * 4
+                else: # shift one character
+                    self.lines[r] = text[1:] + text[0]
+            else:
+                self.lines[r] = ""
         event = NULL
         for button in BUTTONS:
             if t - self.timer[button] > BOUNCE_TIME:
@@ -150,18 +164,7 @@ class StompBox():
         elif self.encvalue < 0:
             event = LEFT
             self.encvalue += 1
-        if any(self.scrolltext) and t - self.lastscroll >= SCROLL_TIME:
-            self.lastscroll = t
-            for r, text in enumerate(self.scrolltext): # maybe can't edit in place
-                if text == "": continue
-                if text[COLS] == PADRIGHT: # end of text, pause a bit
-                    self.scrolltext[r] = text[:COLS] + text[COLS + 1:]
-                elif text[COLS] == PADLEFT: # wrap back to beginning
-                    self.scrolltext[r] = text[COLS:] + text[:COLS] + PADRIGHT * 4
-                else:
-                    self.scrolltext[r] = text[1:] + text[0]
-                self.LCD.cursor_pos = r, 0
-                self.LCD.write_string(self.scrolltext[r].strip(PADLEFT)[:COLS])
+        time.sleep(POLL_TIME)
         return event
 
     def waitfortap(self, t=0):
@@ -177,29 +180,27 @@ class StompBox():
 
     def lcd_clear(self):
         self.LCD.clear()
-        self.scrolltext = [''] * ROWS
+        self.lines = [""] * ROWS
 
-    def lcd_write(self, text, row=0, scroll=False, rjust=False):
+    def lcd_write(self, text, row=0, scroll=False, rjust=False, now=False):
         if scroll and len(text) > COLS:
-            self.scrolltext[row] = PADLEFT * 4 + text + PADRIGHT * 4
-            self.LCD.cursor_pos = row, 0
-            self.LCD.write_string(text[:COLS])
+            self.lines[row] = PADLEFT * 4 + text + PADRIGHT * 4
+        elif rjust:
+            self.lines[row] = text[:COLS].rjust(COLS)
         else:
-            self.scrolltext[row] = ''
-            self.LCD.cursor_pos = row, 0
-            if rjust:
-                self.LCD.write_string(text[:COLS].rjust(COLS))
-            else:
-                self.LCD.write_string(text[:COLS].ljust(COLS))
+            self.lines[row] = text[:COLS].ljust(COLS)
+        if now: self.update()
 
     def lcd_blink(self, text, row=0, n=3, rjust=False):
-        while n != 0:
-            self.lcd_write(' ' * COLS, row)
+        text = text[:COLS].rjust(COLS) if rjust else text[:COLS].ljust(COLS)
+        for _ in range(n):
+            self.LCD.cursor_pos = row, 0
+            self.LCD.write_string(' ' * COLS)
             time.sleep(BLINK_TIME)
-            self.lcd_write(text, row, rjust=rjust)
+            self.LCD.cursor_pos = row, 0
+            self.LCD.write_string(text)
             time.sleep(BLINK_TIME)
-            n -= 1
-            
+
     def progresswheel_start(self, row=1):
         self.spinning = True
         self.spin = threading.Thread(target=self._progresswheel_spin, args=(row,))
@@ -217,7 +218,7 @@ class StompBox():
         self.spin.join()
 
     def confirm_choice(self, text='', row=1, timeout=MENU_TIMEOUT):
-        self.lcd_write(text[:COLS - 1], row=row)
+        self.lcd_write(text[:COLS - 1], row=row, now=True)
         c = 1
         while True:
             self.LCD.cursor_pos = row, COLS - 1
@@ -293,7 +294,7 @@ class StompBox():
         self.LCD.cursor_mode = 'line'
         while True:
             if self.LCD.cursor_mode == 'line':
-                self.lcd_write(text[max(0, i - COLS):max(COLS, i)], row=row)
+                self.lcd_write(text[max(0, i + 1 - COLS):max(COLS, i + 1)], row=row, now=True)
             else:
                 self.LCD.write_string(charset[c])
             self.LCD.cursor_pos = row, min(i, COLS - 1)

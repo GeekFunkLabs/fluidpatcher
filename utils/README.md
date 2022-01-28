@@ -53,9 +53,9 @@ Wait _t_ seconds or until a button is tapped. If _t_ is not given, wait forever.
 
 Clears the LCD
 
-**lcd_write**(_text, row=0, scroll=False, rjust=False_)
+**lcd_write**(_text, row=0, scroll=False, rjust=False, now=False_)
 
-Writes _text_ to _row_, right-justified if _rjust_ is _True_. If the text is longer than 16 characters and _scroll_ is true, the text will scroll.
+Writes _text_ to _row_, right-justified if _rjust_ is _True_. If the text is longer than 16 characters and _scroll_ is true, the text will scroll. The text is not actually written until the next **update()**, unless _now=True_.
 
 **lcd_blink**(_text, row=0, n=3, rjust=False_)
 
