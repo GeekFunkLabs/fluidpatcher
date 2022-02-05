@@ -1,7 +1,7 @@
 # Patcher
 
 
-The _patcher_ directory contains all the code necessary to interpret [bank and config files](file_formats.md) and control FluidSynth. This API can thus be used to write different Python programs that can read the same bank files and produce the same functionality. To use it, copy this directory to the same location as your Python script and `import patcher` at the top of your script. Patcher requires only Python standard libraries and [oyaml](https://pypi.org/project/oyaml/).
+The _patcher_ directory contains all the code necessary to interpret [bank and config files](file_formats.md) and control FluidSynth. This API can thus be used to write different Python programs that can read the same bank files and produce the same functionality. To use it, copy this directory to the same location as your Python script and `import patcher` at the top of your script. Patcher requires only Python standard libraries and [oyaml](https://pypi.org/project/oyaml/), and a working version of [FluidSynth](https://www.fluidsynth.org/) installed on your system.
 
 The example below shows a very simple text-based implementation that loads a specific bank file and allows the user to select and play its patches.
 
@@ -10,16 +10,16 @@ The example below shows a very simple text-based implementation that loads a spe
 ```python
 import patcher
 
-cfgfile = 'myconf.yaml'
 bankfile = 'mybank.yaml'
-p = patcher.Patcher(cfgfile)
+
+p = patcher.Patcher('myconf.yaml')
 p.load_bank(bankfile)
 
 n = 0
 while True:
-    p.select_patch(n)
+    p.apply_patch(n)
     print(f"Patch {n + 1}/{len(p.patches)}: {p.patches[n]}")
-    n = int(input("select patch: ")) - 1
+    n = int(input("choose patch: ")) - 1
 ```
 
 ## API
@@ -71,7 +71,7 @@ Write _self.cfg_ to _self.cfgfile_ as YAML-formatted text; if _raw_ is provided 
 
 **load_bank**(_bankfile='', raw=''_)
 
-Load a bank from a file or from raw yaml text. If successful, reset the synth, apply bank-level settings, and load all necessary soundfonts. Returns the full text of the file that was loaded. If called with no arguments, resets the synth with the bank currently in memory.
+Load a bank from a file or from raw yaml text. If successful, reset the synth, load all necessary soundfonts, and apply initial settings. Returns the full text of the file that was loaded. If called with no arguments, resets the synth with the currently-loaded bank.
 - Parameters:
   - _bankfile_: bank file to load
   - _raw_: raw yaml string to parse as current bank
@@ -87,7 +87,7 @@ Save the current bank to a file
 
 **apply_patch**(_patch_)
 
-Select a patch from the loaded bank by its name or index. Select soundfonts for specified channels, apply router rules, activate players and effects, send messages, etc.
+Choose a patch from the loaded bank by its name or index. Select soundfonts for specified channels, apply router rules, activate players and effects, send messages, etc.
 - Parameters:
   - _patch_: index of the patch as int, or patch name as a string. If _None_, bank-level keywords are still applied
 - Returns: a list of warnings, if any
