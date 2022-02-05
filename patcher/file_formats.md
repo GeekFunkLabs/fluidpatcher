@@ -35,9 +35,14 @@ Here are a few (a bit technical) notes about some of the fluidsettings that can 
 
 ## Bank Files
 
-A bank file contains one or more patches. A patch sets instrument sounds on one or more MIDI channels, as well as many other settings such as MIDI routing rules, MIDI messages to send when the patch is selected, MIDI files to play, sequence or arpeggiator patterns that can be triggered, and even external LADSPA effects to use. Many of these settings can be set globally for all patches in the bank as well.
+A bank file contains one or more patches. A patch sets instrument sounds on one or more MIDI channels, as well as many other settings such as MIDI routing rules, MIDI messages to send when the patch is selected, MIDI files to play, sequence or arpeggiator patterns that can be triggered, and even external LADSPA effects to use. The example bank file and definitions below explain the structure and various keywords that are recognized.
 
-Here is an example bank file (explanation below): 
+This linked series of videos teaches about creating bank files and the many features of FluidSynth, SoundFonts, and MIDI:
+
+[![FluidPatcher Lesson Video Series](/assets/fplessons.png)](https://youtube.com/playlist?list=PL4a8Oe3qfS_-CefZFNYssT1kHdzEOdAlD)
+
+### Example Bank File
+
 ```yaml
 patches:
   FM Piano:
@@ -118,6 +123,8 @@ init:
   - cc:1:73:0
   - cc:1:74:0
 ```
+
+### Structure
 
 A bank file must contain a `patches` item. The item names in `patches` will be the patch names in the bank. The other keywords described below can be used in individual patches, or at the zero indent/bank level. When a patch is selected, the bank keywords will be applied first, followed by the keywords in the selected patch. If a bank contains an `init` item, the keywords in `init` will be applied once, when the bank is first loaded (although this only makes sense for `messages` and `fluidsettings` - other keywords are ignored).
 
