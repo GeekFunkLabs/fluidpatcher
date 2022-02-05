@@ -9,7 +9,7 @@ except ModuleNotFoundError:
     pass # mido is optional, only needed to read .syx and send to external devices
 from . import fswrap, fpyaml
 
-VERSION = '0.6'
+VERSION = '0.6.2'
 
 CC_DEFAULTS = [(7, 7, 100),    # volume
                (10, 10, 64),   # pan
@@ -114,8 +114,13 @@ class Patcher:
             bank = fpyaml.parse(raw)
             bank['patches'].values()
             self._bank = bank
-        self._reset_synth(full=True)
-        self._reload_bankfonts()
+        self._reset_synth()
+        self._refresh_bankfonts()
+        for opt, val in self._bank.get('init', {}).get('fluidsettings', {}).items():
+            self.fluid_set(opt, val)
+        for msg in self._bank.get('init', {}).get('messages', []):
+            if isinstance(msg, fpyaml.SysexMsg): self._send_sysex(msg)
+            else: self.send_event(msg)
         return raw
 
     def save_bank(self, bankfile, raw=''):
@@ -134,33 +139,43 @@ class Patcher:
     # :patch number, name, or dict
         warnings = []
         patch = self._resolve_patch(patch)
-        self._reset_synth(full=False)
-        for channel in range(1, self._max_channels + 1):
-            preset = patch.get(channel) or self._bank.get(channel)
+        def merge(kw):
+            try: return {**self._bank.get(kw, {}), **patch.get(kw, {})}
+            except TypeError: return self._bank.get(kw, []) + patch.get(kw, [])
+        # presets
+        for ch in range(1, self._max_channels + 1):
+            preset = patch.get(ch) or self._bank.get(ch)
             if preset:
-                if preset.sf not in self._soundfonts: self._reload_bankfonts()
-                if not self._fluid.program_select(channel - 1, self.sfdir / preset.sf, preset.bank, preset.prog):
-                    warnings.append(f"Unable to select preset {preset} on channel {channel}")
+                if not self._fluid.program_select(ch - 1, self.sfdir / preset.sf, preset.bank, preset.prog):
+                    warnings.append(f"Unable to select preset {preset} on channel {ch}")
             else:
-                self._fluid.program_unset(channel - 1)
-        for name, info in patch.get('players', {}).items():
+                self._fluid.program_unset(ch - 1)
+        # sequencers, arpeggiators, players
+        self._fluid.players_clear(save=[*merge('sequencers'), *merge('arpeggiators'), *merge('players')])
+        for name, info in merge('sequencers').items():
+            self._fluid.sequencer_add(name, **info)
+        for name, info in merge('arpeggiators').items():
+            self._fluid.arpeggiator_add(name, **info)
+        for name, info in merge('players').items():
             fpath = self.mfilesdir / info['file']
             pchan = fpyaml.tochantups(info['chan'])[0] if 'chan' in info else None
             self._fluid.player_add(name, **{**info, 'file': fpath, 'chan': pchan})
-        for name, info in patch.get('sequencers', {}).items():
-            self._fluid.sequencer_add(name, **info)
-        for name, info in patch.get('arpeggiators', {}).items():
-            self._fluid.arpeggiator_add(name, **info)
-        for opt, val in {**self._bank.get('fluidsettings', {}), **patch.get('fluidsettings', {})}.items():
+        # fluidsettings
+        for opt, val in merge('fluidsettings').items():
             self.fluid_set(opt, val)
-        for name, info in {**self._bank.get('ladspafx', {}), **patch.get('ladspafx', {})}.items():
+        # ladspa effects
+        self._fluid.fxchain_clear(save=merge('ladspafx'))
+        for name, info in merge('ladspafx').items():
             libfile = self.plugindir / info['lib']
             fxchan = fpyaml.tochanset(info['chan']) if 'chan' in info else set(range(self._max_channels))
             self._fluid.fxchain_add(name, **{**info, 'lib': libfile, 'chan': fxchan})
         self._fluid.fxchain_connect()
-        for rule in patch.get('router_rules', []):
+        # router rules
+        self._fluid.router_default()
+        for rule in merge('router_rules'):
             self.add_router_rule(rule)
-        for msg in self._bank.get('messages', []) + patch.get('messages', []):
+        # midi messages
+        for msg in merge('messages'):
             if isinstance(msg, fpyaml.SysexMsg): self._send_sysex(msg)
             else: self.send_event(msg)
         return warnings
@@ -201,7 +216,7 @@ class Patcher:
         else:
             name = patch
         del self._bank['patches'][name]
-        self._reload_bankfonts()
+        self._refresh_bankfonts()
 
     def load_soundfont(self, soundfont):
     # load a single :soundfont and scan all its presets
@@ -215,7 +230,7 @@ class Patcher:
                 return False
         self._soundfonts = {soundfont}
         self.sfpresets = self._fluid.get_sfpresets(self.sfdir / soundfont)
-        self._reset_synth(full=True)
+        self._reset_synth()
         for channel in range(1, self._max_channels + 1):
             self._fluid.program_unset(channel - 1)
         self.add_router_rule(type="note", chan=f"2-{self._max_channels}=1")
@@ -270,12 +285,15 @@ class Patcher:
         self._fluid.send_event(msg.type, msg.chan, msg.par1, msg.par2)
 
     # private functions
-    def _reload_bankfonts(self):
+    def _refresh_bankfonts(self):
         sfneeded = set()
         for patch in self._bank['patches'].values():
             for channel in patch:
                 if isinstance(channel, int):
                     sfneeded |= {patch[channel].sf}
+        for channel in self._bank:
+            if isinstance(channel, int):
+                sfneeded |= {self._bank[channel].sf}
         missing = set()
         for sfont in self._soundfonts - sfneeded:
             self._fluid.unload_soundfont(self.sfdir / sfont)
@@ -286,10 +304,19 @@ class Patcher:
 
     def _resolve_patch(self, patch):
         if isinstance(patch, int):
-            patch = self.patches[patch] if patch < len(self.patches) else {}
+            try: patch = self.patches[patch]
+            except IndexError: patch = {}
         if isinstance(patch, str):
             patch = self._bank['patches'].get(patch, {})
         return patch if isinstance(patch, dict) else {}
+
+    def _reset_synth(self):
+        self._fluid.players_clear()
+        self._fluid.fxchain_clear()
+        self._fluid.router_default()
+        self._fluid.reset()
+        for opt, val in {**SYNTH_DEFAULTS, **self.cfg.get('fluidsettings', {})}.items():
+            self.fluid_set(opt, val)
 
     def _send_sysex(self, msg):
         try:
@@ -311,39 +338,6 @@ class Patcher:
                 for x in msg: port.send(mido.Message('sysex', data=x))
         except NameError:
             pass
-
-    def _reset_synth(self, full=True):
-        self._fluid.router_default()
-        for rule in self._bank.get('router_rules', []):
-            self.add_router_rule(rule)
-        if not full:
-            bankladspafx = list(self._bank.get('ladspafx', {}))
-            self._fluid.fxchain_clear(save=bankladspafx)
-            bankplayers = list(self._bank.get('players', {}))
-            bankplayers += list(self._bank.get('sequencers', {}))
-            bankplayers += list(self._bank.get('arpeggiators', {}))
-            self._fluid.players_clear(save=bankplayers)
-        else:
-            self._fluid.fxchain_clear()
-            self._fluid.players_clear()
-            self._fluid.reset()
-            for opt, val in {**SYNTH_DEFAULTS, **self.cfg.get('fluidsettings', {})}.items():
-                self.fluid_set(opt, val)
-            for name, info in self._bank.get('players', {}).items():
-                fpath = self.mfilesdir / info['file']
-                pchan = fpyaml.tochantups(info['chan'])[0] if 'chan' in info else None
-                self._fluid.player_add(name, **{**info, 'file': fpath, 'chan': pchan})
-            for name, info in self._bank.get('sequencers', {}).items():
-                self._fluid.sequencer_add(name, **info)
-            for name, info in self._bank.get('arpeggiators', {}).items():
-                self._fluid.arpeggiator_add(name, **info)
-            init = self._bank.get('init', None)
-            if init:
-                for opt, val in init.get('fluidsettings', {}).items():
-                    self.fluid_set(opt, val)
-                for msg in init.get('messages', []):
-                    if isinstance(msg, fpyaml.SysexMsg): self._send_sysex(msg)
-                    else: self.send_event(msg)
 
 
 class PresetInfo:

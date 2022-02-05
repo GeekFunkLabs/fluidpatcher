@@ -767,23 +767,26 @@ class Synth:
                 FL.fluid_midi_router_rule_set_param2(rule, int(par2[0]), int(par2[1]), float(par2[2]), int(par2[3]))
             FL.fluid_midi_router_add_rule(self.frouter, rule, EVENT_NAMES.index(type))
 
-    def sequencer_add(self, name, notes, tdiv=8, swing=0.5, tempo=120):
-        self.players[name] = Sequencer(self, notes, tdiv, swing)
-        self.players[name].set_tempo(tempo)
-        
-    def arpeggiator_add(self, name, tdiv=8, swing=0.5, style='', octaves=1, tempo=120):
-        self.players[name] = Arpeggiator(self, tdiv, swing, style, octaves)
-        self.players[name].set_tempo(tempo)
-
     def players_clear(self, save=[]):
         for name in [x for x in self.players if x not in save]:
             self.players[name].delete()
             del self.players[name]
 
-    def player_add(self, name, file, loops=[], barlength=1, chan=None, mask=['prog'], tempo=0):
-        self.players[name] = Player(self, file, loops, barlength, chan, mask)
-        if tempo > 0:
+    def sequencer_add(self, name, notes, tdiv=8, swing=0.5, tempo=120):
+        if name not in self.players:
+            self.players[name] = Sequencer(self, notes, tdiv, swing)
             self.players[name].set_tempo(tempo)
+
+    def arpeggiator_add(self, name, tdiv=8, swing=0.5, style='', octaves=1, tempo=120):
+        if name not in self.players:
+            self.players[name] = Arpeggiator(self, tdiv, swing, style, octaves)
+            self.players[name].set_tempo(tempo)
+
+    def player_add(self, name, file, loops=[], barlength=1, chan=None, mask=['prog'], tempo=0):
+        if name not in self.players:
+            self.players[name] = Player(self, file, loops, barlength, chan, mask)
+            if tempo > 0:
+                self.players[name].set_tempo(tempo)
 
     if FLUID_VERSION >= (2, 0, 0):
         def get_sfpresets(self, sfont):
@@ -818,28 +821,31 @@ class Synth:
 
         def fxchain_add(self, name, lib, plugin=None, chan=None, audio='stereo', vals={}):
             if name not in self.ladspafx:
+                if FL.fluid_ladspa_is_active(self.ladspa):
+                    FL.fluid_ladspa_reset(self.ladspa)
                 self.ladspafx[name] = LadspaEffect(self, name, lib, plugin, chan, audio)
-            if not self.ladspafx[name].fxunits:
-                self.ladspafx[name].addfxunits()
-            for ctrl, val in {**vals, **self.ladspafx[name].portvals}.items():
-                self.ladspafx[name].setcontrol(ctrl, val)
+            self.ladspafx[name].portvals.update(vals)
 
         def fxchain_connect(self):
             if self.ladspafx == {} or FL.fluid_ladspa_is_active(self.ladspa): return
+            for name in self.ladspafx:
+                self.ladspafx[name].addfxunits()
+                for ctrl, val in self.ladspafx[name].portvals.items():
+                    self.ladspafx[name].setcontrol(ctrl, val)
             b = 0
             for hostports, midichannels in self.hostports_mapping:
                 lastports = hostports
-                for name, ladspafx in self.ladspafx.items():
-                    if hostports not in ladspafx.links: continue
+                for name, effect in self.ladspafx.items():
+                    if hostports not in effect.links: continue
                     if name != list(self.ladspafx)[-1]:
                         buffers = [f"buffer{b}", f"buffer{b + 1}"]
                         b += 2
                         FL.fluid_ladspa_add_buffer(self.ladspa, buffers[0].encode())
                         FL.fluid_ladspa_add_buffer(self.ladspa, buffers[1].encode())
-                        ladspafx.link(hostports, lastports, buffers)
+                        effect.link(hostports, lastports, buffers)
                         lastports = buffers
                     else:
-                        ladspafx.link(hostports, lastports, hostports)
+                        effect.link(hostports, lastports, hostports)
             FL.fluid_ladspa_activate(self.ladspa)
     else:
         def fxchain_clear(self):
@@ -848,5 +854,5 @@ class Synth:
         def fxchain_add(self, name, lib, plugin=None, chan=None, audio='stereo', vals={}):
             pass
 
-        def fxchain_link(self):
+        def fxchain_connect(self):
             pass
