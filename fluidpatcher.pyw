@@ -399,6 +399,7 @@ class MainWindow(wx.Frame):
 
     def onEditBank(self, event):
         self.bedit.Show()
+        self.bedit.Raise()
 
     def onChoosePreset(self, event):
         sf = wx.FileSelector("Open Soundfont", str(self.lastdir['sf2']), "", "*.sf2", "Soundfont (*.sf2)|*.sf2", wx.FD_OPEN)
@@ -413,11 +414,12 @@ class MainWindow(wx.Frame):
             self.bedit.text.WriteText(sfbrowser.copypreset)
         sfbrowser.Destroy()
         pxr.load_bank()
-        self.select_patch(pno=self.pno)
+        self.select_patch(pno=self.pno, force=True)
 
     def onMidiMon(self, event):
         self.midimon.timer.Start(100)
         self.midimon.Show()
+        self.midimon.Raise()
 
     def onSettings(self, event):
         rawcfg = pxr.read_config()
@@ -474,12 +476,7 @@ geekfunklabs.com
                 else: event.Skip()
             else: event.Skip()
         else:
-            if event.GetKeyCode() == wx.WXK_F3:
-                self.select_patch(pno=(self.pno - 1) % len(pxr.patches))
-            elif event.GetKeyCode() == wx.WXK_F4:
-                self.select_patch(pno=(self.pno + 1) % len(pxr.patches))
-            elif event.GetKeyCode() == wx.WXK_F6: self.next_bankfile()
-            else: event.Skip()
+            self.onKeyPress(event)
 
     def onBankEditButton(self, event):
         event.Skip()
