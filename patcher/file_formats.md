@@ -35,9 +35,9 @@ Here are a few (a bit technical) notes about some of the fluidsettings that can 
 
 ## Bank Files
 
-A bank file contains one or more patches. A patch sets instrument sounds on one or more MIDI channels, as well as many other settings such as MIDI routing rules, MIDI messages to send when the patch is selected, MIDI files to play, sequence or arpeggiator patterns that can be triggered, and even external LADSPA effects to use. The linked example bank files and definitions below explain the structure and various keywords that are recognized.
+A bank file contains one or more patches. A patch selects soundfont presets on one or more MIDI channels, and can also create MIDI routing rules, send MIDI messages, create sequencers, arpeggiators, and MIDI file players, and even activate and control external LADSPA effects. The linked example bank files and definitions below explain the structure and various keywords that are recognized.
 
-This linked series of videos teaches about creating bank files and the many features of FluidSynth, SoundFonts, and MIDI:
+This video series teaches about creating bank files and the many features of FluidSynth, SoundFonts, and MIDI:
 
 [![FluidPatcher Lesson Video Series](/assets/fplessons.png)](https://youtube.com/playlist?list=PL4a8Oe3qfS_-CefZFNYssT1kHdzEOdAlD)
 
