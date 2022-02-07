@@ -35,94 +35,19 @@ Here are a few (a bit technical) notes about some of the fluidsettings that can 
 
 ## Bank Files
 
-A bank file contains one or more patches. A patch sets instrument sounds on one or more MIDI channels, as well as many other settings such as MIDI routing rules, MIDI messages to send when the patch is selected, MIDI files to play, sequence or arpeggiator patterns that can be triggered, and even external LADSPA effects to use. The example bank file and definitions below explain the structure and various keywords that are recognized.
+A bank file contains one or more patches. A patch sets instrument sounds on one or more MIDI channels, as well as many other settings such as MIDI routing rules, MIDI messages to send when the patch is selected, MIDI files to play, sequence or arpeggiator patterns that can be triggered, and even external LADSPA effects to use. The linked example bank files and definitions below explain the structure and various keywords that are recognized.
 
 This linked series of videos teaches about creating bank files and the many features of FluidSynth, SoundFonts, and MIDI:
 
 [![FluidPatcher Lesson Video Series](/assets/fplessons.png)](https://youtube.com/playlist?list=PL4a8Oe3qfS_-CefZFNYssT1kHdzEOdAlD)
 
-### Example Bank File
+### Example Bank Files
 
-```yaml
-patches:
-  FM Piano:
-    1: FM Piano.sf2:000:000 
-  Synth Bass and Piano:
-    3: FluidGM_R3.sf2:000:000
-    4: VintageDreamsWaves-v2.sf2:000:028
-    router_rules:
-    - {type: note, chan: 1=4, par1: B4-G9}
-    - {type: note, chan: 1=4, par1: C0-Bb4*1-12}
-    - type: note
-      chan: 1=4
-      par1: C0-Bb4*1-12
-    messages:
-    - cc:3:91:127
-    - cc:3:93:127
-  Analog Synth:
-    1: ModSynth.sf2:000:000
-    ladspafx:
-      mydelay:
-        lib: delay.so
-        audio: mono
-        vals:
-          Delay: 0.3
-    router_rules:
-    - clear
-    - {type: note, chan: 1, par2: 0-127=127}
-    - {type: pbend, chan: 1}
-    - {type: cc, chan: 1}
-    - {type: cc, chan: 1, par1: 15, par2: 0-127=0-2.5, ladspafx: mydelay, port: Delay}
-  Jazz Jam:
-    2: FM Piano.sf2:000:000
-    3: ModSynth:000:007
-    4: ModSynth:000:002
-    7: JazzCombo.sf2:000:020
-    8: JazzCombo.sf2:000:035
-    10: JazzCombo.sf2:128:004
-    sequencers:
-      synthpads:
-        tdiv: 1
-        notes: [note:3:A5:70, note:3:G5:70, note:3:A5:70, note:3:C6:70]
-    arpeggiators:
-      moody:
-        tdiv: 12
-        octaves: 2
-    players:
-      jazz:
-        file: smoothjazz.mid
-        chan: 1-2*1+6
-        barlength: 1536
-        loops: [15360, 18429]
-    router_rules:
-    - {type: note, chan: 1=2, par1: C4-C9}
-    - {type: note, chan: 1, par1: A#2, par2: 1-127=4, sequencer: synthpads}
-    - {type: note, chan: 1=3, par1: C3-B3, arpeggiator: moody}
-    - {type: note, chan: 1, par1: F2, par2: 1-127=1, player: jazz}
-    - {type: note, chan: 1, par1: B2, par2: 1-127=1, player: jazz, tick: 13824}
-    - {type: cc, chan: 1, par1: 17, par2: 1-127=0, player: jazz}
-    - {type: cc, chan: 1, par1: 15, par2: 0-127=30-240, tempo: jazz}
-    - {type: cc, chan: 1, par1: 15, par2: 0-127=30-240, tempo: synthpads}
-    - {type: cc, chan: 1, par1: 15, par2: 0-127=30-240, tempo: moody}
+These are the example bank files included in this repository. The **parsed** links can be used to show how the bank contents are interpreted as data structures.
 
-router_rules:
-- {type: cc, chan: 1=2-16, par1: 7}
-- {type: cc, chan: 1, par1: 18, par2: 0-127=0-1, fluidsetting: synth.reverb.room-size}
+[bank0.yaml](/SquishBox/banks/bank0.yaml) ([parsed data](https://codebeautify.org/yaml-parser-online?url=https://raw.githubusercontent.com/albedozero/fluidpatcher/master/SquishBox/banks/bank0.yaml)) - a demo bank that shows off all the bank file keywords/features
 
-messages:
-- cc:3:91:80
-- cc:3:93:80
-
-fluidsettings:
-  synth.reverb.level: 0.9
-  synth.gain: 0.6
-
-init:
-  messages:
-  - cc:3:7:80
-  - cc:1:73:0
-  - cc:1:74:0
-```
+[bank1.yaml](/SquishBox/banks/bank1.yaml) ([parsed data](https://codebeautify.org/yaml-parser-online?url=https://raw.githubusercontent.com/albedozero/fluidpatcher/master/SquishBox/banks/bank1.yaml)) - the default bank file, designed with the goal of being useful in the largest range of performance situations
 
 ### Structure
 
