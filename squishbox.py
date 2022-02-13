@@ -131,7 +131,6 @@ class SquishBox:
         self.pno = 0
         self.togglestate = 0
         pxr.set_midimessage_callback(self.listener)
-        sb.buttoncallback = self.handle_buttonevent
         if not (pxr.currentbank and self.load_bank(pxr.currentbank)):
             while not self.load_bank(): pass
         self.patchmode()
@@ -166,6 +165,7 @@ class SquishBox:
     def patchmode(self):
         pno = -1
         while True:
+            sb.buttoncallback = self.handle_buttonevent
             sb.lcd_clear()
             if self.pno != pno:
                 if pxr.patches:
@@ -192,6 +192,7 @@ class SquishBox:
                 elif event == SB.LEFT and pxr.patches:
                     self.pno = (self.pno - 1) % len(pxr.patches)
                 elif event == SB.SELECT:
+                    sb.buttoncallback = None
                     k = sb.choose_opt(['Load Bank', 'Save Bank', 'Save Patch', 'Delete Patch',
                                        'Open Soundfont', 'Effects..', 'System Menu..'], row=1)
                     if k == 0:
@@ -219,7 +220,8 @@ class SquishBox:
                     elif k == 6:
                         self.system_menu()
                 elif event == SB.ESCAPE:
-                    if sb.confirm_choice("Reset"): sys.exit(1)
+                    sb.lcd_blink("Resetting..", row=1)
+                    sys.exit(1)
                 else: continue
                 break
 

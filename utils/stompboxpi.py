@@ -144,19 +144,21 @@ class StompBox():
                 if GPIO.input(button) == ACTIVE:
                     if self.state[button] == UP:
                         self.state[button] = DOWN
-                        if button == BTN_SW and self.buttoncallback != None:
+                        if button == BTN_SW and self.buttoncallback:
                             self.buttoncallback(button, 1)
                     elif self.state[button] == DOWN and t - self.timer[button] >= HOLD_TIME:
-                            if button == BTN_R: event = SELECT
-                            elif button in (BTN_L, BTN_ROT): event = ESCAPE
-                            if button in (BTN_R, BTN_L, BTN_ROT): self.state[button] = HELD
+                        if button == BTN_R: event = SELECT
+                        elif button in (BTN_L, BTN_ROT): event = ESCAPE
+                        elif button == BTN_SW and not self.buttoncallback: event = ESCAPE
+                        self.state[button] = HELD
                 else:
                     if self.state[button] == DOWN:
                         if button == BTN_L: event = LEFT
                         elif button == BTN_R: event = RIGHT
                         elif button == BTN_ROT: event = SELECT
-                        elif button == BTN_SW and self.buttoncallback != None:
-                            self.buttoncallback(button, 0)
+                        elif button == BTN_SW:
+                            if self.buttoncallback: self.buttoncallback(button, 0)
+                            else: event = LEFT
                     self.state[button] = UP
         if self.encvalue > 0:
             event = RIGHT
