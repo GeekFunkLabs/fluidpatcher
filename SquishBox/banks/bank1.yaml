@@ -129,15 +129,7 @@ patches:
     - {type: note, chan: 10=1}
 
 init:
-  messages: [cc:4:37:60,               # initial porta time
-             cc:4:65:127, cc:4:68:127, # porta/legato on
-             cc:5:71:0,   cc:6:71:0,   # initial filter Q
-             cc:5:73:0,   cc:6:73:0,   # initial attack time
-             cc:5:74:0,   cc:6:74:0,   # initial filter cutoff
-             cc:5:78:40,  cc:6:78:40,  # initial modenv attack
-             cc:5:79:40,  cc:6:79:40,  # initial modenv decay
-             cc:5:80:80,  cc:6:80:80,  # initial modenv sustain
-             cc:5:81:127, cc:6:81:127, # initial modenv release
-             cc:5:82:80,  cc:6:82:80,  # initial modenv->filter
-             cc:6:100:0,  cc:6:101:0,  # modify RPN pitch bend depth
-             cc:6:6:12,   cc:6:38:0]   # pitch bend = 12 steps
+  messages: [cc:4:37:60, cc:4:65:127, cc:4:68:127,
+             cc:5:71:0, cc:5:73:0, cc:5:74:0, cc:5:78:40, cc:5:79:40, cc:5:80:80, cc:5:81:127, , cc:5:82:80, 
+             cc:5:71:0, cc:5:73:0, cc:5:74:0, cc:5:78:40, cc:5:79:40, cc:5:80:80, cc:5:81:127, , cc:5:82:80, 
+             cc:6:100:0, cc:6:101:0, cc:6:6:12, cc:6:38:0]
