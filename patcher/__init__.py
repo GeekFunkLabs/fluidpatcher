@@ -11,7 +11,9 @@ from . import fswrap, fpyaml
 
 VERSION = '0.6.2'
 
-CC_DEFAULTS = [(7, 7, 100),    # volume
+CC_DEFAULTS = [(1, 6, 0),
+               (7, 7, 100),    # volume
+               (8, 8, 64),     # balance
                (10, 10, 64),   # pan
                (11, 11, 127),  # expression
                (12, 31, 0),
@@ -193,7 +195,7 @@ class Patcher:
     def update_patch(self, patch):
     # update :patch in current bank with fluidsynth's present state
         patch = self._resolve_patch(patch)
-        messages = patch.get('messages', [])
+        messages = set(patch.get('messages', []))
         for channel in range(1, self._max_channels + 1):
             info = self._fluid.program_info(channel - 1)
             if not info:
@@ -206,9 +208,9 @@ class Patcher:
                 for cc in range(first, last + 1):
                     val = self._fluid.get_cc(channel - 1, cc)
                     if val != default:
-                        messages.append(fpyaml.MidiMsg('cc', channel, cc, val))
+                        messages.add(fpyaml.MidiMsg('cc', channel, cc, val))
         if messages:
-            patch['messages'] = messages
+            patch['messages'] = list(messages)
 
     def delete_patch(self, patch):
         if isinstance(patch, int):
@@ -290,16 +292,16 @@ class Patcher:
         for patch in self._bank['patches'].values():
             for channel in patch:
                 if isinstance(channel, int):
-                    sfneeded |= {patch[channel].sf}
+                    sfneeded.add(patch[channel].sf)
         for channel in self._bank:
             if isinstance(channel, int):
-                sfneeded |= {self._bank[channel].sf}
+                sfneeded.add(self._bank[channel].sf)
         missing = set()
         for sfont in self._soundfonts - sfneeded:
             self._fluid.unload_soundfont(self.sfdir / sfont)
         for sfont in sfneeded - self._soundfonts:
             if not self._fluid.load_soundfont(self.sfdir / sfont):
-                missing |= {sfont}
+                missing.add(sfont)
         self._soundfonts = sfneeded - missing
 
     def _resolve_patch(self, patch):
