@@ -14,8 +14,8 @@ LCD_D4, LCD_D5, LCD_D6, LCD_D7 | LCD data pins D4-D7
 COLS, ROWS                     | The number of columns and rows on the LCD
 BTN_L, BTN_R                   | left and right stompbuttons*
 ROT_L, ROT_R, BTN_ROT          | rotary encoder pins*
-BTN_SW                         | a button that triggers a callback function*
-PIN_LED                        | the anode (+) pin of an LED*, controlled using **statusled_set()**
+BTN_SW                         | a button or list of buttons that trigger a callback function*
+PIN_OUT                        | a list of GPIO pins that are allowed to be set by **gpio_set**, e.g. for LEDs
 ACTIVE_HIGH                    | 1=buttons connect to 3.3V; 0=buttons connect to ground
 
 *omit or set to 0 if not connected  
@@ -32,7 +32,7 @@ A Python object that acts as an interface for buttons/encoder and a 16x2 charact
 
 **buttoncallback**
 
-The function to call when the button connected to _PIN_SW_ is pressed or released. The function should take two arguments, the pin number of the button that triggered the callback, and a value corresponding to the button state (1=pressed, 0=released).
+The function to call when the buttons connected to _PIN_SW_ are pressed or released. The function should take two arguments, the pin number of the button that triggered the callback, and a value corresponding to the button state (1=pressed, 0=released).
 
 #### Methods:
 
@@ -85,9 +85,9 @@ Lets the user choose a numeric value between _minval_ and _maxval_, with a start
 
 Allows a user to enter text strings charater by character. _SELECT_ toggles the cursor type. The underline cursor allows moving the insert point, the blink cursor allows changing the current character. _ESCAPE_ ends the text input, and asks the user to confirm the modified text via **confirm_choice()**.
 
-**statusled_set**(_state_)
+**gpio_set**(_n, state_)
 
-Sets the state of the status LED, if one is connected to _PIN_LED_. 1=on; 0=off
+Sets the state of the _n_th pin in _PIN_OUT_ to _state_. 1=on; 0=off
 
 ### Example
 
