@@ -249,6 +249,13 @@ class MainWindow(wx.Frame):
                     self.select_patch(pno=int(msg.val))
                 elif msg.val > 0:
                     self.select_patch(pno=(self.pno + msg.patch) % len(pxr.patches))
+            elif hasattr(msg, 'lcdwrite'):
+                if hasattr(msg, 'format'):
+                    val = format(msg.val, msg.format)
+                    display[2] = f"{msg.lcdwrite} {val}"
+                else:
+                    display[2] = msg.lcdwrite
+                self.ctrlboard.Refresh()
         elif hasattr(self.midimon, 'timer') and self.midimon.timer.IsRunning():
             t = ('note', 'noteoff', 'kpress', 'cc', 'prog', 'pbend', 'cpress', None).index(msg.type)
             x = ("Note On", "Note Off", "Key Pressure", "Control Change",
