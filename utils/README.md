@@ -18,7 +18,7 @@ BTN_SW                         | a button that triggers a callback function*
 PIN_LED                        | the anode (+) pin of an LED*, controlled using **statusled_set()**
 ACTIVE_HIGH                    | 1=buttons connect to 3.3V; 0=buttons connect to ground
 
-*set to 0 if not connected  
+*omit or set to 0 if not connected  
 
 The constants _HOLD_TIME, MENU_TIMEOUT, BLINK_TIME, SCROLL_TIME, POLL_TIME, BOUNCE_TIME_ at the top of _squishbox.py_ can be modified as desired, or redefined in hw_overlay.py
 
