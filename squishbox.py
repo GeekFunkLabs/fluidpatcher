@@ -8,9 +8,11 @@ import patcher
 from utils import stompboxpi as SB
 
 BUTTON_MIDICHANNEL = 16
-BUTTON_MOM_CC = 30
-BUTTON_TOG_CC = 31
+BUTTON_MOM_CC = 30, 
+BUTTON_TOG_CC = 31, 
 
+
+button_state = [0] * len(BUTTON_TOG_CC)
 
 def wifi_settings():
     x = re.search("SSID: ([^\n]+)", subprocess.check_output('iw dev wlan0 link'.split()).decode())
@@ -129,7 +131,6 @@ class SquishBox:
 
     def __init__(self):
         self.pno = 0
-        self.togglestate = 0
         pxr.set_midimessage_callback(self.listener)
         if not (pxr.currentbank and self.load_bank(pxr.currentbank)):
             while not self.load_bank(): pass
@@ -142,10 +143,10 @@ class SquishBox:
                     self.pno = int(msg.val)
                 elif msg.val > 0:
                     self.pno = (self.pno + msg.patch) % len(pxr.patches)
-            elif hasattr(msg, 'gpio'):
-                if msg.gpio == 'led':
-                    self.togglestate = 1 if msg.val else 0
-                    sb.statusled_set(self.togglestate)
+            elif hasattr(msg, 'setpin'):
+                if msg.setpin < len(button_state):
+                    button_state[msg.setpin] = 1 if msg.val else 0
+                sb.gpio_set(msg.setpin, msg.val)
             elif hasattr(msg, 'lcdwrite'):
                 if hasattr(msg, 'format'):
                     val = format(msg.val, msg.format)
@@ -156,11 +157,11 @@ class SquishBox:
             self.lastmsg = msg
 
     def handle_buttonevent(self, button, val):
-        pxr.send_event(f"cc:{BUTTON_MIDICHANNEL}:{BUTTON_MOM_CC}:{val}")
+        pxr.send_event(f"cc:{BUTTON_MIDICHANNEL}:{BUTTON_MOM_CC[button]}:{val}")
         if val:
-            self.togglestate ^= 1
-            pxr.send_event(f"cc:{BUTTON_MIDICHANNEL}:{BUTTON_TOG_CC}:{self.togglestate}")
-            sb.statusled_set(self.togglestate)
+            button_state[button] ^= 1
+            pxr.send_event(f"cc:{BUTTON_MIDICHANNEL}:{BUTTON_TOG_CC[button]}:{button_state[button]}")
+            sb.gpio_set(button, button_state[button])
 
     def patchmode(self):
         pno = -1
@@ -219,9 +220,6 @@ class SquishBox:
                         self.effects_menu()
                     elif k == 6:
                         self.system_menu()
-                elif event == SB.ESCAPE:
-                    sb.lcd_blink("Resetting..", row=1)
-                    sys.exit(1)
                 else: continue
                 break
 

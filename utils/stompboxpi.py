@@ -15,10 +15,12 @@ import RPi.GPIO as GPIO
 from RPLCD.gpio import CharLCD
 
 COLS, ROWS = 16, 2
-BTN_L, BTN_R, ROT_L, ROT_R, BTN_ROT, BTN_SW, PIN_LED = 0, 0, 0, 0, 0, 0, 0
+BTN_L, BTN_R, ROT_L, ROT_R, BTN_ROT, BTN_SW, PIN_OUT = 0, 0, 0, 0, 0, (), ()
 from .hw_overlay import *
 ACTIVE = GPIO.HIGH if ACTIVE_HIGH else GPIO.LOW
-BUTTONS = [x for x in (BTN_L, BTN_R, BTN_ROT, BTN_SW) if x]
+if isinstance(PIN_OUT, int): PIN_OUT = (PIN_OUT, )
+if isinstance(BTN_SW, int): BTN_SW = (BTN_SW, )
+BUTTONS = [x for x in (BTN_L, BTN_R, BTN_ROT, *BTN_SW) if x]
 
 # events
 NULL = 0
@@ -95,7 +97,7 @@ class StompBox():
                     GPIO.setup(channel, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
                 else:
                     GPIO.setup(channel, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        if PIN_LED: GPIO.setup(PIN_LED, GPIO.OUT)
+        for pin in PIN_OUT: GPIO.setup(pin, GPIO.OUT)
         self.state = {button: DOWN if GPIO.input(button) == ACTIVE else UP for button in BUTTONS}
         self.timer = {button: 0 for button in BUTTONS}
         self.encstate = 0b000000
@@ -144,21 +146,20 @@ class StompBox():
                 if GPIO.input(button) == ACTIVE:
                     if self.state[button] == UP:
                         self.state[button] = DOWN
-                        if button == BTN_SW and self.buttoncallback:
-                            self.buttoncallback(button, 1)
+                        if button in BTN_SW and self.buttoncallback:
+                            self.buttoncallback(BTN_SW.index(button), 1)
                     elif self.state[button] == DOWN and t - self.timer[button] >= HOLD_TIME:
-                        if button == BTN_R: event = SELECT
-                        elif button in (BTN_L, BTN_ROT): event = ESCAPE
-                        elif button == BTN_SW and not self.buttoncallback: event = ESCAPE
                         self.state[button] = HELD
+                        if button in (BTN_R, BTN_ROT): event = SELECT
+                        elif button == BTN_L: event = ESCAPE
+                        elif button in BTN_SW and not self.buttoncallback: event = ESCAPE
                 else:
+                    if self.state[button] != UP and button in BTN_SW and self.buttoncallback:
+                        self.buttoncallback(BTN_SW.index(button), 0)
                     if self.state[button] == DOWN:
                         if button == BTN_L: event = LEFT
                         elif button == BTN_R: event = RIGHT
-                        elif button == BTN_ROT: event = SELECT
-                        elif button == BTN_SW:
-                            if self.buttoncallback: self.buttoncallback(button, 0)
-                            else: event = LEFT
+                        elif button in BTN_SW and not self.buttoncallback: event = LEFT
                     self.state[button] = UP
         if self.encvalue > 0:
             event = RIGHT
@@ -244,6 +245,8 @@ class StompBox():
         # start with option :i
         # returns the choice index
         # or -1 if user backs out or time expires
+        if timeout == 0:
+            opts.append(XMARK + " cancel")
         while True:
             self.lcd_write(opts[i], row=row, scroll=scroll, rjust=rjust)
             tstop = time.time() + timeout
@@ -256,13 +259,14 @@ class StompBox():
                     i = (i - 1) % len(opts)
                     break
                 elif event == SELECT:
+                    if opts[i] == XMARK + " cancel": return -1
                     self.lcd_blink(opts[i], row, rjust=rjust)
                     return i
                 elif event == ESCAPE:
-                    self.lcd_write(' ' * COLS, row)
+                    self.lcd_write('', row)
                     return -1
             else:
-                self.lcd_write(' ' * COLS, row)
+                self.lcd_write('', row)
                 return -1
 
 
@@ -326,16 +330,15 @@ class StompBox():
                 break
             else:
                 self.LCD.cursor_mode = 'hide'
-                return ''
             if self.LCD.cursor_mode == 'hide':
                 if self.confirm_choice(text.strip()[1 - COLS:], row=row):
                     return text.strip()
                 else:
                     return ''
 
-    def statusled_set(self, state):
-        if PIN_LED:
+    def gpio_set(self, n, state):
+        if n < len(PIN_OUT):
             if state == 1:
-                GPIO.output(PIN_LED, GPIO.HIGH)
+                GPIO.output(PIN_OUT[n], GPIO.HIGH)
             else:
-                GPIO.output(PIN_LED, GPIO.LOW)
+                GPIO.output(PIN_OUT[n], GPIO.LOW)
