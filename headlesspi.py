@@ -13,8 +13,10 @@ import patcher
 CTRLS_MIDI_CHANNEL = 1
 DEC_PATCH = 21          # decrement the patch number
 INC_PATCH = 22          # increment the patch number
-SELECT_PATCH = 23       # choose a patch using a knob or slider
-BANK_INC = 24           # load the next bank
+BANK_INC = 23           # load the next bank
+
+# a continuous controller e.g. knob/slider can be used to select patches by value
+SELECT_PATCH = 24
 
 # hold this button down for 7 seconds to safely shut down the Pi
 # if this = None the patch change buttons are used
