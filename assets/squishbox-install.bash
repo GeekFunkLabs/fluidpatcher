@@ -49,7 +49,7 @@ failout() {
 }
 
 sysupdate() {
-    if ! $UPDATED; then
+    if ! $UPDATED || $UPGRADE; then
         echo "Updating apt indexes..."
         if { sudo apt-get update 2>&1 || echo E: update failed; } | grep '^[WE]:'; then
             warning "Updating incomplete"
@@ -72,6 +72,7 @@ sysupdate() {
 apt_pkg_install() {
     APT_CHK=$(dpkg-query -W -f='${Status}\n' "$1" 2> /dev/null | grep "install ok installed")
     if [[ $APT_CHK == "" ]]; then
+	    sysupdate
         echo "Installing package $1..."
         if { sudo DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install "$1" 2>&1 \
             || echo E: install failed; } | grep '^[WE]:'; then
@@ -129,7 +130,7 @@ https://github.com/albedozero/fluidpatcher/issues
 
 ENVCHECK=true
 if test -f /etc/os-release; then
-    if ! grep -q "raspbian" /etc/os-release; then
+    if ! { uname -a | grep -q "raspberrypi"; } then
         ENVCHECK=false
     fi
     versioncode=`sed -n '/^VERSION_CODENAME=/s|^.*=||p' /etc/os-release`
@@ -157,6 +158,18 @@ if promptoryes "Install/update FluidPatcher version $NEW_FP_VER?"; then
     if promptorno "Overwrite existing banks/settings?"; then
         overwrite="yes"
     fi 
+fi
+
+if command -v fluidsynth > /dev/null; then
+    INST_VER=`fluidsynth --version | sed -n '/runtime version/s|[^0-9\.]*||gp'`
+    echo "Installed FluidSynth is version $INST_VER"
+else
+    PKG_VER=`apt-cache policy fluidsynth | sed -n '/Candidate:/s/  Candidate: //p'`
+    echo "FluidSynth version $PKG_VER will be installed"
+fi
+BUILD_VER=`curl -s https://github.com/FluidSynth/fluidsynth/releases/latest | sed -e 's|.*tag/v||' -e 's|">redirected.*||'`
+if promptorno "Compile and install FluidSynth $BUILD_VER from source?"; then
+    compile="yes"
 fi
 
 if promptorno "OK to upgrade your system (if possible)?"; then
@@ -196,23 +209,10 @@ elif [[ $startup == 2 ]]; then
     query "    MIDI channel for controls" "use default"; ctrls_channel=$response
     query "    Next patch button CC" "use default"; incpatch=$response
     query "    Previous patch button CC" "use default"; decpatch=$response
-    query "    Patch select knob CC" "use default"; selectpatch=$response
     query "    Bank change button CC" "use default"; bankinc=$response
 fi
 
 inform "\nOptional tasks/add-ons:"
-
-if command -v fluidsynth > /dev/null; then
-    INST_VER=`fluidsynth --version | sed -n '/runtime version/s|[^0-9\.]*||gp'`
-    echo "Installed FluidSynth is version $INST_VER"
-else
-    PKG_VER=`apt-cache policy fluidsynth | sed -n '/Candidate:/s/  Candidate: //p'`
-    echo "FluidSynth version $PKG_VER will be installed"
-fi
-BUILD_VER=`curl -s https://github.com/FluidSynth/fluidsynth/releases/latest | sed -e 's|.*tag/v||' -e 's|">redirected.*||'`
-if promptorno "Compile and install FluidSynth $BUILD_VER from source?"; then
-    compile="yes"
-fi
 
 if promptorno "Set up web-based file manager?"; then
     filemgr="yes"
@@ -232,6 +232,7 @@ if ! promptoryes "Option selection complete. OK to proceed?"; then
 fi
 warning "\nThis may take some time ... go make some coffee.\n"
 
+
 ## do things
 
 # friendly permissions for web file manager
@@ -250,12 +251,12 @@ if [[ $mirror != "none" ]]; then
     echo "deb $mirror $versioncode main contrib non-free rpi" | sudo tee -a /etc/apt/sources.list
     echo "deb-src $mirror $versioncode main contrib non-free rpi" | sudo tee -a /etc/apt/sources.list
 fi
-sysupdate
+if $UPGRADE; then sysupdate; fi
 apt_pkg_install "git" required
 apt_pkg_install "python3-pip" required
-apt_pkg_install "fluidsynth" required
 apt_pkg_install "fluid-soundfont-gm" required
 apt_pkg_install "jackd2" required
+# allow JACK to set real-time priority for audio
 sudo mv /etc/security/limits.d/audio.conf.disabled /etc/security/limits.d/audio.conf 2> /dev/null
 apt_pkg_install "ladspa-sdk"
 apt_pkg_install "tap-plugins"
@@ -264,6 +265,7 @@ pip_install "oyaml" required
 pip_install "RPi.GPIO" $squishbox_pkg
 pip_install "RPLCD" $squishbox_pkg
 
+# install/update fluidpatcher
 if [[ $update == "yes" ]]; then
     inform "Installing/Updating FluidPatcher version $NEW_FP_VER ..."
     rm -rf fluidpatcher
@@ -284,6 +286,37 @@ if [[ $update == "yes" ]]; then
     cd ..
     rm -rf fluidpatcher
     ln -s /usr/share/sounds/sf2/FluidR3_GM.sf2 $installdir/SquishBox/sf2/
+fi
+
+# install/compile fluidsynth
+if [[ $compile != "yes" ]]; then
+    apt_pkg_install "fluidsynth" required
+else
+    inform "Compiling latest FluidSynth from source..."
+    if grep -q "#deb-src" /etc/apt/sources.list; then
+        sudo sed -i "/^#deb-src/s|#||" /etc/apt/sources.list
+    fi
+    UPDATED=false
+    apt_pkg_install "libjack-jackd2-dev"
+    echo "Getting build dependencies..."
+    if { sudo DEBIAN_FRONTEND=noninteractive apt-get build-dep fluidsynth -y --no-install-recommends 2>&1 \
+        || echo E: install failed; } | grep '^[WE]:'; then
+        warning "Couldn't get all dependencies!"
+    fi
+    rm -rf fluidsynth
+    git clone https://github.com/FluidSynth/fluidsynth
+    mkdir fluidsynth/build
+    cd fluidsynth/build
+    echo "Configuring..."
+    cmake ..
+    echo "Compiling..."
+    make
+    if ! { sudo make install; } then
+        warning "Unable to compile/install FluidSynth $BUILD_VER"
+    fi
+    sudo ldconfig
+    cd ../..
+    rm -rf fluidsynth
 fi
 
 # set up audio
@@ -353,8 +386,6 @@ EOF
         sed -i "/^INC_PATCH/s|[0-9]\+|$incpatch|" $installdir/headlesspi.py; fi
     if [[ $bankinc != "use default" ]]; then
         sed -i "/^BANK_INC/s|[0-9]\+|$bankinc|" $installdir/headlesspi.py; fi
-    if [[ $selectpatch != "use default" ]]; then
-        sed -i "/^SELECT_PATCH/s|[0-9]\+|$selectpatch|" $installdir/headlesspi.py; fi
     if [[ $ctrls_channel != "use default" ]]; then
         sed -i "/^CTRLS_MIDI_CHANNEL/s|[0-9]\+|$ctrls_channel|" $installdir/headlesspi.py; fi
     ASK_TO_REBOOT=true
@@ -362,36 +393,6 @@ elif [[ $startup == "3" ]]; then
     inform "Disabling startup service..."
     sudo systemctl disable squishbox.service
     ASK_TO_REBOOT=true
-fi
-
-if [[ $compile == "yes" ]]; then
-    # compile latest FluidSynth
-    inform "Compiling latest FluidSynth from source..."
-    if grep -q "#deb-src" /etc/apt/sources.list; then
-        sudo sed -i "/^#deb-src/s|#||" /etc/apt/sources.list
-    fi
-    UPDATED=false
-    sysupdate
-    apt_pkg_install "libjack-jackd2-dev"
-    echo "Getting build dependencies..."
-    if { sudo DEBIAN_FRONTEND=noninteractive apt-get build-dep fluidsynth -y --no-install-recommends 2>&1 \
-        || echo E: install failed; } | grep '^[WE]:'; then
-        warning "Couldn't get all dependencies!"
-    fi
-    rm -rf fluidsynth
-    git clone https://github.com/FluidSynth/fluidsynth
-    mkdir fluidsynth/build
-    cd fluidsynth/build
-    echo "Configuring..."
-    cmake ..
-    echo "Compiling..."
-    make
-    if ! { sudo make install; } then
-        warning "Unable to compile/install FluidSynth $BUILD_VER"
-    fi
-    sudo ldconfig
-    cd ../..
-    rm -rf fluidsynth
 fi
 
 if [[ $filemgr == "yes" ]]; then
@@ -451,6 +452,7 @@ EOF
 fi
 
 if [[ $soundfonts == "yes" ]]; then
+    # download extra soundfonts
     inform "Downloading free soundfonts..."
     sysupdate
     apt_pkg_install "unzip"
