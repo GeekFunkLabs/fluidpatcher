@@ -11,19 +11,17 @@ from . import fswrap, fpyaml
 
 VERSION = '0.6.2'
 
-CC_DEFAULTS = [(1, 6, 0),
-               (7, 7, 100),    # volume
-               (8, 8, 64),     # balance
-               (10, 10, 64),   # pan
-               (11, 11, 127),  # expression
-               (12, 31, 0),
-               (44, 63, 0), 
-               (65, 65, 0),    # portamento on/off
-               (70, 79, 64),   # sound controllers
-               (80, 83, 0),
-               (84, 84, 255),  # roland portamento
-               (85, 95, 0),
-               (102, 119, 0)]
+CC_DEFAULTS = [0] * 120
+CC_DEFAULTS[0] = -1             # bank select
+CC_DEFAULTS[7] = 100            # volume
+CC_DEFAULTS[8] = 64             # balance
+CC_DEFAULTS[10] = 64            # pan
+CC_DEFAULTS[11] = 127           # expression
+CC_DEFAULTS[32] = -1            # bank select LSB
+CC_DEFAULTS[43] = 127           # expression LSB
+CC_DEFAULTS[70:80] = [64] * 10  # sound controls
+CC_DEFAULTS[84] = 255           # portamento control
+CC_DEFAULTS[96:102] = [-1] * 6  # RPN/NRPN controls
 
 SYNTH_DEFAULTS = {'synth.chorus.active': 1, 'synth.reverb.active': 1,
                   'synth.chorus.depth': 8.0, 'synth.chorus.level': 2.0,
@@ -204,11 +202,11 @@ class Patcher:
             sfont, bank, prog = info
             sfrel = Path(sfont).relative_to(self.sfdir).as_posix()
             patch[channel] = fpyaml.SFPreset(sfrel, bank, prog)
-            for first, last, default in CC_DEFAULTS:
-                for cc in range(first, last + 1):
-                    val = self._fluid.get_cc(channel - 1, cc)
-                    if val != default:
-                        messages.add(fpyaml.MidiMsg('cc', channel, cc, val))
+            for cc, default in enumerate(CC_DEFAULTS):
+                if default < 0: continue
+                val = self._fluid.get_cc(channel - 1, cc)
+                if val != default:
+                    messages.add(fpyaml.MidiMsg('cc', channel, cc, val))
         if messages:
             patch['messages'] = list(messages)
 
