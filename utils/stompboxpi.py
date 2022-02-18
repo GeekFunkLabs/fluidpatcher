@@ -246,7 +246,7 @@ class StompBox():
         # returns the choice index
         # or -1 if user backs out or time expires
         if timeout == 0:
-            opts.append(XMARK + " cancel")
+            opts += (f"{XMARK} cancel", )
         while True:
             self.lcd_write(opts[i], row=row, scroll=scroll, rjust=rjust)
             tstop = time.time() + timeout
