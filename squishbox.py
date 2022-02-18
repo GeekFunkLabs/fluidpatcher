@@ -244,7 +244,7 @@ class SquishBox:
                     i = (i - 1) % len(pxr.sfpresets)
                     warn = pxr.select_sfpreset(i)
                 elif event == SB.SELECT:
-                    k = sb.choose_opt(['Add as Patch', 'Open Soundfont', 'Load Bank'], row=1)
+                    k = sb.choose_opt(['Add as Patch', 'Open Soundfont', 'Back'], row=1)
                     if k == 0:
                         sb.lcd_write("Add as Patch:", 0)
                         newname = sb.char_input(p.name)
@@ -256,11 +256,9 @@ class SquishBox:
                             i = 0
                             warn = pxr.select_sfpreset(i)
                     elif k == 2:
-                        if self.load_bank(): return
-                elif event == SB.ESCAPE:
-                    sb.lcd_clear()
-                    pxr.load_bank()
-                    return
+                        sb.lcd_clear()
+                        pxr.load_bank()
+                        return
                 else: continue
                 break
 
