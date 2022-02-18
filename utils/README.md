@@ -15,7 +15,7 @@ COLS, ROWS                     | The number of columns and rows on the LCD
 BTN_L, BTN_R                   | left and right stompbuttons*
 ROT_L, ROT_R, BTN_ROT          | rotary encoder pins*
 BTN_SW                         | a button or list of buttons that trigger a callback function*
-PIN_OUT                        | a list of GPIO pins that are allowed to be set by **gpio_set**, e.g. for LEDs
+PIN_OUT                        | a list of GPIO pins that are allowed to be set by **gpio_set**, e.g. for LEDs*
 ACTIVE_HIGH                    | 1=buttons connect to 3.3V; 0=buttons connect to ground
 
 *omit or set to 0 if not connected  
@@ -75,7 +75,7 @@ Displays _text_ and allows the user to toggle between a checkmark or an X. Retur
 
 **choose_opt**(_opts, i=0, row=0, scroll=False, timeout=MENU_TIMEOUT, rjust=False_)
 
-Allows the user to choose from a list of _opts_. The index _i_ sets the initial option. Returns the index of the option selected. Canceling or waiting longer than _timeout_ returns -1. 
+Allows the user to choose from a list of _opts_. The index _i_ sets the initial option. Returns the index of the option selected. Canceling or waiting longer than _timeout_ returns -1.
 
 **choose_val**(_val, inc, minval, maxval, fmt=f'>{COLS}', timeout=MENU_TIMEOUT_)
 
