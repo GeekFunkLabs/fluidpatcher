@@ -372,6 +372,7 @@ Type=simple
 ExecStart=$installdir/headlesspi.py
 User=pi
 WorkingDirectory=$installdir
+Environment="JACK_NO_AUDIO_RESERVATION=1"
 Restart=on-failure
 
 [Install]
