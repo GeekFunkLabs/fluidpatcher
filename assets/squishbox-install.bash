@@ -289,9 +289,7 @@ if [[ $update == "yes" ]]; then
 fi
 
 # install/compile fluidsynth
-if [[ $compile != "yes" ]]; then
-    apt_pkg_install "fluidsynth" required
-else
+if [[ $compile == "yes" ]]; then
     inform "Compiling latest FluidSynth from source..."
     if grep -q "#deb-src" /etc/apt/sources.list; then
         sudo sed -i "/^#deb-src/s|#||" /etc/apt/sources.list
@@ -317,6 +315,8 @@ else
     sudo ldconfig
     cd ../..
     rm -rf fluidsynth
+elif [[ ! $INST_VER ]]; then
+    apt_pkg_install "fluidsynth" required
 fi
 
 # set up audio
