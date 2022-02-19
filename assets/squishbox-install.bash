@@ -322,7 +322,7 @@ fi
 # set up audio
 if (( $audiosetup > 0 )); then
     inform "Setting up audio..."
-    echo "/usr/bin/jackd --silent -R -d alsa -s -P" | sudo tee /etc/jackdrc
+    echo "/usr/bin/jackd --silent --realtime -d alsa --softmode --playback -S" > ~/.jackdrc
     if (( $audiosetup > 1 )); then
         AUDIO=`echo ${AUDIOCARDS[$audiosetup-2]} | cut -d' ' -f 1`
         if [[ $AUDIO == "Headphones" ]]; then
@@ -356,8 +356,6 @@ Restart=on-failure
 WantedBy=multi-user.target
 EOF
     sudo systemctl enable squishbox.service
-    sed -i "/  audio.driver/d" $installdir/SquishBox/squishboxconf.yaml
-    sed -i "/^fluidsettings:/a\  audio.driver: jack"  $installdir/SquishBox/squishboxconf.yaml
     ASK_TO_REBOOT=true
 elif [[ $startup == "2" ]]; then
     inform "Enabling headless Pi synth startup service..."
@@ -379,8 +377,6 @@ Restart=on-failure
 WantedBy=multi-user.target
 EOF
     sudo systemctl enable squishbox.service
-    sed -i "/  audio.driver/d" $installdir/SquishBox/squishboxconf.yaml
-    sed -i "/^fluidsettings:/a\  audio.driver: alsa"  $installdir/SquishBox/squishboxconf.yaml
     if [[ $decpatch != "use default" ]]; then
         sed -i "/^DEC_PATCH/s|[0-9]\+|$decpatch|" $installdir/headlesspi.py; fi
     if [[ $incpatch != "use default" ]]; then
