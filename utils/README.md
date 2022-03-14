@@ -61,9 +61,9 @@ Writes _text_ to _row_, right-justified if _rjust_ is _True_. If the text is lon
 
 Writes _text_ to _row_ and blinks it _n_ times.
 
-**progresswheel_start**(_row=1_)
+**progresswheel_start**()
 
-Show a spinning progress wheel in the rightmost column of _row_. Keeps spinning after the function returns so the main program can do things.
+Show a spinning progress wheel in the lower right corner of the display. Keeps spinning after the function returns so the main program can do things.
 
 **progresswheel_stop**()
 
