@@ -27,7 +27,7 @@ def wifi_settings():
         opts = [*networks, 'Rescan..']
         j = sb.choose_opt(opts, row=1, scroll=True, timeout=0)
         if j < 0: return
-        elif j == len(opts) - 1:
+        elif j == len(networks):
             sb.lcd_write("scanning ", 1, rjust=True, now=True)
             sb.progresswheel_start()
             x = subprocess.check_output('sudo iw wlan0 scan'.split()).decode()
