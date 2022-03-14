@@ -161,12 +161,9 @@ class StompBox():
                         elif button == BTN_R: event = RIGHT
                         elif button in BTN_SW and not self.buttoncallback: event = LEFT
                     self.state[button] = UP
-        if self.encvalue > 0:
-            event = RIGHT
-            self.encvalue -= 1
-        elif self.encvalue < 0:
-            event = LEFT
-            self.encvalue += 1
+        if self.encvalue > 0: event = RIGHT
+        elif self.encvalue < 0: event = LEFT
+        self.encvalue = 0
         time.sleep(POLL_TIME)
         return event
 
