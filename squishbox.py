@@ -143,31 +143,30 @@ class SquishBox:
                     self.pno = int(msg.val)
                 elif msg.val > 0:
                     self.pno = (self.pno + msg.patch) % len(pxr.patches)
-            elif hasattr(msg, 'setpin'):
-                if msg.setpin < len(button_state):
-                    button_state[msg.setpin] = 1 if msg.val else 0
-                sb.gpio_set(msg.setpin, msg.val)
             elif hasattr(msg, 'lcdwrite'):
                 if hasattr(msg, 'format'):
                     val = format(msg.val, msg.format)
                     self.patchdisplay[1] = f"{msg.lcdwrite} {val}"
                 else:
                     self.patchdisplay[1] = msg.lcdwrite
+            elif hasattr(msg, 'setpin'):
+                if msg.setpin < len(button_state):
+                    button_state[msg.setpin] = 1 if msg.val else 0
+                sb.gpio_set(msg.setpin, msg.val)
         else:
             self.lastmsg = msg
 
-    def handle_buttonevent(self, button, val):
-        pxr.send_event(f"cc:{BUTTON_MIDICHANNEL}:{BUTTON_MOM_CC[button]}:{val}")
+    def handle_buttonevent(self, n, val):
+        pxr.send_event(f"cc:{BUTTON_MIDICHANNEL}:{BUTTON_MOM_CC[n]}:{val}")
         if val:
-            button_state[button] ^= 1
-            pxr.send_event(f"cc:{BUTTON_MIDICHANNEL}:{BUTTON_TOG_CC[button]}:{button_state[button]}")
-            sb.gpio_set(button, button_state[button])
+            button_state[n] ^= 1
+            pxr.send_event(f"cc:{BUTTON_MIDICHANNEL}:{BUTTON_TOG_CC[n]}:{button_state[n]}")
+            sb.gpio_set(n, button_state[n])
 
     def patchmode(self):
         pno = -1
         while True:
             sb.buttoncallback = self.handle_buttonevent
-            sb.lcd_clear()
             if self.pno != pno:
                 if pxr.patches:
                     pno = self.pno
@@ -228,7 +227,6 @@ class SquishBox:
         warn = pxr.select_sfpreset(i)
         while True:
             p = pxr.sfpresets[i]
-            sb.lcd_clear()
             sb.lcd_write(p.name, 0, scroll=True)
             if warn:
                 sb.lcd_write('; '.join(warn), 1, scroll=True)
@@ -256,8 +254,9 @@ class SquishBox:
                             i = 0
                             warn = pxr.select_sfpreset(i)
                     elif k == 2:
-                        sb.lcd_clear()
+                        sb.progresswheel_start()
                         pxr.load_bank()
+                        sb.progresswheel_stop()
                         return
                 else: continue
                 break
