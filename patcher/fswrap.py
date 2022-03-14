@@ -752,11 +752,11 @@ class Synth:
 
     def router_addrule(self, type, chan, par1, par2, **apars):
         if 'type2' in apars:
-            self.xrules.append(TransRule(type, chan, par1, par2, apars['type2']))
+            self.xrules.insert(0, TransRule(type, chan, par1, par2, apars['type2']))
         elif apars:
-            self.xrules.append(ExtRule(type, chan, par1, par2, **apars))
+            self.xrules.insert(0, ExtRule(type, chan, par1, par2, **apars))
             if 'arpeggiator' in apars:
-                self.xrules.append(ExtRule('noteoff', chan, par1, None, **apars))
+                self.xrules.insert(0, ExtRule('noteoff', chan, par1, None, **apars))
         else:
             rule = FL.new_fluid_midi_router_rule()
             if chan:
