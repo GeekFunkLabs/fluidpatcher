@@ -40,8 +40,8 @@ patches: # indented list of patches
     router_rules:
     - {type: note, chan: 1=2, par2: 1-127=127} # all notes max volume like a retro synth
     - {type: cc, chan: 1=2}
-    - {type: pbend, chan: 1=2, par1: 0-8192}
-    - {type: pbend, chan: 1=2, type2: cc, par2: 74, par1: 8192-16383=0-127} # can route midi messages from one type to another
+    - {type: pbend, chan: 1=2, par1: 8192-16383}
+    - {type: pbend, chan: 1=2, type2: cc, par2: 74, par1: 0-8192=127-0} # can route midi messages from one type to another
       # route a control knob to each of the delay lines
     - {type: cc, chan: 1, par1: 14, par2: 0-127=0-1, ladspafx: delayline1, port: Delay}
     - {type: cc, chan: 1, par1: 14, par2: 0-127=0-1, ladspafx: delayline2, port: Delay}
