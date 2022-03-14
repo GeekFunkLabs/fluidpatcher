@@ -124,11 +124,16 @@ class StompBox():
             self.encvalue -= 1
 
     def update(self):
+        # call regularly to update display and poll buttons/encoder
         t = time.time()
         for r, text in enumerate(self.lines):
             if text == "": continue
-            self.LCD.cursor_pos = r, 0
-            self.LCD.write_string(text.strip(PADLEFT)[:COLS])
+            towrite = text.strip(PADLEFT)[:COLS]
+            for c, newchar, oldchar in zip(range(COLS), towrite, self.written[r]):
+                if newchar != oldchar:
+                    self.LCD.cursor_pos = r, c
+                    self.LCD.write_string(newchar)
+            self.written[r] = towrite
             if len(text) > COLS:
                 if t - self.lastscroll < SCROLL_TIME: continue
                 self.lastscroll = t
@@ -181,6 +186,7 @@ class StompBox():
     def lcd_clear(self):
         self.LCD.clear()
         self.lines = [""] * ROWS
+        self.written = [" " * COLS] * ROWS
 
     def lcd_write(self, text, row=0, scroll=False, rjust=False, now=False):
         if scroll and len(text) > COLS:
@@ -201,21 +207,23 @@ class StompBox():
             self.LCD.write_string(text)
             time.sleep(BLINK_TIME)
 
-    def progresswheel_start(self, row=1):
+    def progresswheel_start(self):
         self.spinning = True
-        self.spin = threading.Thread(target=self._progresswheel_spin, args=(row,))
+        self.spin = threading.Thread(target=self._progresswheel_spin)
         self.spin.start()
     
-    def _progresswheel_spin(self, row):
+    def _progresswheel_spin(self):
         while self.spinning:
             for x in BACKSLASH, '|', '/', '-':
-                self.LCD.cursor_pos = row, COLS - 1
+                self.LCD.cursor_pos = ROWS - 1, COLS - 1
                 self.LCD.write_string(x)
                 time.sleep(BLINK_TIME)
 
     def progresswheel_stop(self):
         self.spinning = False
         self.spin.join()
+        self.LCD.cursor_pos = ROWS - 1, COLS - 1
+        self.LCD.write_string(' ')
 
     def confirm_choice(self, text='', row=1, timeout=MENU_TIMEOUT):
         self.lcd_write(text[:COLS - 1], row=row, now=True)
