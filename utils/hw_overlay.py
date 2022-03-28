@@ -1,6 +1,5 @@
 """
 Description: model-dependent wiring and behavior
-"""
 
 # models 0001-0009 (v2 wiring)
 # LCD pins on exterior edge of board - easier for homebrew/perfboard builds
@@ -24,4 +23,21 @@ LCD_D6 = 5
 LCD_D7 = 6
 BTN_L = 2
 BTN_R = 3
+ACTIVE_HIGH = 0
+
+"""
+
+# models 0100-
+# SquishBox PCB v4
+LCD_RS = 4
+LCD_EN = 17
+LCD_D4 = 9
+LCD_D5 = 11
+LCD_D6 = 5
+LCD_D7 = 6
+ROT_L = 2
+ROT_R = 3
+BTN_R = 27
+BTN_SW = 22
+PIN_OUT = 10
 ACTIVE_HIGH = 0
