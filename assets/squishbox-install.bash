@@ -51,7 +51,7 @@ failout() {
 sysupdate() {
     if ! $UPDATED || $UPGRADE; then
         echo "Updating apt indexes..."
-        if { sudo apt-get update --allow-releaseinfo-change 2>&1 || echo E: update failed; } | grep '^[WE]:'; then
+        if { sudo apt-get update 2>&1 || echo E: update failed; } | grep '^[WE]:'; then
             warning "Updating incomplete"
         fi
         sleep 3
