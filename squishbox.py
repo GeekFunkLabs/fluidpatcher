@@ -81,8 +81,8 @@ def update_device():
     sb.lcd_write(f"version {patcher.VERSION}", 0, scroll=True)
     sb.lcd_write("checking ", 1, rjust=True, now=True)
     sb.progresswheel_start()
-    x = subprocess.check_output(['curl', 'https://raw.githubusercontent.com/albedozero/fluidpatcher/master/patcher/__init__.py'])
-    newver = re.search("VERSION = '([0-9\.]+)'", x.decode())[1]
+    x = subprocess.check_output(('curl', '-s', 'https://github.com/albedozero/fluidpatcher/releases/latest'))
+    newver = re.search("fluidpatcher/releases/tag/v([0-9\.]+)", x.decode())[1]
     subprocess.run(['sudo', 'apt-get', 'update'])
     u = subprocess.check_output(['sudo', 'apt-get', 'upgrade', '-sy'])
     sb.progresswheel_stop()
@@ -103,12 +103,14 @@ def update_device():
     try:
         if fup:
             with tempfile.TemporaryDirectory() as tmp:
-                subprocess.run(['git', 'clone', 'https://github.com/albedozero/fluidpatcher', tmp])
-                for src in Path(tmp).rglob('*'):
+                wg = subprocess.run(('wget', '-qO-', 'https://github.com/albedozero/fluidpatcher/tarball/master'), stdout=subprocess.PIPE)
+                subprocess.run(('tar', '-xzC', tmp), stdin=wg.stdout)
+                base = next(Path(tmp).glob('albedozero-fluidpatcher-*'))
+                for src in Path(base).rglob('*'):
                     if not src.is_file(): continue
                     if src.suffix == ".yaml": continue
                     if src.name == "hw_overlay.py": continue
-                    dest = Path.cwd() / src.relative_to(tmp)
+                    dest = Path.cwd() / src.relative_to(base)
                     if not dest.parent.exists():
                         dest.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copyfile(src, dest)

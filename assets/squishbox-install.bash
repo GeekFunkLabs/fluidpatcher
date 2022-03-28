@@ -72,7 +72,7 @@ sysupdate() {
 apt_pkg_install() {
     APT_CHK=$(dpkg-query -W -f='${Status}\n' "$1" 2> /dev/null | grep "install ok installed")
     if [[ $APT_CHK == "" ]]; then
-	    sysupdate
+        sysupdate
         echo "Installing package $1..."
         if { sudo DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install "$1" 2>&1 \
             || echo E: install failed; } | grep '^[WE]:'; then
@@ -124,6 +124,8 @@ warning "Always be careful when running scripts and commands copied
 from the internet. Ensure they are from a trusted source."
 echo "If you want to see what this script does before running it,
 hit ctrl-C and enter 'curl -L git.io/squishbox | more'
+View the full source code at
+https://github.com/albedozero/fluidpatcher
 Report issues with this script at
 https://github.com/albedozero/fluidpatcher/issues
 "
@@ -152,12 +154,12 @@ if test -f "$installdir/patcher/__init__.py"; then
     FP_VER=`sed -n '/^VERSION/s|[^0-9\.]*||gp' $installdir/patcher/__init__.py`
     echo "Installed FluidPatcher is version $FP_VER"
 fi
-NEW_FP_VER=`curl -s https://raw.githubusercontent.com/albedozero/fluidpatcher/master/patcher/__init__.py | sed -n '/^VERSION/s|[^0-9\.]*||gp'`
+NEW_FP_VER=`curl -s https://github.com/albedozero/fluidpatcher/releases/latest | sed -e 's|.*tag/v||' -e 's|">redirected.*||'`
 if promptoryes "Install/update FluidPatcher version $NEW_FP_VER?"; then
     update="yes"
     if promptorno "Overwrite existing banks/settings?"; then
         overwrite="yes"
-    fi 
+    fi
 fi
 
 if command -v fluidsynth > /dev/null; then
@@ -242,8 +244,9 @@ sudo mv -f /etc/xdg/autostart/piwiz.desktop /etc/xdg/autostart/piwiz.disabled 2>
 # add pi user to audio group
 sudo usermod -a -G audio pi
 # allow JACK to grant self-connect requests
-sed -i "/export JACK_NO_AUDIO_RESERVATION/d" $HOME/.profile
-echo "export JACK_NO_AUDIO_RESERVATION=1" >> $HOME/.profile
+if ! grep -q "export JACK_NO_AUDIO_RESERVATION=1" $HOME/.profile; then
+    echo "export JACK_NO_AUDIO_RESERVATION=1" >> $HOME/.profile
+fi
 
 # get dependencies
 inform "Installing/Updating required software..."
@@ -252,7 +255,6 @@ if [[ $mirror != "none" ]]; then
     echo "deb-src $mirror $versioncode main contrib non-free rpi" | sudo tee -a /etc/apt/sources.list
 fi
 if $UPGRADE; then sysupdate; fi
-apt_pkg_install "git" required
 apt_pkg_install "python3-pip" required
 apt_pkg_install "fluid-soundfont-gm" required
 apt_pkg_install "jackd2" required
@@ -269,10 +271,9 @@ pip_install "RPLCD" $squishbox_pkg
 if [[ $update == "yes" ]]; then
     inform "Installing/Updating FluidPatcher version $NEW_FP_VER ..."
     rm -rf fluidpatcher
-    if ! { git clone https://github.com/albedozero/fluidpatcher; } then
-        failout "Unable to download fluidpatcher"
-    fi
-    cd fluidpatcher
+    fptemp=`mkdtemp -dp .`
+    wget -qO- https://github.com/albedozero/fluidpatcher/tarball/master | tar -xzC $fptemp
+    cd $fptemp/albedozero-fluidpatcher-*
     if [[ $overwrite == "yes" ]]; then
         find . -type d -exec mkdir -p $installdir/{} \;
         find . -type f ! -name "hw_overlay.py" -exec cp -f {} $installdir/{} \;
@@ -283,8 +284,8 @@ if [[ $update == "yes" ]]; then
         find . -type f -name "hw_overlay.py" -exec cp -n {} $installdir/{} \;
         find . -type f -name "*.yaml" -exec cp -n {} $installdir/{} \;        
     fi
-    cd ..
-    rm -rf fluidpatcher
+    cd ../..
+    rm -rf $fptemp
     ln -s /usr/share/sounds/sf2/FluidR3_GM.sf2 $installdir/SquishBox/sf2/
 fi
 
@@ -301,10 +302,11 @@ if [[ $compile == "yes" ]]; then
         || echo E: install failed; } | grep '^[WE]:'; then
         warning "Couldn't get all dependencies!"
     fi
-    rm -rf fluidsynth
-    git clone https://github.com/FluidSynth/fluidsynth
-    mkdir fluidsynth/build
-    cd fluidsynth/build
+    fstemp=`mkdtemp -dp .`
+    wget -qO- https://github.com/FluidSynth/fluidsynth/tarball/master | tar -xzC $fstemp
+    builddir=`ls -d $fstemp/FluidSynth-fluidsynth-*`/build
+    mkdir $builddir
+    cd $builddir
     echo "Configuring..."
     cmake ..
     echo "Compiling..."
@@ -313,8 +315,8 @@ if [[ $compile == "yes" ]]; then
         warning "Unable to compile/install FluidSynth $BUILD_VER"
     fi
     sudo ldconfig
-    cd ../..
-    rm -rf fluidsynth
+    cd ../../..
+    rm -rf $fstemp
 elif [[ ! $INST_VER ]]; then
     apt_pkg_install "fluidsynth" required
 fi
@@ -433,7 +435,7 @@ EOF
         sudo sed -i "/\[Service\]/aUMask=0002" /lib/systemd/system/php$phpver-fpm.service
     fi
     # install and configure [tinyfilemanager](https://tinyfilemanager.github.io)
-    wget -q raw.githubusercontent.com/prasathmani/tinyfilemanager/master/tinyfilemanager.php
+    wget -q https://raw.githubusercontent.com/prasathmani/tinyfilemanager/master/tinyfilemanager.php
     sed -i "/define('APP_TITLE'/cdefine('APP_TITLE', 'SquishBox Manager');" tinyfilemanager.php
     sed -i "/'admin' =>/d;/'user' =>/d" tinyfilemanager.php
     sed -i "/\$auth_users =/a    '$fmgr_user' => '$fmgr_hash'" tinyfilemanager.php
@@ -443,7 +445,7 @@ EOF
     sed -i '/aceMode/s|,"yaml":"YAML"||' tinyfilemanager.php
     sed -i 's|"aceMode":{|&"yaml":"YAML",|' tinyfilemanager.php
     sudo mv -f tinyfilemanager.php /var/www/html/index.php
-    wget -q geekfunklabs.com/gfl_logo.png
+    wget -q https://geekfunklabs.com/gfl_logo.png
     sudo mv -f gfl_logo.png /var/www/html/
     ASK_TO_REBOOT=true
 fi
@@ -451,11 +453,7 @@ fi
 if [[ $soundfonts == "yes" ]]; then
     # download extra soundfonts
     inform "Downloading free soundfonts..."
-    sysupdate
-    apt_pkg_install "unzip"
-    wget -nv --show-progress geekfunklabs.com/squishbox_soundfonts.zip
-    unzip -na squishbox_soundfonts.zip -d $installdir/SquishBox
-    rm squishbox_soundfonts.zip
+    wget -qO- --show-progress https://geekfunklabs.com/squishbox_soundfonts.tar.gz | tar -xzC $installdir/SquishBox --skip-old-files
 fi
 
 success "Tasks complete!"
