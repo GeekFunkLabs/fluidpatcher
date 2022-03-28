@@ -4,7 +4,7 @@ These files contain code that is used in the _implementations_ of patcher (i.e s
 
 ## stompboxpi.py
 
-This module creates a StompBox object that reads the buttons and/or rotary encoder and controls the LCD connected to a Raspberry Pi, and is used by squishbox.py. Create a _StompBox_ object to initialize the LCD, and call its _update()_ method in the main loop of your code to update the button/encoder states. Other methods (described below) allow you to write text to the LCD, query the user for a choice between options, input a number or text string, etc. The constants below are used to define how the LCD and buttons/encoder are connected to the Raspberry Pi, and are read from _hw_overlay.py_.
+This module creates a StompBox object that reads the buttons and/or rotary encoder and controls the LCD connected to a Raspberry Pi, and is used by squishbox.py. Create a _StompBox_ object to initialize the LCD, and call its _update()_ method in the main loop of your code to update the button/encoder states. Other methods (described below) allow you to write text to the LCD, query the user for a choice between options, input a number or text string, etc. The constants below are used to define how the LCD and buttons/encoder are connected to the Raspberry Pi, and are read from _hw_overlay.py_. Buttons/pins that are not used can be omitted or set to 0. Minimum hardware to be able to navigate menus, etc. is either a rotary encoder with a pushbutton, or two momentary buttons.
 
 constant                       | definition
 -------------------------------|--------------------------------
@@ -12,15 +12,14 @@ LCD_RS                         | LCD reset pin
 LCD_EN                         | LCD enable pin
 LCD_D4, LCD_D5, LCD_D6, LCD_D7 | LCD data pins D4-D7
 COLS, ROWS                     | The number of columns and rows on the LCD
-BTN_L, BTN_R                   | left and right stompbuttons*
-ROT_L, ROT_R, BTN_ROT          | rotary encoder pins*
-BTN_SW                         | a button or list of buttons that trigger a callback function*
-PIN_OUT                        | a list of GPIO pins that are allowed to be set by **gpio_set**, e.g. for LEDs*
+BTN_L                          | left momentary button, hold to go back/cancel
+BTN_R                          | right momentary button or rotary encoder pushbutton, hold to select/open menu
+ROT_L, ROT_R                   | rotary encoder pins
+BTN_SW                         | a button or list of buttons that trigger a callback function
+PIN_OUT                        | a list of GPIO pins that are allowed to be set by **gpio_set**, e.g. for LEDs
 ACTIVE_HIGH                    | 1=buttons connect to 3.3V; 0=buttons connect to ground
 
-*omit or set to 0 if not connected  
-
-The constants _HOLD_TIME, MENU_TIMEOUT, BLINK_TIME, SCROLL_TIME, POLL_TIME, BOUNCE_TIME_ at the top of _squishbox.py_ can be modified as desired, or redefined in hw_overlay.py
+The constants _HOLD_TIME, MENU_TIMEOUT, BLINK_TIME, SCROLL_TIME, POLL_TIME, BOUNCE_TIME_ at the top of _squishbox.py_ can be modified as desired, or redefined in _hw_overlay.py_.
 
 ### class StompBox
 
@@ -32,7 +31,7 @@ A Python object that acts as an interface for buttons/encoder and a 16x2 charact
 
 **buttoncallback**
 
-The function to call when the buttons connected to _PIN_SW_ are pressed or released. The function should take two arguments, the pin number of the button that triggered the callback, and a value corresponding to the button state (1=pressed, 0=released).
+The function to call when the buttons connected to _PIN_SW_ are pressed or released. The function should take two arguments, the pin number of the button that triggered the callback, and a value corresponding to the button state (1=pressed, 0=released). When this is `None`, _BTN_SW_ behaves the same as _BTN_L_.
 
 #### Methods:
 
