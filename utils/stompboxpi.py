@@ -1,5 +1,6 @@
 """
-Description: python interface for a raspberry pi with two gpio buttons and a 16x2 character LCD
+Description: python interface for a raspberry pi with
+  a 16x2 character LCD and a rotary encoder and/or some buttons
 """
 
 # adjust timings below as needed/desired
@@ -15,12 +16,12 @@ import RPi.GPIO as GPIO
 from RPLCD.gpio import CharLCD
 
 COLS, ROWS = 16, 2
-BTN_L, BTN_R, ROT_L, ROT_R, BTN_ROT, BTN_SW, PIN_OUT = 0, 0, 0, 0, 0, (), ()
+BTN_L, BTN_R, ROT_L, ROT_R, BTN_SW, PIN_OUT = 0, 0, 0, 0, (), ()
 from .hw_overlay import *
 ACTIVE = GPIO.HIGH if ACTIVE_HIGH else GPIO.LOW
 if isinstance(PIN_OUT, int): PIN_OUT = (PIN_OUT, )
 if isinstance(BTN_SW, int): BTN_SW = (BTN_SW, )
-BUTTONS = [x for x in (BTN_L, BTN_R, BTN_ROT, *BTN_SW) if x]
+BUTTONS = [x for x in (BTN_L, BTN_R, *BTN_SW) if x]
 
 # events
 NULL = 0
@@ -155,7 +156,7 @@ class StompBox():
                             self.buttoncallback(BTN_SW.index(button), 1)
                     elif self.state[button] == DOWN and t - self.timer[button] >= HOLD_TIME:
                         self.state[button] = HELD
-                        if button in (BTN_R, BTN_ROT): event = SELECT
+                        if button == BTN_R: event = SELECT
                         elif button == BTN_L: event = ESCAPE
                         elif button in BTN_SW and not self.buttoncallback: event = ESCAPE
                 else:
