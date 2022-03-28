@@ -271,7 +271,7 @@ pip_install "RPLCD" $squishbox_pkg
 if [[ $update == "yes" ]]; then
     inform "Installing/Updating FluidPatcher version $NEW_FP_VER ..."
     rm -rf fluidpatcher
-    fptemp=`mkdtemp -dp .`
+    fptemp=`mktemp -dp .`
     wget -qO- https://github.com/albedozero/fluidpatcher/tarball/master | tar -xzC $fptemp
     cd $fptemp/albedozero-fluidpatcher-*
     if [[ $overwrite == "yes" ]]; then
@@ -302,7 +302,7 @@ if [[ $compile == "yes" ]]; then
         || echo E: install failed; } | grep '^[WE]:'; then
         warning "Couldn't get all dependencies!"
     fi
-    fstemp=`mkdtemp -dp .`
+    fstemp=`mktemp -dp .`
     wget -qO- https://github.com/FluidSynth/fluidsynth/tarball/master | tar -xzC $fstemp
     builddir=`ls -d $fstemp/FluidSynth-fluidsynth-*`/build
     mkdir $builddir
