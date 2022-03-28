@@ -148,9 +148,9 @@ class SquishBox:
             elif hasattr(msg, 'lcdwrite'):
                 if hasattr(msg, 'format'):
                     val = format(msg.val, msg.format)
-                    self.patchdisplay[1] = f"{msg.lcdwrite} {val}"
+                    self.maindisplay[1] = f"{msg.lcdwrite} {val}"
                 else:
-                    self.patchdisplay[1] = msg.lcdwrite
+                    self.maindisplay[1] = msg.lcdwrite
             elif hasattr(msg, 'setpin'):
                 if msg.setpin < len(button_state):
                     button_state[msg.setpin] = 1 if msg.val else 0
@@ -172,22 +172,22 @@ class SquishBox:
             if self.pno != pno:
                 if pxr.patches:
                     pno = self.pno
-                    self.patchdisplay = [pxr.patches[pno], f"patch: {pno + 1}/{len(pxr.patches)}"]
+                    self.maindisplay = [pxr.patches[pno], f"patch: {pno + 1}/{len(pxr.patches)}"]
                     warn = pxr.apply_patch(pno)
                 else:
                     pno, self.pno = 0, 0
-                    self.patchdisplay = ["No patches", "patch 0/0"]
+                    self.maindisplay = ["No patches", "patch 0/0"]
                     warn = pxr.apply_patch(None)
                 if warn:
-                    sb.lcd_write(self.patchdisplay[0], 0, scroll=True)
+                    sb.lcd_write(self.maindisplay[0], 0, scroll=True)
                     sb.lcd_write('; '.join(warn), 1, scroll=True)
                     sb.waitfortap()
-            display = self.patchdisplay[:]
-            sb.lcd_write(display[0], 0, scroll=True)
-            sb.lcd_write(display[1], 1, rjust=True)
+            lines = self.maindisplay[:]
+            sb.lcd_write(lines[0], 0, scroll=True)
+            sb.lcd_write(lines[1], 1, rjust=True)
             while True:
                 if self.pno != pno: break
-                if self.patchdisplay != display: break
+                if self.maindisplay != lines: break
                 event = sb.update()
                 if event == SB.RIGHT and pxr.patches:
                     self.pno = (self.pno + 1) % len(pxr.patches)
@@ -213,6 +213,7 @@ class SquishBox:
                         if sb.confirm_choice('Delete', row=1):
                             pxr.delete_patch(self.pno)
                             self.pno = min(self.pno, len(pxr.patches) - 1)
+                            pno = -1
                     elif k == 4:
                         if self.load_soundfont():
                             self.sfmode()
