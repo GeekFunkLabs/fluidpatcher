@@ -6,18 +6,18 @@ UPGRADE=false
 PYTHON_PKG=""
 ASK_TO_REBOOT=false
 
-promptorno() {
-    read -r -p "$1 (y/[n]) " response < /dev/tty
-    if [[ $response =~ ^(yes|y|Y)$ ]]; then
-        true
-    else
+yesno() {
+    read -r -p "$1 ([y]/n) " response < /dev/tty
+    if [[ $response =~ ^(no|n|N)$ ]]; then
         false
+    else
+        true
     fi
 }
 
-promptoryes() {
-    read -r -p "$1 ([y]/n) " response < /dev/tty
-    if [[ $response =~ ^(no|n|N)$ ]]; then
+noyes() {
+    read -r -p "$1 (y/[n]) " response < /dev/tty
+    if [[ $response =~ ^(yes|y|Y)$ ]]; then
         false
     else
         true
@@ -104,7 +104,8 @@ pip_install() {
 
 sleep 1 # give curl time to print info
 
-## user interaction part
+## get options from user
+
 RED='\033[0;31m'
 YEL='\033[1;33m'
 NC='\033[0m'
@@ -143,23 +144,19 @@ fi
 if ! ($ENVCHECK); then
     warning "These scripts are designed to run on Raspberry Pi OS (Bullseye),"
     warning "which does not appear to be the case here. YMMV!"
-    if ! promptorno "Proceed anyway?"; then
+    if noyes "Proceed anyway?"; then
         exit 1
     fi
 fi
 
-inform "Core software update/install and system settings:"
 query "Install location" `echo ~`; installdir=$response
 if test -f "$installdir/patcher/__init__.py"; then
     FP_VER=`sed -n '/^VERSION/s|[^0-9\.]*||gp' $installdir/patcher/__init__.py`
     echo "Installed FluidPatcher is version $FP_VER"
 fi
 NEW_FP_VER=`curl -s https://github.com/albedozero/fluidpatcher/releases/latest | sed -e 's|.*tag/v||' -e 's|">redirected.*||'`
-if promptoryes "Install/update FluidPatcher version $NEW_FP_VER?"; then
+if yesno "Install/update FluidPatcher version $NEW_FP_VER?"; then
     update="yes"
-    if promptorno "Overwrite existing banks/settings?"; then
-        overwrite="yes"
-    fi
 fi
 
 if command -v fluidsynth > /dev/null; then
@@ -170,40 +167,45 @@ else
     echo "FluidSynth version $PKG_VER will be installed"
 fi
 BUILD_VER=`curl -s https://github.com/FluidSynth/fluidsynth/releases/latest | sed -e 's|.*tag/v||' -e 's|">redirected.*||'`
-if promptorno "Compile and install FluidSynth $BUILD_VER from source?"; then
+if yesno "Compile and install FluidSynth $BUILD_VER from source?"; then
     compile="yes"
 fi
 
-if promptorno "OK to upgrade your system (if possible)?"; then
+if yesno "OK to upgrade your system (if possible)?"; then
     UPGRADE=true
 fi
-echo "Software repositories you are currently using:"
-for repo in `sed -n '/^deb /p' /etc/apt/sources.list | cut -d' ' -f2`; do
-    echo "  $repo"
-done
-echo "Some sites may respond too slowly (e.g.  http://raspbian.raspberrypi.org/raspbian),"
-echo "causing installation to fail. For this reason, you may want to add a site near you"
-echo "from the list at https://www.raspbian.org/RaspbianMirrors"
-query "Software repository to add" "none"; mirror=$response
 
 IFS=$'\n'
-AUDIOCARDS=(`aplay -l | grep ^card | cut -d' ' -f 3-`)
+AUDIOCARDS=(`aplay -l | grep ^card | cut -d' ' -f 3`)
+defcard=0
+defscript=2
 echo "Which audio output would you like to use?"
 echo "  0. No change"
 echo "  1. Default"
 i=2
 for dev in ${AUDIOCARDS[@]}; do
-    echo "  $i. ${AUDIOCARDS[$i-2]}"
+    echo "  $i. $dev"
+	if [[ $dev == "Headphones" ]]; then
+		defcard=$i
+	fi
     ((i+=1))
 done
-query "Choose" "0"; audiosetup=$response
+i=2
+for dev in ${AUDIOCARDS[@]}; do
+	if [[ $dev == "sndrpihifiberry" ]]; then
+		defcard=$i
+		defscript=1
+	fi
+    ((i+=1))
+done
+query "Choose" $defcard; audiosetup=$response
 
 echo "What script should be run on startup?"
 echo "  0. No change"
 echo "  1. squishbox.py"
 echo "  2. headlesspi.py"
 echo "  3. Nothing"
-query "Choose" "0"; startup=$response
+query "Choose" $defscript; startup=$response
 if [[ $startup == 1 ]]; then
     squishbox_pkg="required"
 elif [[ $startup == 2 ]]; then
@@ -214,9 +216,7 @@ elif [[ $startup == 2 ]]; then
     query "    Bank change button CC" "use default"; bankinc=$response
 fi
 
-inform "\nOptional tasks/add-ons:"
-
-if promptorno "Set up web-based file manager?"; then
+if yesno "Set up web-based file manager?"; then
     filemgr="yes"
     echo "  Please create a user name and password."
     read -r -p "    username: " fmgr_user < /dev/tty
@@ -224,12 +224,12 @@ if promptorno "Set up web-based file manager?"; then
     fmgr_hash=`wget -qO- geekfunklabs.com/passhash.php?password=$password`
 fi
 
-if promptorno "Download and install ~400MB of additional soundfonts?"; then
+if yesno "Download and install ~400MB of additional soundfonts?"; then
     soundfonts="yes"
 fi
 
 echo ""
-if ! promptoryes "Option selection complete. OK to proceed?"; then
+if ! yesno "Option selection complete. Proceed with installation?"; then
     exit 1
 fi
 warning "\nThis may take some time ... go make some coffee.\n"
@@ -247,6 +247,7 @@ sudo usermod -a -G audio pi
 if ! grep -q "export JACK_NO_AUDIO_RESERVATION=1" $HOME/.profile; then
     echo "export JACK_NO_AUDIO_RESERVATION=1" >> $HOME/.profile
 fi
+
 
 # get dependencies
 inform "Installing/Updating required software..."
@@ -274,16 +275,10 @@ if [[ $update == "yes" ]]; then
     fptemp=`mktemp -dp .`
     wget -qO- https://github.com/albedozero/fluidpatcher/tarball/master | tar -xzC $fptemp
     cd $fptemp/albedozero-fluidpatcher-*
-    if [[ $overwrite == "yes" ]]; then
-        find . -type d -exec mkdir -p $installdir/{} \;
-        find . -type f ! -name "hw_overlay.py" -exec cp -f {} $installdir/{} \;
-        find . -type f -name "hw_overlay.py" -exec cp -n {} $installdir/{} \;
-    else
-        find . -type d -exec mkdir -p $installdir/{} \;
-        find . -type f ! -name "*.yaml" ! -name "hw_overlay.py" -exec cp -f {} $installdir/{} \;
-        find . -type f -name "hw_overlay.py" -exec cp -n {} $installdir/{} \;
-        find . -type f -name "*.yaml" -exec cp -n {} $installdir/{} \;        
-    fi
+	find . -type d -exec mkdir -p $installdir/{} \;
+	find . -type f ! -name "*.yaml" ! -name "hw_overlay.py" -exec cp -f {} $installdir/{} \;
+	find . -type f -name "hw_overlay.py" -exec cp -n {} $installdir/{} \;
+	find . -type f -name "*.yaml" -exec cp -n {} $installdir/{} \;        
     cd ../..
     rm -rf $fptemp
     ln -s /usr/share/sounds/sf2/FluidR3_GM.sf2 $installdir/SquishBox/sf2/
@@ -326,7 +321,7 @@ if (( $audiosetup > 0 )); then
     inform "Setting up audio..."
     echo "/usr/bin/jackd --silent --realtime -d alsa --softmode --playback -S" > ~/.jackdrc
     if (( $audiosetup > 1 )); then
-        AUDIO=`echo ${AUDIOCARDS[$audiosetup-2]} | cut -d' ' -f 1`
+        AUDIO=${AUDIOCARDS[$audiosetup-2]}
         if [[ $AUDIO == "Headphones" ]]; then
             echo "/usr/bin/jackd --silent --realtime -d alsa --softmode --playback -S -i 0 -o 2 \\
 --device hw:Headphones --period 444 --nperiods 3 --rate 22050" > ~/.jackdrc
@@ -462,7 +457,7 @@ if $ASK_TO_REBOOT; then
     warning "\nSome changes made to your system require"
     warning "your computer to reboot to take effect."
     echo
-    if promptoryes "Would you like to reboot now?"; then
+    if yesno "Would you like to reboot now?"; then
         sync && sudo reboot
     fi
 fi
