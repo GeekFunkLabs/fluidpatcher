@@ -217,6 +217,10 @@ class SquishBox:
                     elif k == 4:
                         if self.load_soundfont():
                             self.sfmode()
+                            sb.lcd_write("loading patches ", 1, now=True)
+                            sb.progresswheel_start()
+                            pxr.load_bank()
+                            sb.progresswheel_stop()
                             pno = -1
                     elif k == 5:
                         self.effects_menu()
@@ -245,7 +249,7 @@ class SquishBox:
                     i = (i - 1) % len(pxr.sfpresets)
                     warn = pxr.select_sfpreset(i)
                 elif event == SB.SELECT:
-                    k = sb.choose_opt(['Add as Patch', 'Open Soundfont', 'Back'], row=1)
+                    k = sb.choose_opt(['Add as Patch', 'Open Soundfont', 'Back to Bank'], row=1)
                     if k == 0:
                         sb.lcd_write("Add as Patch:", 0)
                         newname = sb.char_input(p.name)
@@ -256,11 +260,8 @@ class SquishBox:
                         if self.load_soundfont():
                             i = 0
                             warn = pxr.select_sfpreset(i)
-                    elif k == 2:
-                        sb.progresswheel_start()
-                        pxr.load_bank()
-                        sb.progresswheel_stop()
-                        return
+                    elif k == 2: return
+                elif event == SB.ESCAPE: return
                 else: continue
                 break
 
