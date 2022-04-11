@@ -103,7 +103,7 @@ def update_device():
     try:
         if fup:
             with tempfile.TemporaryDirectory() as tmp:
-                wg = subprocess.run(('wget', '-qO-', 'https://github.com/albedozero/fluidpatcher/tarball/master'), stdout=subprocess.PIPE)
+                wg = subprocess.Popen(('wget', '-qO-', 'https://github.com/albedozero/fluidpatcher/tarball/master'), stdout=subprocess.PIPE)
                 subprocess.run(('tar', '-xzC', tmp), stdin=wg.stdout)
                 base = next(Path(tmp).glob('albedozero-fluidpatcher-*'))
                 for src in Path(base).rglob('*'):
