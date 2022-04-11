@@ -119,9 +119,9 @@ class StompBox():
         for channel in ROT_L, ROT_R:
             self.encstate = (self.encstate << 1) % 64
             self.encstate += 1 if GPIO.input(channel) == ACTIVE else 0
-        if self.encstate in (0b111000, 0b011000, 0b011100):
+        if self.encstate == 0b111000:
             self.encvalue += 1
-        elif self.encstate in (0b110100, 0b100100, 0b101100):
+        elif self.encstate == 0b110100:
             self.encvalue -= 1
 
     def update(self):
