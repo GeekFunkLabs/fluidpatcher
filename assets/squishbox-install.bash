@@ -251,10 +251,6 @@ fi
 
 # get dependencies
 inform "Installing/Updating required software..."
-if [[ $mirror != "none" ]]; then
-    echo "deb $mirror $versioncode main contrib non-free rpi" | sudo tee -a /etc/apt/sources.list
-    echo "deb-src $mirror $versioncode main contrib non-free rpi" | sudo tee -a /etc/apt/sources.list
-fi
 if $UPGRADE; then sysupdate; fi
 apt_pkg_install "python3-pip" required
 apt_pkg_install "fluid-soundfont-gm" required
