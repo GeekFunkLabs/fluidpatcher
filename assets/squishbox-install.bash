@@ -149,7 +149,7 @@ if ! ($ENVCHECK); then
     fi
 fi
 
-query "Install location" `echo ~`; installdir=$response
+query "Install location" $HOME; installdir=$response
 if test -f "$installdir/patcher/__init__.py"; then
     FP_VER=`sed -n '/^VERSION/s|[^0-9\.]*||gp' $installdir/patcher/__init__.py`
     echo "Installed FluidPatcher is version $FP_VER"
@@ -242,7 +242,7 @@ umask 002
 # desktop distros play an audio message when first booting to setup; this disables it
 sudo mv -f /etc/xdg/autostart/piwiz.desktop /etc/xdg/autostart/piwiz.disabled 2> /dev/null
 # add pi user to audio group
-sudo usermod -a -G audio pi
+sudo usermod -a -G audio $USER
 # allow JACK to grant self-connect requests
 if ! grep -q "export JACK_NO_AUDIO_RESERVATION=1" $HOME/.profile; then
     echo "export JACK_NO_AUDIO_RESERVATION=1" >> $HOME/.profile
@@ -418,7 +418,7 @@ EOF
     sudo sed -i "/upload_max_filesize/cupload_max_filesize = 900M" /etc/php/$phpver/fpm/php.ini
     sudo sed -i "/post_max_size/cpost_max_size = 999M" /etc/php/$phpver/fpm/php.ini
     # set permissions and umask to avoid permissions problems
-    sudo usermod -a -G pi www-data
+    sudo usermod -a -G $USER www-data
     sudo chmod -R g+rw $installdir/SquishBox
     if grep -q "UMask" /lib/systemd/system/php$phpver-fpm.service; then
         sudo sed -i "/UMask/cUMask=0002" /lib/systemd/system/php$phpver-fpm.service
