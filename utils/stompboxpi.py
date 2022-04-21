@@ -16,7 +16,7 @@ import RPi.GPIO as GPIO
 from RPLCD.gpio import CharLCD
 
 COLS, ROWS = 16, 2
-BTN_L, BTN_R, ROT_L, ROT_R, BTN_SW, PIN_OUT = 0, 0, 0, 0, (), ()
+BTN_L, BTN_R, ROT_L, ROT_R, ACTIVE_HIGH, BTN_SW, PIN_OUT = 0, 0, 0, 0, 0, (), ()
 from .hw_overlay import *
 ACTIVE = GPIO.HIGH if ACTIVE_HIGH else GPIO.LOW
 if isinstance(PIN_OUT, int): PIN_OUT = (PIN_OUT, )
@@ -89,26 +89,23 @@ class StompBox():
         self.lcd_clear()
         self.lastscroll = time.time()
 
-        # set up buttons
+        # set up controls
         GPIO.setwarnings(False)
         GPIO.setmode(GPIO.BCM)
-        for channel in (*BUTTONS, ROT_R, ROT_L):
-            if channel:
-                if ACTIVE == GPIO.HIGH:
-                    GPIO.setup(channel, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-                else:
-                    GPIO.setup(channel, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        for channel in filter(None, (*BUTTONS, ROT_R, ROT_L)):
+            if ACTIVE == GPIO.HIGH:
+                GPIO.setup(channel, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+            else:
+                GPIO.setup(channel, GPIO.IN, pull_up_down=GPIO.PUD_UP)
         for pin in PIN_OUT: GPIO.setup(pin, GPIO.OUT)
         self.state = {button: DOWN if GPIO.input(button) == ACTIVE else UP for button in BUTTONS}
         self.timer = {button: 0 for button in BUTTONS}
         self.encstate = 0b000000
         self.encvalue = 0
         for button in BUTTONS:
-            if button:
-                GPIO.add_event_detect(button, GPIO.BOTH, callback=self._button_event)
-        for channel in ROT_R, ROT_L:
-            if channel:
-                GPIO.add_event_detect(channel, GPIO.BOTH, callback=self._encoder_event)
+            GPIO.add_event_detect(button, GPIO.BOTH, callback=self._button_event)
+        for channel in filter(None, (ROT_R, ROT_L)):
+            GPIO.add_event_detect(channel, GPIO.BOTH, callback=self._encoder_event)
         self.buttoncallback = None
 
     def _button_event(self, button):
