@@ -21,17 +21,7 @@ To disable the service that runs the _headlesspi.py_ or _squishbox.py_ script in
 sudo systemctl stop squishbox.service
 ```
 
-Then, to run the script directly, enter
-
-```bash
-python3 headlesspi.py
-```
-or
-```bash
-python3 squishbox.py
-```
-
-The script will now run as it does on startup, but any errors will now be printed to the screen with a lot of additional information. You can press Control-C to quit the program at any time.
+Then, to run the script directly, enter `./headlesspi.py` or `./squishbox.py`. The script will now run as it does on startup, but any errors will now be printed to the screen with a lot of additional information. You can press Control-C to quit the program at any time.
 
 ### List Connected Devices
 
@@ -105,7 +95,7 @@ Source  Event                  Ch  Data
 
 - [I can play notes, but I can't switch patches using the buttons on my controller.](#i-can-play-notes-but-i-cant-switch-patches-using-the-buttons-on-my-controller)
 
-- [When I switch patches using the buttons on my controller, the Pi shuts down.](#when-i-switch-patches-using-the-buttons-on-my-controller-the-Pi-shuts-down)
+- [When I switch patches using the buttons on my controller, the Pi shuts down.](#when-i-switch-patches-using-the-buttons-on-my-controller-the-pi-shuts-down)
 
 - [The Pi displays an error or crashes/reboots.](#the-pi-displays-an-error-or-crashesreboots)
 
