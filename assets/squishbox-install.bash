@@ -241,7 +241,7 @@ warning "\nThis may take some time ... go make some coffee.\n"
 umask 002 
 # desktop distros play an audio message when first booting to setup; this disables it
 sudo mv -f /etc/xdg/autostart/piwiz.desktop /etc/xdg/autostart/piwiz.disabled 2> /dev/null
-# add pi user to audio group
+# add user to audio group
 sudo usermod -a -G audio $USER
 # allow JACK to grant self-connect requests
 if ! grep -q "export JACK_NO_AUDIO_RESERVATION=1" $HOME/.profile; then
@@ -340,7 +340,7 @@ After=local-fs.target
 [Service]
 Type=simple
 ExecStart=$installdir/squishbox.py
-User=pi
+User=$USER
 WorkingDirectory=$installdir
 Environment="JACK_NO_AUDIO_RESERVATION=1"
 Restart=on-failure
@@ -361,7 +361,7 @@ After=local-fs.target
 [Service]
 Type=simple
 ExecStart=$installdir/headlesspi.py
-User=pi
+User=$USER
 WorkingDirectory=$installdir
 Environment="JACK_NO_AUDIO_RESERVATION=1"
 Restart=on-failure
