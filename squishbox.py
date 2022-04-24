@@ -404,11 +404,11 @@ sb = SB.StompBox()
 sb.lcd_clear()
 sb.lcd_write(f"version {patcher.VERSION}", 0, now=True)
 
-cfgfile = sys.argv[1] if len(sys.argv) > 1 else '/home/pi/SquishBox/squishboxconf.yaml'
+cfgfile = sys.argv[1] if len(sys.argv) > 1 else 'SquishBox/squishboxconf.yaml'
 try: pxr = patcher.Patcher(cfgfile)
 except Exception as e:
-    sb.lcd_write(f"bad config file {exceptstr(e)}", 1, scroll=True)
-    sys.exit("bad config file")
+    sb.lcd_write(f"bad config file: {exceptstr(e)}", 1, scroll=True)
+    sys.exit(f"Unable to load config file\n{e}")
 
 os.umask(0o002)
 networks = []
