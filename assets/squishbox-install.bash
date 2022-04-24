@@ -269,7 +269,7 @@ if [[ $update == "yes" ]]; then
     inform "Installing/Updating FluidPatcher version $NEW_FP_VER ..."
     rm -rf fluidpatcher
     fptemp=`mktemp -dp .`
-    wget -qO- https://github.com/albedozero/fluidpatcher/tarball/master | tar -xzC $fptemp
+    wget -qO- https://github.com/albedozero/fluidpatcher/tarball/master | tar -xzmC $fptemp
     cd $fptemp/albedozero-fluidpatcher-*
 	find . -type d -exec mkdir -p $installdir/{} \;
 	find . -type f ! -name "*.yaml" ! -name "hw_overlay.py" -exec cp -f {} $installdir/{} \;
@@ -294,7 +294,7 @@ if [[ $compile == "yes" ]]; then
         warning "Couldn't get all dependencies!"
     fi
     fstemp=`mktemp -dp .`
-    wget -qO- https://github.com/FluidSynth/fluidsynth/tarball/master | tar -xzC $fstemp
+    wget -qO- https://github.com/FluidSynth/fluidsynth/tarball/master | tar -xzmC $fstemp
     builddir=`ls -d $fstemp/FluidSynth-fluidsynth-*`/build
     mkdir $builddir
     cd $builddir
