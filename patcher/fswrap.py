@@ -756,7 +756,7 @@ class Synth:
         elif apars:
             self.xrules.insert(0, ExtRule(type, chan, par1, par2, **apars))
             if 'arpeggiator' in apars:
-                self.xrules.insert(0, ExtRule('noteoff', chan, par1, None, **apars))
+                self.xrules.insert(0, ExtRule('noteoff', chan, par1, (0, 127, 0, 0), **apars))
         else:
             rule = FL.new_fluid_midi_router_rule()
             if chan:
