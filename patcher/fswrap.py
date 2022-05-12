@@ -174,6 +174,8 @@ class MidiEvent:
     @property
     def type(self):
         b = FL.fluid_midi_event_get_type(self.event)
+        if b == MIDI_NOTEON and self.par2 == 0:
+            return MIDI_NOTEOFF
         return b if b in MIDI_TYPES else None
     @type.setter
     def type(self, v): FL.fluid_midi_event_set_type(self.event, v)
