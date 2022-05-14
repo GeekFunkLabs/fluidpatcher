@@ -93,7 +93,7 @@ def update_device():
     u = subprocess.check_output(['sudo', 'apt-get', 'upgrade', '-sy'])
     sb.progresswheel_stop()
     fup, sysup = 0, 0
-    if newver.split('.') > patcher.VERSION.split('.'):
+    if newver[1].split('.') > patcher.VERSION.split('.'):
         fup = sb.confirm_choice(f"install {newver}", row=1, timeout=0)
     else:
         sb.lcd_write("Up to date", 1, rjust=True)
