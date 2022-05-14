@@ -154,7 +154,7 @@ if test -f "$installdir/patcher/__init__.py"; then
     FP_VER=`sed -n '/^VERSION/s|[^0-9\.]*||gp' $installdir/patcher/__init__.py`
     echo "Installed FluidPatcher is version $FP_VER"
 fi
-NEW_FP_VER=`curl -s https://github.com/albedozero/fluidpatcher/releases/latest | sed -e 's|.*tag/v||' -e 's|">redirected.*||'`
+NEW_FP_VER=`curl -s https://api.github.com/repos/albedozero/fluidpatcher/releases/latest | sed -n '/tag_name/s|[^0-9\.]*||gp'`
 if yesno "Install/update FluidPatcher version $NEW_FP_VER?"; then
     update="yes"
 fi
@@ -166,7 +166,7 @@ else
     PKG_VER=`apt-cache policy fluidsynth | sed -n '/Candidate:/s/  Candidate: //p'`
     echo "FluidSynth version $PKG_VER will be installed"
 fi
-BUILD_VER=`curl -s https://github.com/FluidSynth/fluidsynth/releases/latest | sed -e 's|.*tag/v||' -e 's|">redirected.*||'`
+BUILD_VER=`curl -s https://api.github.com/repos/FluidSynth/fluidsynth/releases/latest | sed -n '/tag_name/s|[^0-9\.]*||gp'`
 if yesno "Compile and install FluidSynth $BUILD_VER from source?"; then
     compile="yes"
 fi
