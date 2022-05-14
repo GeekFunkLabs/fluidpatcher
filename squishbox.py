@@ -81,9 +81,14 @@ def update_device():
     sb.lcd_write(f"version {patcher.VERSION}", 0, scroll=True)
     sb.lcd_write("checking ", 1, rjust=True, now=True)
     sb.progresswheel_start()
-    x = subprocess.check_output(('curl', '-s', 'https://api.github.com/repos/albedozero/fluidpatcher/releases/latest'))
-    # check if x empty/bad b/c no wifi etc
-    newver = re.search('tag_name": "v([0-9\.]+)', x.decode())[1]
+    try: x = subprocess.check_output(('curl', '-s', 'https://api.github.com/repos/albedozero/fluidpatcher/releases/latest'))
+    except subprocess.CalledProcessError: x = b''
+    newver = re.search('tag_name": "v([0-9\.]+)', x.decode())
+    if not newver:
+        sb.progresswheel_stop()
+        sb.lcd_write("can't connect", 1)
+        sb.waitfortap()
+        return
     subprocess.run(['sudo', 'apt-get', 'update'])
     u = subprocess.check_output(['sudo', 'apt-get', 'upgrade', '-sy'])
     sb.progresswheel_stop()
