@@ -91,7 +91,7 @@ pip_install() {
     fi
     if ! [[ $PYTHON_PKG =~ "$1" ]]; then
         echo "Installing Python module $1..."
-        if ! { sudo -H pip3 install "$1"; } then
+        if ! { sudo -H pip3 install -U "$1"; } then
             if [[ $2 == "required" ]]; then
                 failout "Failed to install $1!"
             else
