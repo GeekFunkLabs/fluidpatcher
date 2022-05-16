@@ -136,8 +136,7 @@ if test -f /etc/os-release; then
     if ! { grep -q ^Raspberry /proc/device-tree/model; } then
         ENVCHECK=false
     fi
-    versioncode=`sed -n '/^VERSION_CODENAME=/s|^.*=||p' /etc/os-release`
-    if ! [[ $versioncode =~ (bullseye) ]]; then
+    if ! { grep -q bullseye /etc/os-release; } then
         ENVCHECK=false
     fi
 fi
