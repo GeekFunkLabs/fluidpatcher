@@ -27,7 +27,6 @@ def gui_excepthook(etype, val, tb):
     s = traceback.format_exception(etype, val, tb)
     wx.MessageBox(''.join(s), "Error", wx.OK|wx.ICON_ERROR)
     sys.exit()
-sys.excepthook = gui_excepthook
 
 
 class ControlBoard(wx.Panel):
@@ -502,11 +501,12 @@ geekfunklabs.com
 
 
 if __name__ == "__main__":
+    app = wx.App()
+    sys.excepthook = gui_excepthook
     midimsgs = []
     display = ["", "", ""]
     cfgfile = sys.argv[1] if len(sys.argv) > 1 else 'fluidpatcherconf.yaml'
     pxr = patcher.Patcher(cfgfile)
-    app = wx.App()
     main = MainWindow()
     pxr.set_midimessage_callback(main.listener)
     main.Show()
