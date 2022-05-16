@@ -11,7 +11,7 @@ PAD = 10
 FILLSCREEN = False
 
 
-import wx, sys, webbrowser
+import wx, sys, traceback, webbrowser
 from pathlib import Path
 import patcher
 
@@ -19,6 +19,16 @@ POLL_TIME = 25
 APP_NAME = 'FluidPatcher'
 MSG_TYPES = 'note', 'noteoff', 'cc', 'kpress', 'prog', 'pbend', 'cpress'
 MSG_NAMES = "Note On", "Note Off", "Control Change", "Key Pressure", "Program Change", "Pitch Bend", "Aftertouch"
+
+
+def gui_excepthook(etype, val, tb):
+    # catch all unhandled exceptions
+    # display the error and quit
+    s = traceback.format_exception(etype, val, tb)
+    wx.MessageBox(''.join(s), "Error", wx.OK|wx.ICON_ERROR)
+    sys.exit()
+sys.excepthook = gui_excepthook
+
 
 class ControlBoard(wx.Panel):
 
@@ -276,7 +286,7 @@ class MainWindow(wx.Frame):
         try:
             rawbank = pxr.load_bank(bfile)
         except Exception as e:
-            wx.MessageBox(str(e), "Error", wx.OK|wx.ICON_ERROR)
+            wx.MessageBox(str(e), f"Error Loading {bfile}", wx.OK|wx.ICON_ERROR)
             display[0] = self.currentfile
             self.select_patch(pno=self.pno, force=True)
             return False
@@ -306,7 +316,7 @@ class MainWindow(wx.Frame):
         try:
             pxr.load_bank(raw=text or self.bedit.text.GetValue())
         except Exception as e:
-            wx.MessageBox(str(e), "Error", wx.OK|wx.ICON_ERROR)
+            wx.MessageBox(str(e), "Error Reading Bank", wx.OK|wx.ICON_ERROR)
             return False
         for i in self.patchMenu.GetMenuItems():
             self.patchMenu.Delete(i)
@@ -374,7 +384,7 @@ class MainWindow(wx.Frame):
         try:
             pxr.save_bank(bfile, self.bedit.text.GetValue())
         except Exception as e:
-            wx.MessageBox(str(e), "Error", wx.OK|wx.ICON_ERROR)
+            wx.MessageBox(str(e), "Error Saving Bank", wx.OK|wx.ICON_ERROR)
             return
         pxr.write_config()
         display[0] = bfile
@@ -436,7 +446,7 @@ class MainWindow(wx.Frame):
             try:
                 pxr.write_config(newcfg)
             except Exception as e:
-                wx.MessageBox(str(e), "Error", wx.OK|wx.ICON_ERROR)
+                wx.MessageBox(str(e), "Error Saving Settings", wx.OK|wx.ICON_ERROR)
                 return
             wx.MessageBox("Configuration saved!\nRestart may be needed for some settings to apply.", "Success", wx.OK)
         tmsg.Destroy()
