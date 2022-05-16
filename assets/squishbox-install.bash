@@ -133,7 +133,7 @@ https://github.com/albedozero/fluidpatcher/issues
 
 ENVCHECK=true
 if test -f /etc/os-release; then
-    if ! { uname -a | grep -q "raspberrypi"; } then
+    if ! { grep -q ^Raspberry /proc/device-tree/model; } then
         ENVCHECK=false
     fi
     versioncode=`sed -n '/^VERSION_CODENAME=/s|^.*=||p' /etc/os-release`
