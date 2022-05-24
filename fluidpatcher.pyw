@@ -114,15 +114,15 @@ class MidiMonitor(wx.Dialog):
         super(MidiMonitor, self).__init__(parent, title='MIDI Monitor', size=(350, 500),
             style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
         self.msglist = wx.ListCtrl(self, style=wx.LC_REPORT|wx.LC_SINGLE_SEL)
-        self.msglist.AppendColumn('Channel')
         self.msglist.AppendColumn('Type')
+        self.msglist.AppendColumn('Channel')
         self.msglist.AppendColumn('Data')
         vbox = wx.BoxSizer(wx.VERTICAL)
         vbox.Add(self.msglist, 1, wx.LEFT|wx.RIGHT|wx.EXPAND, 15)
         vbox.Add(self.CreateStdDialogButtonSizer(wx.CLOSE), 0, wx.ALL|wx.EXPAND, 10)
         self.SetSizer(vbox)
-        self.msglist.SetColumnWidth(0, 60)
-        self.msglist.SetColumnWidth(1, 120)
+        self.msglist.SetColumnWidth(0, 120)
+        self.msglist.SetColumnWidth(1, 60)
         self.msglist.SetColumnWidth(2, 100)
         self.timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.onTimer)
@@ -272,11 +272,11 @@ class MainWindow(wx.Frame):
             if t < 3:
                 octave = int(msg.par1 / 12) - 1
                 note = ('C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B')[msg.par1 % 12]
-                midimsgs.append((str(msg.chan + 1), x, f"{msg.par1} ({note}{octave})={msg.par2}"))
+                midimsgs.append((x, str(msg.chan + 1), f"{msg.par1} ({note}{octave})={msg.par2}"))
             elif t < 4:
-                midimsgs.append((str(msg.chan + 1), x, f"{msg.par1}={msg.par2}"))
+                midimsgs.append((x, str(msg.chan + 1), f"{msg.par1}={msg.par2}"))
             elif t < 7:
-                midimsgs.append((str(msg.chan + 1), x, str(msg.par1)))
+                midimsgs.append((x, str(msg.chan + 1), str(msg.par1)))
 
     def load_bankfile(self, bfile=''):
         display[:] = [bfile, "", "loading patches"]
