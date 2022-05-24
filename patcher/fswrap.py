@@ -385,6 +385,7 @@ class Sequencer:
         self.tdiv = tdiv
         self.swing = swing
         self.ticksperbeat = 500 # default 120bpm at 1000 ticks/sec
+        self.beat = 0
 
     def scheduler(self, time=None, event=None, fseq=None, data=None):
         if event and FL.fluid_event_get_type(event) == FLUID_SEQ_UNREGISTERING:
@@ -395,11 +396,12 @@ class Sequencer:
             if self.beat % 2: dur *= 2 * (1 - self.swing)
             else: dur *= 2 * self.swing
         pos = self.beat % len(self.notes)
-        self.notes[pos].schedule(self, self.nextnote, self.nextnote + dur)
+        for note in self.notes[pos] if isinstance(self.notes[pos], list) else [self.notes[pos]]:
+            note.schedule(self, self.nextnote, self.nextnote + dur)
         if pos == len(self.notes) - 1:
             self.loop -= 1
         if self.loop != 0:
-            self.timer(self.nextnote + 0.5 * dur)
+            self.timer(self.nextnote + 0.99 * dur)
             self.nextnote += dur
             self.beat += 1
 
@@ -441,11 +443,13 @@ class Arpeggiator(Sequencer):
     def note(self, chan, key, vel):
         if vel > 0:
             self.keysdown.append(SequencerNote(chan, key, vel))
+            n = len(self.keysdown)
         else:
             for k in self.keysdown:
                 if k.key == key:
                     self.keysdown.remove(k)
                     break
+            n = -len(self.keysdown)
         self.notes = []
         for i in range(self.octaves):
             for k in self.keysdown:
@@ -456,9 +460,13 @@ class Arpeggiator(Sequencer):
             self.notes.sort(key=lambda k: k.key, reverse=True)
         if self.style == 'both':
             self.notes += self.notes[-2:0:-1]
-        if len(self.keysdown) == 1:
+        if self.style == 'chord':
+            self.notes = [self.notes]
+            if self.beat < 2:
+                self.play(loops=-1)
+        if n == 1:
             self.play(loops=-1)
-        elif len(self.keysdown) < 1:
+        elif n == 0:
             self.play(loops=0)
 
 
