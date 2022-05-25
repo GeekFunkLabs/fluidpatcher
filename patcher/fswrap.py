@@ -214,7 +214,7 @@ class MidiMessage:
         return str(self.__dict__)
 
 
-class ExtMidiMessage(MidiMessage):
+class ExtMessage(MidiMessage):
 
     def __init__(self, mevent, extrule=None, val=None):
         if extrule: self.__dict__.update(extrule.__dict__)
@@ -322,7 +322,7 @@ class ExtRule(TransRule):
             setattr(self, attr, val)
 
     def apply(self, mevent):
-        msg = ExtMidiMessage(mevent, extrule=self)
+        msg = ExtMessage(mevent, extrule=self)
         if self.chan != None:
             msg.chan = int(mevent.chan * self.chan.mul + self.chan.add + 0.5)
         if self.par1 != None:
