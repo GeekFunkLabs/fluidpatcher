@@ -84,14 +84,14 @@ Unrecognized keywords in a bank file will usually just be ignored. Anything on a
   - `notes`(required) - a list of note messages the sequencer will play. There must be a soundfont preset assigned to the MIDI channel of the notes in order to hear them.
   - `tdiv` - the number of notes per measure, assuming a 4/4 time signature. Defaults to 8
   - `swing` - the ratio by which to stretch the duration of on-beat notes and shorten off-beat notes, producing a "swing" feel. Values range from 0.5 (no swing) to 0.99. Default is 0.5
-  - `groove` - an amount by which to multiply the volume of specific notes in a pattern, in order to create a rhythmic feel. Can be a single number, in which case the multiplier is applied to every other note starting with the first, or a list of values.
+  - `groove` - an amount by which to multiply the volume of specific notes in a pattern, in order to create a rhythmic feel. Can be a single number, in which case the multiplier is applied to every other note starting with the first, or a list of values. Default is 1
   - `tempo` - in beats per minute, defaults to 120
   
   A router rule can control a sequencer if it has a `sequencer` parameter with the sequencer's name as the value. The value of the routed MIDI message controls how many times the sequence will loop. A value of 0 stops the sequencer, and negative values will cause it to loop indefinitely.
   
 - `arpeggiators` - a mapping of special sequencers that will capture any notes routed to them and repeat them in a pattern as long as the notes are held.
   - `tdiv`, `swing`, `groove`, `tempo` - same as for sequencers
-  - `octaves` - number of octaves over which to repeat the pattern. defaults to 1
+  - `octaves` - number of octaves over which to repeat the pattern. Defaults to 1
   - `style` - can be `up`, `down`, `both`, or `chord`. The first three loops the held notes in ascending sequence, descending, or ascending followed by descending. The `chord` option plays all held notes at once repeatedly. If not given, the notes are looped in the order they were played.
   
   To make the arpeggiator work, create a `note` type router rule with an `arpeggiator` parameter that has the arpeggiator's name as its value. There must be a soundfont preset assigned on the MIDI channel to which the notes are routed in order to hear them.
