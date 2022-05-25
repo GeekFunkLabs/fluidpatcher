@@ -398,8 +398,8 @@ class Sequencer:
             else: dur *= 2 * self.swing
         pos = self.beat % len(self.notes)
         if isinstance(self.groove, list): accent = self.groove[self.beat % len(self.groove)]
-        elif self.beat % 2: accent = self.groove
-        else: accent = 1
+        elif self.beat % 2: accent = 1
+        else: accent = self.groove
         for note in self.notes[pos] if isinstance(self.notes[pos], list) else [self.notes[pos]]:
             note.schedule(self, self.nextnote, self.nextnote + dur, accent)
         if pos == len(self.notes) - 1:
