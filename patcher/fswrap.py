@@ -359,11 +359,11 @@ class SequencerNote:
         self.key = key
         self.vel = vel
 
-    def schedule(self, seq, timeon, timeoff):
+    def schedule(self, seq, timeon, timeoff, accent=1):
         evt = FL.new_fluid_event()
         FL.fluid_event_set_source(evt, -1)
         FL.fluid_event_set_dest(evt, seq.fsynth_dest)
-        FL.fluid_event_noteon(evt, int(self.chan), int(self.key), int(self.vel))
+        FL.fluid_event_noteon(evt, self.chan, self.key, int(min(self.vel * accent, 127)))
         FL.fluid_sequencer_send_at(seq.fseq, evt, int(timeon), 1)
         FL.delete_fluid_event(evt)
         evt = FL.new_fluid_event()
@@ -376,7 +376,7 @@ class SequencerNote:
 
 class Sequencer:
 
-    def __init__(self, synth, notes, tdiv, swing):
+    def __init__(self, synth, notes, tdiv, swing, groove):
         self.fseq = FL.new_fluid_sequencer2(0)
         self.fsynth_dest = FL.fluid_sequencer_register_fluidsynth(self.fseq, synth.fsynth)
         self.callback = fl_seqcallback(self.scheduler)
@@ -384,6 +384,7 @@ class Sequencer:
         self.notes = [SequencerNote(chan, key, vel) for _, chan, key, vel in notes]
         self.tdiv = tdiv
         self.swing = swing
+        self.groove = groove
         self.ticksperbeat = 500 # default 120bpm at 1000 ticks/sec
         self.beat = 0
 
@@ -396,8 +397,11 @@ class Sequencer:
             if self.beat % 2: dur *= 2 * (1 - self.swing)
             else: dur *= 2 * self.swing
         pos = self.beat % len(self.notes)
+        if isinstance(self.groove, list): accent = self.groove[self.beat % len(self.groove)]
+        elif self.beat % 2: accent = self.groove
+        else: accent = 1
         for note in self.notes[pos] if isinstance(self.notes[pos], list) else [self.notes[pos]]:
-            note.schedule(self, self.nextnote, self.nextnote + dur)
+            note.schedule(self, self.nextnote, self.nextnote + dur, accent)
         if pos == len(self.notes) - 1:
             self.loop -= 1
         if self.loop != 0:
@@ -434,8 +438,8 @@ class Sequencer:
 
 class Arpeggiator(Sequencer):
 
-    def __init__(self, synth, tdiv, swing, style, octaves):
-        super().__init__(synth, [], tdiv, swing)
+    def __init__(self, synth, tdiv, swing, groove, style, octaves):
+        super().__init__(synth, [], tdiv, swing, groove)
         self.style = style
         self.octaves = octaves
         self.keysdown = []
@@ -782,14 +786,14 @@ class Synth:
             self.players[name].delete()
             del self.players[name]
 
-    def sequencer_add(self, name, notes, tdiv=8, swing=0.5, tempo=120):
+    def sequencer_add(self, name, notes, tdiv=8, swing=0.5, groove=1, tempo=120):
         if name not in self.players:
-            self.players[name] = Sequencer(self, notes, tdiv, swing)
+            self.players[name] = Sequencer(self, notes, tdiv, swing, groove)
             self.players[name].set_tempo(tempo)
 
-    def arpeggiator_add(self, name, tdiv=8, swing=0.5, style='', octaves=1, tempo=120):
+    def arpeggiator_add(self, name, tdiv=8, swing=0.5, style='', octaves=1, groove=1, tempo=120):
         if name not in self.players:
-            self.players[name] = Arpeggiator(self, tdiv, swing, style, octaves)
+            self.players[name] = Arpeggiator(self, tdiv, swing, groove, style, octaves)
             self.players[name].set_tempo(tempo)
 
     def player_add(self, name, file, loops=[], barlength=1, chan=None, mask=['prog'], tempo=0):
