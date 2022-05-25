@@ -82,15 +82,15 @@ Unrecognized keywords in a bank file will usually just be ignored. Anything on a
 
 - `sequencers` - a mapping that creates one or more sequencers that can play a series of looped notes. The name of each item is used to connect router rules to it. A sequencer can have the following attributes:
   - `notes`(required) - a list of note messages the sequencer will play. There must be a soundfont preset assigned to the MIDI channel of the notes in order to hear them.
-  - `tdiv` - the number of notes per measure, assuming a 4/4 time signature. Defaults to 8
+  - `tempo` - in beats per minute, defaults to 120
+  - `tdiv` - the length of the notes in the pattern expressed as the number of notes in a measure of four beats. Defaults to 8
   - `swing` - the ratio by which to stretch the duration of on-beat notes and shorten off-beat notes, producing a "swing" feel. Values range from 0.5 (no swing) to 0.99. Default is 0.5
   - `groove` - an amount by which to multiply the volume of specific notes in a pattern, in order to create a rhythmic feel. Can be a single number, in which case the multiplier is applied to every other note starting with the first, or a list of values. Default is 1
-  - `tempo` - in beats per minute, defaults to 120
   
   A router rule can control a sequencer if it has a `sequencer` parameter with the sequencer's name as the value. The value of the routed MIDI message controls how many times the sequence will loop. A value of 0 stops the sequencer, and negative values will cause it to loop indefinitely.
   
 - `arpeggiators` - a mapping of special sequencers that will capture any notes routed to them and repeat them in a pattern as long as the notes are held.
-  - `tdiv`, `swing`, `groove`, `tempo` - same as for sequencers
+  - `tempo`, `tdiv`, `swing`, `groove` - same as for sequencers
   - `octaves` - number of octaves over which to repeat the pattern. Defaults to 1
   - `style` - can be `up`, `down`, `both`, or `chord`. The first three loops the held notes in ascending sequence, descending, or ascending followed by descending. The `chord` option plays all held notes at once repeatedly. If not given, the notes are looped in the order they were played.
   
@@ -98,11 +98,11 @@ Unrecognized keywords in a bank file will usually just be ignored. Anything on a
   
 - `players` - a mapping of player units that can play, loop, and seek within MIDI files.
   - `file`(required) - the MIDI file to play, can also be a list of files to play in sequence
-  - `chan` - a channel routing specification, of the same format as for a router rule, for all the messages in the file. This can be useful if your MIDI controller plays on the same channel as one or more of the tracks in the file, and you don't want the messages to interfere.
-  - `mask` - a list of MIDI message types to ignore in the file. By default this is `['prog']`, so that program changes in the file won't affect the instrument settings in your patch.
+  - `tempo` - tempo at which to play the file, in bpm. If not given, the tempo messages in the file will be obeyed
   - `loops` - a list of pairs of _start, end_ ticks. When the song reaches an _end_ tick, it will seek back to the previous _start_ tick in the list. A loop _end_ with a negative value refers to ticks starting from the end of the song and going backward. A negative _start_ value rewinds to the beginning of the song and stops playback.
   - `barlength` - the number of ticks corresponding to a whole number of musical measures in the song. If the player is playing and a router rule tells it to seek to a point in the song, it will wait until the end of a bar to do so. By default barlength is 0 and seeking will occur immediately.
-  - `tempo` - tempo at which to play the file, in bpm. If not given, the tempo messages in the file will be obeyed
+  - `chan` - a channel routing specification, of the same format as for a router rule, for all the messages in the file. This can be useful if your MIDI controller plays on the same channel as one or more of the tracks in the file, and you don't want the messages to interfere.
+  - `mask` - a list of MIDI message types to ignore in the file. By default this is `['prog']`, so that program changes in the file won't affect the instrument settings in your patch.
   
   A router rule with a `player` parameter will tell the named player to play if its value is >0, or stop otherwise. If the rule also has a `tick` parameter, the player will seek to that tick value, possibly waiting until the end of a bar as described above.
   
