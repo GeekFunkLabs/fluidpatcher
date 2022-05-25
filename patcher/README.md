@@ -50,9 +50,9 @@ A generic Python object that handles patches and banks and starts an instance of
 
 **set_midimessage_callback**(_func_)
 
-Sets a function to be called when MIDI events are received by the synth. This can be bypassed by calling this function with _None_
+Sets a function to be called when MIDI messages are received by the synth, or when custom router rules that aren't otherwise handled are triggered by MIDI messages. This can be disabled by calling this function with _None_. MIDI messages will be passsed as python objects with `type`, `par1`, and `par2` attributes. Custom router rules will pass a python object with the transformed attributes of the routed MIDI message, additional attributes corresponding to the parameters of the rule, and a `val` attribute that is the result of `par1` or `par2` routing of the MIDI message, depending on whether it is a one- or two-parameter type.
 - Parameters:
-  - _func_: a function that takes a _fswrap.MidiMessage_ object as its single argument
+  - _func_: a function that can accept a python object as its single argument
 - Returns: nothing
 
 **read_config**()
