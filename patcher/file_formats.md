@@ -92,7 +92,7 @@ Unrecognized keywords in a bank file will usually just be ignored. Anything on a
 - `arpeggiators` - a mapping of special sequencers that will capture any notes routed to them and repeat them in a pattern as long as the notes are held.
   - `tempo`, `tdiv`, `swing`, `groove` - same as for sequencers
   - `octaves` - number of octaves over which to repeat the pattern. Defaults to 1
-  - `style` - can be `up`, `down`, `both`, or `chord`. The first three loops the held notes in ascending sequence, descending, or ascending followed by descending. The `chord` option plays all held notes at once repeatedly. If not given, the notes are looped in the order they were played.
+  - `style` - can be `up`, `down`, `both`, or `chord`. The first three options loop the held notes in ascending sequence, descending, or ascending followed by descending. The `chord` option plays all held notes at once repeatedly. If not given, the notes are looped in the order they were played.
   
   To make the arpeggiator work, create a `note` type router rule with an `arpeggiator` parameter that has the arpeggiator's name as its value. There must be a soundfont preset assigned on the MIDI channel to which the notes are routed in order to hear them.
   
