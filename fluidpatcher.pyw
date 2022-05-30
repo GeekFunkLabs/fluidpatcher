@@ -23,10 +23,9 @@ MSG_NAMES = "Note On", "Note Off", "Control Change", "Key Pressure", "Program Ch
 
 def gui_excepthook(etype, val, tb):
     # catch all unhandled exceptions
-    # display the error and quit
+    # display the error in a message box
     s = traceback.format_exception(etype, val, tb)
     wx.MessageBox(''.join(s), "Error", wx.OK|wx.ICON_ERROR)
-    sys.exit()
 
 
 class ControlBoard(wx.Panel):
