@@ -362,13 +362,13 @@ class SequencerNote:
     def schedule(self, seq, timeon, timeoff, accent=1):
         evt = FL.new_fluid_event()
         FL.fluid_event_set_source(evt, -1)
-        FL.fluid_event_set_dest(evt, seq.fsynth_dest)
+        FL.fluid_event_set_dest(evt, seq.fsynth_id)
         FL.fluid_event_noteon(evt, self.chan, self.key, int(min(self.vel * accent, 127)))
         FL.fluid_sequencer_send_at(seq.fseq, evt, int(timeon), 1)
         FL.delete_fluid_event(evt)
         evt = FL.new_fluid_event()
         FL.fluid_event_set_source(evt, -1)
-        FL.fluid_event_set_dest(evt, seq.fsynth_dest)
+        FL.fluid_event_set_dest(evt, seq.fsynth_id)
         FL.fluid_event_noteoff(evt, int(self.chan), int(self.key))
         FL.fluid_sequencer_send_at(seq.fseq, evt, int(timeoff), 1)
         FL.delete_fluid_event(evt)
@@ -377,10 +377,10 @@ class SequencerNote:
 class Sequencer:
 
     def __init__(self, synth, notes, tdiv, swing, groove):
-        self.fseq = FL.new_fluid_sequencer2(0)
-        self.fsynth_dest = FL.fluid_sequencer_register_fluidsynth(self.fseq, synth.fsynth)
+        self.fseq = synth.fseq
+        self.fsynth_id = synth.fsynth_id
         self.callback = fl_seqcallback(self.scheduler)
-        self.fseq_dest = FL.fluid_sequencer_register_client(self.fseq, b'seq', self.callback, None)
+        self.seq_id = FL.fluid_sequencer_register_client(self.fseq, b'seq', self.callback, None)
         self.notes = [SequencerNote(chan, key, vel) for _, chan, key, vel in notes]
         self.tdiv = tdiv
         self.swing = swing
@@ -410,8 +410,7 @@ class Sequencer:
             self.beat += 1
 
     def play(self, loops=1):
-        FL.fluid_sequencer_remove_events(self.fseq, -1, -1, FLUID_SEQ_NOTEON)
-        FL.fluid_sequencer_remove_events(self.fseq, -1, -1, FLUID_SEQ_TIMER)
+        FL.fluid_sequencer_remove_events(self.fseq, -1, self.seq_id, FLUID_SEQ_TIMER)
         if loops != 0:
             self.loop = loops
             self.beat = 0
@@ -421,7 +420,7 @@ class Sequencer:
     def timer(self, time):
         evt = FL.new_fluid_event()
         FL.fluid_event_set_source(evt, -1)
-        FL.fluid_event_set_dest(evt, self.fseq_dest)
+        FL.fluid_event_set_dest(evt, self.seq_id)
         FL.fluid_event_timer(evt, None)
         FL.fluid_sequencer_send_at(self.fseq, evt, int(time), 1)
         FL.delete_fluid_event(evt)
@@ -429,11 +428,10 @@ class Sequencer:
     def set_tempo(self, bpm):
         self.ticksperbeat = 1000 * 60 / bpm
 
-    def delete(self):
+    def dismiss(self):
         self.notes = []
-        FL.fluid_sequencer_remove_events(self.fseq, -1, -1, -1)
-        FL.fluid_sequencer_unregister_client(self.fseq, self.fseq_dest)
-        FL.delete_fluid_sequencer(self.fseq)
+        self.play(0)
+        FL.fluid_sequencer_unregister_client(self.fseq, self.seq_id)
 
 
 class Arpeggiator(Sequencer):
@@ -567,7 +565,7 @@ class Player:
         def set_tempo(self, bpm=None):
             pass
 
-    def delete(self):
+    def dismiss(self):
         FL.fluid_player_stop(self.fplayer)
         FL.delete_fluid_player(self.fplayer)
 
@@ -628,6 +626,8 @@ class Synth:
         self.frouter = FL.new_fluid_midi_router(self.st, self.frouter_callback, self.fsynth)
         self.custom_router_callback = fl_eventcallback(self.custom_midi_router)
         FL.new_fluid_midi_driver(self.st, self.custom_router_callback, None)      
+        self.fseq = FL.new_fluid_sequencer2(0)
+        self.fsynth_id = FL.fluid_sequencer_register_fluidsynth(self.fseq, self.fsynth)
         self.sfid = {}
         self.xrules = []
         self.players = {}
@@ -783,7 +783,7 @@ class Synth:
 
     def players_clear(self, save=[]):
         for name in [x for x in self.players if x not in save]:
-            self.players[name].delete()
+            self.players[name].dismiss()
             del self.players[name]
 
     def sequencer_add(self, name, notes, tdiv=8, swing=0.5, groove=1, tempo=120):
