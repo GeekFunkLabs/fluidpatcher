@@ -447,30 +447,30 @@ class Arpeggiator(Sequencer):
     def note(self, chan, key, vel):
         if vel > 0:
             self.keysdown.append(SequencerNote(chan, key, vel))
-            n = len(self.keysdown)
+            nd = len(self.keysdown)
         else:
             for k in self.keysdown:
                 if k.key == key:
                     self.keysdown.remove(k)
                     break
-            n = -len(self.keysdown)
+            nd = -len(self.keysdown)
+        if self.style in ('up', 'down', 'both'):
+            self.keysdown.sort(key=lambda n: n.key)
         self.notes = []
         for i in range(self.octaves):
-            for k in self.keysdown:
-                self.notes.append(SequencerNote(k.chan, k.key + i * 12, k.vel))
-        if self.style == 'up' or self.style == 'both':
-            self.notes.sort(key=lambda k: k.key)
+            for n in self.keysdown:
+                self.notes.append(SequencerNote(n.chan, n.key + i * 12, n.vel))
         if self.style == 'down':
-            self.notes.sort(key=lambda k: k.key, reverse=True)
-        if self.style == 'both':
+            self.notes.reverse()
+        elif self.style == 'both':
             self.notes += self.notes[-2:0:-1]
-        if self.style == 'chord':
+        elif self.style == 'chord':
             self.notes = [self.notes]
             if self.beat < 2:
                 self.play(loops=-1)
-        if n == 1:
+        if nd == 1:
             self.play(loops=-1)
-        elif n == 0:
+        elif nd == 0:
             self.play(loops=0)
 
 
