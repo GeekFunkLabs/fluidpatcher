@@ -264,18 +264,16 @@ class MainWindow(wx.Frame):
                 else:
                     display[2] = msg.lcdwrite
                 self.ctrlboard.Refresh()
-        elif hasattr(self.midimon, 'timer') and self.midimon.timer.IsRunning():
-            t = ('note', 'noteoff', 'kpress', 'cc', 'prog', 'pbend', 'cpress', None).index(msg.type)
-            x = ("Note On", "Note Off", "Key Pressure", "Control Change",
-                 "Program Change", "Pitch Bend", "Aftertouch", "")[t]
+        elif hasattr(self.midimon, 'timer') and self.midimon.timer.IsRunning() and msg.type in MSG_TYPES:
+            t = MSG_TYPES.index(msg.type)
             if t < 3:
                 octave = int(msg.par1 / 12) - 1
                 note = ('C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B')[msg.par1 % 12]
-                midimsgs.append((x, str(msg.chan + 1), f"{msg.par1} ({note}{octave})={msg.par2}"))
+                midimsgs.append((MSG_NAMES[t], str(msg.chan + 1), f"{msg.par1} ({note}{octave})={msg.par2}"))
             elif t < 4:
-                midimsgs.append((x, str(msg.chan + 1), f"{msg.par1}={msg.par2}"))
+                midimsgs.append((MSG_NAMES[t], str(msg.chan + 1), f"{msg.par1}={msg.par2}"))
             elif t < 7:
-                midimsgs.append((x, str(msg.chan + 1), str(msg.par1)))
+                midimsgs.append((MSG_NAMES[t], str(msg.chan + 1), str(msg.par1)))
 
     def load_bankfile(self, bfile=''):
         display[:] = [bfile, "", "loading patches"]

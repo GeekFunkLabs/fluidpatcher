@@ -153,15 +153,8 @@ try:
 except AttributeError:
     LADSPA_SUPPORT = False
 
-MIDI_NOTEOFF = 0x80
-MIDI_NOTEON = 0x90
-MIDI_KPRESS = 0xa0
-MIDI_CONTROL = 0xb0
-MIDI_PROG = 0xc0
-MIDI_CPRESS = 0xd0
-MIDI_PBEND = 0xe0
-EVENT_NAMES = 'note', 'cc', 'prog', 'pbend', 'cpress', 'kpress', 'noteoff'
-MIDI_TYPES = MIDI_NOTEON, MIDI_CONTROL, MIDI_PROG, MIDI_PBEND, MIDI_CPRESS, MIDI_KPRESS, MIDI_NOTEOFF
+MIDI_TYPES = {0x90: 'note', 0xb0: 'cc', 0xc0: 'prog', 0xe0: 'pbend', 0xd0: 'cpress', 0xa0: 'kpress', 0x80: 'noteoff',
+              0xf8: 'clock', 0xfa: 'start', 0xfb: 'continue', 0xfc: 'stop'}
 SEEK_DONE = -1
 SEEK_WAIT = -2
 
@@ -174,11 +167,12 @@ class MidiEvent:
     @property
     def type(self):
         b = FL.fluid_midi_event_get_type(self.event)
-        if b == MIDI_NOTEON and self.par2 == 0:
-            return MIDI_NOTEOFF
-        return b if b in MIDI_TYPES else None
+        if b == 0x90 and self.par2 == 0: b = 0x80
+        return MIDI_TYPES.get(b, None)
     @type.setter
-    def type(self, v): FL.fluid_midi_event_set_type(self.event, v)
+    def type(self, n):
+        n = {v: k for k, v in MIDI_TYPES.items()}.get(n, None)
+        FL.fluid_midi_event_set_type(self.event, n)
 
     @property
     def chan(self): return FL.fluid_midi_event_get_channel(self.event)
@@ -202,10 +196,7 @@ class MidiEvent:
 class MidiMessage:
 
     def __init__(self, mevent):
-        if mevent.type in MIDI_TYPES:
-            self.type = EVENT_NAMES[MIDI_TYPES.index(mevent.type)]
-        else:
-            self.type = None
+        self.type = mevent.type
         self.chan = mevent.chan
         self.par1 = mevent.par1
         self.par2 = mevent.par2
@@ -247,8 +238,10 @@ class TransRule:
         return str(self.__dict__)
 
     def applies(self, mevent):
-        if MIDI_TYPES.index(mevent.type) != EVENT_NAMES.index(self.type):
+        if self.type != mevent.type:
             return False
+        if self.type in ('clock', 'start', 'continue', 'stop'):
+            return True
         if self.chan != None:
             if self.chan.min > self.chan.max:
                 if self.chan.min < mevent.chan < self.chan.max:
@@ -274,7 +267,7 @@ class TransRule:
 
     def apply(self, mevent):
         newevent = MidiEvent(FL.new_fluid_midi_event())
-        newevent.type = MIDI_TYPES[EVENT_NAMES.index(self.type2)]
+        newevent.type = self.type2
         if self.chan == None:
             newevent.chan = mevent.chan
         else:
@@ -314,10 +307,7 @@ class TransRule:
 class ExtRule(TransRule):
 
     def __init__(self, type, chan, par1, par2, **apars):
-        self.type = type
-        self.chan = Route(*chan) if chan else None
-        self.par1 = Route(*par1) if par1 else None
-        self.par2 = Route(*par2) if par2 else None
+        super().__init__(type, chan, par1, par2, None)
         for attr, val in apars.items():
             setattr(self, attr, val)
 
@@ -332,9 +322,15 @@ class ExtRule(TransRule):
         if self.type in ('note', 'cc', 'kpress', 'noteoff'):
             msg.val = mevent.par2
             if self.par2: msg.val = msg.val * self.par2.mul + self.par2.add
-        else:
+        elif self.type in ('prog', 'pbend', 'cpress'):
             msg.val = mevent.par1
             if self.par1: msg.val = msg.val * self.par1.mul + self.par1.add
+        elif self.type == 'clock':
+            msg.val = 24
+        elif self.type in ('start', 'continue'):
+            msg.val = self.par1.min if self.par1 else -1
+        elif self.type == 'stop':
+            msg.val = self.par1.min if self.par1 else 0
         return msg
 
 
@@ -426,6 +422,7 @@ class Sequencer:
         FL.delete_fluid_event(evt)
 
     def set_tempo(self, bpm):
+        # default fluid_sequencer time scale is 1000 ticks per second
         self.ticksperbeat = 1000 * 60 / bpm
 
     def dismiss(self):
@@ -621,15 +618,16 @@ class Synth:
         for opt, val in settings.items():
             self.setting(opt, val)
         self.fsynth = FL.new_fluid_synth(self.st)
+        self.fseq = FL.new_fluid_sequencer2(0)
+        self.fsynth_id = FL.fluid_sequencer_register_fluidsynth(self.fseq, self.fsynth)
         FL.new_fluid_audio_driver(self.st, self.fsynth)
         self.frouter_callback = fl_eventcallback(FL.fluid_synth_handle_midi_event)
         self.frouter = FL.new_fluid_midi_router(self.st, self.frouter_callback, self.fsynth)
         self.custom_router_callback = fl_eventcallback(self.custom_midi_router)
         FL.new_fluid_midi_driver(self.st, self.custom_router_callback, None)      
-        self.fseq = FL.new_fluid_sequencer2(0)
-        self.fsynth_id = FL.fluid_sequencer_register_fluidsynth(self.fseq, self.fsynth)
-        self.sfid = {}
+        self.clocks = [0, 0]
         self.xrules = []
+        self.sfid = {}
         self.players = {}
         self.msg_callback = None
         if LADSPA_SUPPORT:
@@ -649,8 +647,8 @@ class Synth:
 
     def custom_midi_router(self, data, event):
         mevent = MidiEvent(event)
-        if mevent.type == None:
-            return FL.fluid_midi_router_handle_midi_event(self.frouter, event)            
+        t = FL.fluid_sequencer_get_tick(self.fseq)
+        dt = 0
         for rule in self.xrules:
             if not rule.applies(mevent):
                 continue
@@ -672,11 +670,17 @@ class Synth:
             elif hasattr(res, 'tempo'):
                 if res.tempo in self.players:
                     self.players[res.tempo].set_tempo(res.val)
+            elif hasattr(res, 'sync'):
+                if res.sync in self.players:
+                    dt, dt2 = t - self.clocks[0], self.clocks[0] - self.clocks[1]
+                    bpm = 1000 * 60 / dt / res.val
+                    if dt2/dt > 0.5: self.players[res.sync].set_tempo(bpm)
             elif hasattr(res, 'ladspafx'):
                 if res.ladspafx in getattr(self, 'ladspafx', {}):
                     self.ladspafx[res.ladspafx].setcontrol(res.port, res.val)
             else:
                 if self.msg_callback: self.msg_callback(res)
+        if dt > 0: self.clocks = t, self.clocks[0]
         if self.msg_callback: self.msg_callback(MidiMessage(mevent))
         return FL.fluid_midi_router_handle_midi_event(self.frouter, mevent.event)
 
@@ -736,7 +740,7 @@ class Synth:
 
     def send_event(self, type, chan, par1, par2=None):
         newevent = MidiEvent(FL.new_fluid_midi_event())
-        newevent.type = MIDI_TYPES[EVENT_NAMES.index(type)]
+        newevent.type = self.type
         newevent.chan = chan
         newevent.par1 = par1
         newevent.par2 = par2

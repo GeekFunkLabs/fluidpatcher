@@ -398,6 +398,7 @@ class SquishBox:
             while not sb.waitfortap(0.1):
                 if msg == self.lastmsg: continue
                 msg = self.lastmsg
+                if msg.type not in ('note', 'noteoff', 'cc', 'kpress', 'prog', 'pbend', 'cpress'): continue
                 t = ('note', 'noteoff', 'cc', 'kpress', 'prog', 'pbend', 'cpress').index(msg.type)
                 x = ("note", "noff", "  cc", "keyp", " prog", "pbend", "press")[t]
                 if t < 4:
