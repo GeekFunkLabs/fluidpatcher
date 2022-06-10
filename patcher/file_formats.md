@@ -72,7 +72,7 @@ Unrecognized keywords in a bank file will usually just be ignored. Anything on a
 
   Additional parameters can be used to make rules that trigger actions or control things, as opposed to sending MIDI messages. The rule will pass a value that is the result of `par1` or `par2` routing, depending on whether the triggering MIDI message is a one- or two-parameter type.
   - `fluidsetting` - a FluidSynth setting to change when a matching MIDI message is received.
-  - `sequencer|arpeggiator|player|tempo|ladspafx` - these are used to control MIDI players and external LADSPA effects, described below
+  - `sequencer|arpeggiator|player|tempo|sync|ladspafx` - these are used to control MIDI players and external LADSPA effects, described below
   
   Arbitrary parameters can be added to create custom rules. These rules pass information about the rule type and the triggering MIDI message to a callback function that an implementation can use to trigger its own events. An example is the `patch` rule, which the _squishbox.py_, _headlesspi.py_, and _fluidpatcher.pyw_ implementations will use to change patches. If the value of `patch` is a number, the patch number will be incremented by that amount. If the value is `select`, then the number resulting from `par1` or `par2` routing is used to select the patch, depending on whether the triggering message is a one- or two-parameter type.
 
@@ -106,7 +106,7 @@ Unrecognized keywords in a bank file will usually just be ignored. Anything on a
   
   A router rule with a `player` parameter will tell the named player to play if its value is >0, or stop otherwise. If the rule also has a `tick` parameter, the player will seek to that tick value, possibly waiting until the end of a bar as described above.
   
-  The tempo of a sequencer, arpeggiator, or player can be set with a router rule that has a `tempo` parameter with the target's name as its value. The names of sequencers, arpeggiators, and players should all be unique.
+  The names of sequencers, arpeggiators, and players should all be unique. The tempo of a sequencer, arpeggiator, or player can be set with a router rule that has a `tempo` parameter with the target's name as its value. A router rule with a `sync` parameter will measure the time between successive MIDI messages matching the rule and use this to set the tempo of the named player/sequencer/arpeggiator, allowing a user to set the tempo by tapping a button or key.
 
 - `ladspafx` - a mapping of external [LADSPA](https://github.com/FluidSynth/fluidsynth/blob/master/doc/ladspa.md) effects units to activate. These must be installed separately and are system-dependent. On Linux, the `listplugins` and `analyseplugin` commands are useful for determining the available plugins and their parameters.
   - `lib`(required) - the effect plugin file (_.dll, .so_, etc. depending on system)
