@@ -61,6 +61,7 @@ specfunc(FL.fluid_midi_router_rule_set_param2, None, c_void_p, c_int, c_int, c_f
 specfunc(FL.fluid_midi_router_add_rule, c_int, c_void_p, c_void_p, c_int)
 specfunc(FL.fluid_midi_router_clear_rules, c_int, c_void_p)
 specfunc(FL.fluid_midi_router_set_default_rules, c_int, c_void_p)
+RULE_TYPES = 'note', 'cc', 'prog', 'pbend', 'cpress', 'kpress'
 
 # midi events
 specfunc(FL.new_fluid_midi_event, c_void_p)
@@ -74,6 +75,9 @@ specfunc(FL.fluid_midi_event_set_channel, c_int, c_void_p, c_int)
 fl_midi_event_set_par1 = specfunc(FL.fluid_midi_event_set_key, c_int, c_void_p, c_int)
 fl_midi_event_set_par2 = specfunc(FL.fluid_midi_event_set_velocity, c_int, c_void_p, c_int)
 specfunc(FL.fluid_midi_event_set_sysex, c_int, c_void_p, c_void_p, c_int, c_int)
+EVENT_NAMES = {0x90: 'note', 0xb0: 'cc', 0xc0: 'prog', 0xe0: 'pbend', 0xd0: 'cpress', 0xa0: 'kpress', 0x80: 'noteoff',
+              0xf8: 'clock', 0xfa: 'start', 0xfb: 'continue', 0xfc: 'stop'}
+MIDI_TYPES = {v: k for k, v in EVENT_NAMES.items()}
 
 # sequencer events
 specfunc(FL.new_fluid_event, c_void_p)
@@ -153,8 +157,6 @@ try:
 except AttributeError:
     LADSPA_SUPPORT = False
 
-MIDI_TYPES = {0x90: 'note', 0xb0: 'cc', 0xc0: 'prog', 0xe0: 'pbend', 0xd0: 'cpress', 0xa0: 'kpress', 0x80: 'noteoff',
-              0xf8: 'clock', 0xfa: 'start', 0xfb: 'continue', 0xfc: 'stop'}
 SEEK_DONE = -1
 SEEK_WAIT = -2
 
@@ -168,10 +170,10 @@ class MidiEvent:
     def type(self):
         b = FL.fluid_midi_event_get_type(self.event)
         if b == 0x90 and self.par2 == 0: b = 0x80
-        return MIDI_TYPES.get(b, None)
+        return EVENT_NAMES.get(b, None)
     @type.setter
     def type(self, n):
-        n = {v: k for k, v in MIDI_TYPES.items()}.get(n, None)
+        n = MIDI_TYPES.get(n, None)
         FL.fluid_midi_event_set_type(self.event, n)
 
     @property
@@ -220,6 +222,9 @@ class Route:
         self.max = args[1]
         self.mul = args[2]
         self.add = args[3]
+
+    def __iter__(self):
+        return iter((int(self.min), int(self.max), float(self.mul), int(self.add)))
 
     def __repr__(self):
         return str(self.__dict__)
@@ -483,11 +488,10 @@ class Player:
         self.frouter_callback = fl_eventcallback(FL.fluid_midi_router_handle_midi_event)
         self.frouter = FL.new_fluid_midi_router(synth.st, self.frouter_callback, synth.frouter)
         FL.fluid_midi_router_clear_rules(self.frouter)
-        for i in [EVENT_NAMES.index(x) for x in EVENT_NAMES if x not in mask]:
+        for rtype in list(set(RULE_TYPES) - set(mask)):
             rule = FL.new_fluid_midi_router_rule()
-            if chan:
-                FL.fluid_midi_router_rule_set_chan(rule, int(chan[0]), int(chan[1]), float(chan[2]), int(chan[3]))
-            FL.fluid_midi_router_add_rule(self.frouter, rule, i)
+            if chan: FL.fluid_midi_router_rule_set_chan(rule, *Route(*chan))
+            FL.fluid_midi_router_add_rule(self.frouter, rule, rtype)
         self.playback_callback = fl_eventcallback(FL.fluid_midi_router_handle_midi_event)
         FL.fluid_player_set_playback_callback(self.fplayer, self.playback_callback, self.frouter)
         if FLUID_VERSION >= (2, 2, 0):
@@ -740,7 +744,7 @@ class Synth:
 
     def send_event(self, type, chan, par1, par2=None):
         newevent = MidiEvent(FL.new_fluid_midi_event())
-        newevent.type = self.type
+        newevent.type = type
         newevent.chan = chan
         newevent.par1 = par1
         newevent.par2 = par2
@@ -768,22 +772,22 @@ class Synth:
         FL.fluid_midi_router_set_default_rules(self.frouter)
         self.xrules = []
 
-    def router_addrule(self, type, chan, par1, par2, **apars):
+    def router_addrule(self, rtype, chan, par1, par2, **apars):
         if 'type2' in apars:
-            self.xrules.insert(0, TransRule(type, chan, par1, par2, apars['type2']))
+            self.xrules.insert(0, TransRule(rtype, chan, par1, par2, apars['type2']))
         elif apars:
-            self.xrules.insert(0, ExtRule(type, chan, par1, par2, **apars))
+            self.xrules.insert(0, ExtRule(rtype, chan, par1, par2, **apars))
             if 'arpeggiator' in apars:
                 self.xrules.insert(0, ExtRule('noteoff', chan, par1, (0, 127, 0, 0), **apars))
-        else:
+        elif rtype in RULE_TYPES:
             rule = FL.new_fluid_midi_router_rule()
             if chan:
-                FL.fluid_midi_router_rule_set_chan(rule, int(chan[0]), int(chan[1]), float(chan[2]), int(chan[3]))
+                FL.fluid_midi_router_rule_set_chan(rule, *Route(*chan))
             if par1:
-                FL.fluid_midi_router_rule_set_param1(rule, int(par1[0]), int(par1[1]), float(par1[2]), int(par1[3]))
+                FL.fluid_midi_router_rule_set_param1(rule, *Route(*par1))
             if par2:
-                FL.fluid_midi_router_rule_set_param2(rule, int(par2[0]), int(par2[1]), float(par2[2]), int(par2[3]))
-            FL.fluid_midi_router_add_rule(self.frouter, rule, EVENT_NAMES.index(type))
+                FL.fluid_midi_router_rule_set_param2(rule, *Route(*par2))
+            FL.fluid_midi_router_add_rule(self.frouter, rule, RULE_TYPES.index(rtype))
 
     def players_clear(self, save=[]):
         for name in [x for x in self.players if x not in save]:
