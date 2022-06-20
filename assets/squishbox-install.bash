@@ -161,13 +161,12 @@ fi
 if command -v fluidsynth > /dev/null; then
     INST_VER=`fluidsynth --version | sed -n '/runtime version/s|[^0-9\.]*||gp'`
     echo "Installed FluidSynth is version $INST_VER"
-else
-    PKG_VER=`apt-cache policy fluidsynth | sed -n '/Candidate:/s/  Candidate: //p'`
-    echo "FluidSynth version $PKG_VER will be installed"
-fi
 BUILD_VER=`curl -s https://api.github.com/repos/FluidSynth/fluidsynth/releases/latest | sed -n '/tag_name/s|[^0-9\.]*||gp'`
 if yesno "Compile and install FluidSynth $BUILD_VER from source?"; then
     compile="yes"
+elif [[ ! $INST_VER ]]; then
+    PKG_VER=`apt-cache policy fluidsynth | sed -n '/Candidate:/s/  Candidate: //p'`
+    echo "FluidSynth version $PKG_VER will be installed"
 fi
 
 if yesno "OK to upgrade your system (if possible)?"; then
@@ -184,17 +183,17 @@ echo "  1. Default"
 i=2
 for dev in ${AUDIOCARDS[@]}; do
     echo "  $i. $dev"
-	if [[ $dev == "Headphones" ]]; then
-		defcard=$i
-	fi
+    if [[ $dev == "Headphones" ]]; then
+        defcard=$i
+    fi
     ((i+=1))
 done
 i=2
 for dev in ${AUDIOCARDS[@]}; do
-	if [[ $dev == "sndrpihifiberry" ]]; then
-		defcard=$i
-		defscript=1
-	fi
+    if [[ $dev == "sndrpihifiberry" ]]; then
+        defcard=$i
+        defscript=1
+    fi
     ((i+=1))
 done
 query "Choose" $defcard; audiosetup=$response
@@ -256,12 +255,13 @@ apt_pkg_install "fluid-soundfont-gm" required
 apt_pkg_install "jackd2" required
 # allow JACK to set real-time priority for audio
 sudo mv /etc/security/limits.d/audio.conf.disabled /etc/security/limits.d/audio.conf 2> /dev/null
-apt_pkg_install "ladspa-sdk"
-apt_pkg_install "tap-plugins"
-apt_pkg_install "wah-plugins"
 pip_install "oyaml" required
 pip_install "RPi.GPIO" $squishbox_pkg
 pip_install "RPLCD" $squishbox_pkg
+apt_pkg_install "ladspa-sdk"
+apt_pkg_install "tap-plugins"
+apt_pkg_install "wah-plugins"
+
 
 # install/update fluidpatcher
 if [[ $update == "yes" ]]; then
@@ -269,17 +269,17 @@ if [[ $update == "yes" ]]; then
     rm -rf fluidpatcher
     fptemp=`mktemp -dp .`
     wget -qO- https://github.com/albedozero/fluidpatcher/tarball/master | tar -xzmC $fptemp
-    cd $fptemp/albedozero-fluidpatcher-*
-	find . -type d -exec mkdir -p $installdir/{} \;
-	find . -type f ! -name "*.yaml" ! -name "hw_overlay.py" -exec cp -f {} $installdir/{} \;
-	find . -type f -name "hw_overlay.py" -exec cp -n {} $installdir/{} \;
-	find . -type f -name "*.yaml" -exec cp -n {} $installdir/{} \;        
-    cd ../..
+    fproot=`ls -d $fptemp/albedozero-fluidpatcher-*`
+    find $fproot -type d -exec mkdir -p $installdir/{} \;
+    # copy files, but don't overwrite banks, config, hw_overlay.py
+    find $fproot -type f ! -name "*.yaml" ! -name "hw_overlay.py" -exec cp -f {} $installdir/{} \;
+    find $fproot -type f -name "hw_overlay.py" -exec cp -n {} $installdir/{} \;
+    find $fproot -type f -name "*.yaml" -exec cp -n {} $installdir/{} \;
     rm -rf $fptemp
-    ln -s /usr/share/sounds/sf2/FluidR3_GM.sf2 $installdir/SquishBox/sf2/
+    ln -s /usr/share/sounds/sf2/FluidR3_GM.sf2 $installdir/SquishBox/sf2/ 2> /dev/null
 fi
 
-# install/compile fluidsynth
+# compile/install fluidsynth
 if [[ $compile == "yes" ]]; then
     inform "Compiling latest FluidSynth from source..."
     if grep -q "#deb-src" /etc/apt/sources.list; then
@@ -301,13 +301,15 @@ if [[ $compile == "yes" ]]; then
     cmake ..
     echo "Compiling..."
     make
-    if ! { sudo make install; } then
-        warning "Unable to compile/install FluidSynth $BUILD_VER"
+    if { sudo make install; } then
+        INST_VER=$BUILD_VER
+    else
+        warning "Unable to compile FluidSynth $BUILD_VER"
     fi
     sudo ldconfig
     cd ../../..
     rm -rf $fstemp
-elif [[ ! $INST_VER ]]; then
+if [[ ! $INST_VER ]]; then
     apt_pkg_install "fluidsynth" required
 fi
 
