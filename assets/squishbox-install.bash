@@ -314,16 +314,17 @@ fi
 # set up audio
 if (( $audiosetup > 0 )); then
     inform "Setting up audio..."
-    echo "/usr/bin/jackd --silent --realtime -d alsa --softmode --playback -S" > ~/.jackdrc
     if (( $audiosetup > 1 )); then
         AUDIO=${AUDIOCARDS[$audiosetup-2]}
         if [[ $AUDIO == "Headphones" ]]; then
-            echo "/usr/bin/jackd --silent --realtime -d alsa --softmode --playback -S -i 0 -o 2 \\
+            echo "/usr/bin/jackd --silent --realtime --realtime-priority 90 -d alsa --softmode --playback -S -i 0 -o 2 \\
 --device hw:Headphones --period 444 --nperiods 3 --rate 22050" > ~/.jackdrc
         else
-            echo "/usr/bin/jackd --silent --realtime -d alsa --softmode --playback -S \\
+            echo "/usr/bin/jackd --silent --realtime --realtime-priority 90 -d alsa --softmode --playback -S \\
 --device hw:$AUDIO --period 64 --nperiods 3 --rate 44100" > ~/.jackdrc
         fi
+	else
+		echo "/usr/bin/jackd --silent --realtime --realtime-priority 90 -d alsa --softmode --playback -S" > ~/.jackdrc
     fi
 fi
 
