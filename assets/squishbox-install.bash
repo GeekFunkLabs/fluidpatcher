@@ -268,13 +268,12 @@ if [[ $update == "yes" ]]; then
     inform "Installing/Updating FluidPatcher version $NEW_FP_VER ..."
     rm -rf fluidpatcher
     fptemp=`mktemp -dp .`
-    wget -qO- https://github.com/albedozero/fluidpatcher/tarball/master | tar -xzmC $fptemp
-    fproot=`ls -d $fptemp/albedozero-fluidpatcher-*`
-    find $fproot -type d -exec mkdir -p $installdir/{} \;
+    wget -qO- https://github.com/albedozero/fluidpatcher/tarball/master | tar -xzmC $fptemp --strip-components=1
+    find $fptemp -type d -exec mkdir -p $installdir/{} \;
     # copy files, but don't overwrite banks, config, hw_overlay.py
-    find $fproot -type f ! -name "*.yaml" ! -name "hw_overlay.py" -exec cp -f {} $installdir/{} \;
-    find $fproot -type f -name "hw_overlay.py" -exec cp -n {} $installdir/{} \;
-    find $fproot -type f -name "*.yaml" -exec cp -n {} $installdir/{} \;
+    find $fptemp -type f ! -name "*.yaml" ! -name "hw_overlay.py" -exec cp -f {} $installdir/{} \;
+    find $fptemp -type f -name "hw_overlay.py" -exec cp -n {} $installdir/{} \;
+    find $fptemp -type f -name "*.yaml" -exec cp -n {} $installdir/{} \;
     rm -rf $fptemp
     ln -s /usr/share/sounds/sf2/FluidR3_GM.sf2 $installdir/SquishBox/sf2/ 2> /dev/null
 	gcc -shared $installdir/assets/patchcord.c -o patchcord.so
@@ -295,10 +294,9 @@ if [[ $compile == "yes" ]]; then
         warning "Couldn't get all dependencies!"
     fi
     fstemp=`mktemp -dp .`
-    wget -qO- https://github.com/FluidSynth/fluidsynth/tarball/master | tar -xzmC $fstemp
-    builddir=`ls -d $fstemp/FluidSynth-fluidsynth-*`/build
-    mkdir $builddir
-    cd $builddir
+    wget -qO- https://github.com/FluidSynth/fluidsynth/tarball/master | tar -xzmC $fstemp --strip-components=1
+    mkdir $fstemp/build
+    cd $fstemp/build
     echo "Configuring..."
     cmake ..
     echo "Compiling..."
@@ -309,7 +307,7 @@ if [[ $compile == "yes" ]]; then
         warning "Unable to compile FluidSynth $BUILD_VER"
     fi
     sudo ldconfig
-    cd ../../..
+    cd ../..
     rm -rf $fstemp
 if [[ ! $INST_VER ]]; then
     apt_pkg_install "fluidsynth" required
