@@ -161,6 +161,7 @@ fi
 if command -v fluidsynth > /dev/null; then
     INST_VER=`fluidsynth --version | sed -n '/runtime version/s|[^0-9\.]*||gp'`
     echo "Installed FluidSynth is version $INST_VER"
+fi
 BUILD_VER=`curl -s https://api.github.com/repos/FluidSynth/fluidsynth/releases/latest | sed -n '/tag_name/s|[^0-9\.]*||gp'`
 if yesno "Compile and install FluidSynth $BUILD_VER from source?"; then
     compile="yes"
