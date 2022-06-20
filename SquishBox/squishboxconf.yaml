@@ -11,7 +11,6 @@ fluidsettings: # http://www.fluidsynth.org/api/fluidsettings.xml
   audio.jack.multi: 1
   midi.autoconnect: 1
   player.reset-synth: 0
-  synth.audio-channels: 16
   synth.audio-groups: 16
   synth.cpu-cores: 4
   synth.ladspa.active: 1
@@ -23,6 +22,7 @@ fluidsettings-alsa:
   audio.periods: 3
   midi.autoconnect: 1
   player.reset-synth: 0
+  synth.audio-groups: 16
   synth.cpu-cores: 4
   synth.ladspa.active: 1
   synth.polyphony: 128
