@@ -29,12 +29,16 @@ FLUID_FAILED = -1
 
 # settings
 specfunc(FL.new_fluid_settings, c_void_p)
+specfunc(FL.fluid_settings_get_type, c_int, c_void_p, c_char_p)
 specfunc(FL.fluid_settings_getint, c_int, c_void_p, c_char_p, POINTER(c_int))
 specfunc(FL.fluid_settings_getnum, c_int, c_void_p, c_char_p, POINTER(c_double))
 specfunc(FL.fluid_settings_copystr, c_int, c_void_p, c_char_p, c_char_p, c_int)
 specfunc(FL.fluid_settings_setint, c_int, c_void_p, c_char_p, c_int)
 specfunc(FL.fluid_settings_setnum, c_int, c_void_p, c_char_p, c_double)
 specfunc(FL.fluid_settings_setstr, c_int, c_void_p, c_char_p, c_char_p)
+FLUID_NUM_TYPE = 0
+FLUID_INT_TYPE = 1
+FLUID_STR_TYPE = 2
 
 # synth
 fl_eventcallback = CFUNCTYPE(c_int, c_void_p, c_void_p)
@@ -689,22 +693,25 @@ class Synth:
         return FL.fluid_midi_router_handle_midi_event(self.frouter, mevent.event)
 
     def setting(self, opt, val):
-        if isinstance(val, str):
-            FL.fluid_settings_setstr(self.st, opt.encode(), val.encode())
-        elif isinstance(val, int):
-            FL.fluid_settings_setint(self.st, opt.encode(), val)
-        elif isinstance(val, float):
+        if FL.fluid_settings_get_type(self.st, opt.encode()) == FLUID_STR_TYPE:
+            FL.fluid_settings_setstr(self.st, opt.encode(), str(val).encode())
+        elif FL.fluid_settings_get_type(self.st, opt.encode()) == FLUID_INT_TYPE:
+            FL.fluid_settings_setint(self.st, opt.encode(), int(val))
+        elif FL.fluid_settings_get_type(self.st, opt.encode()) == FLUID_NUM_TYPE:
             FL.fluid_settings_setnum(self.st, opt.encode(), c_double(val))
 
     def get_setting(self, opt):
-        val = c_int()
-        if FL.fluid_settings_getint(self.st, opt.encode(), byref(val)) == FLUIDSETTING_EXISTS:
-            return val.value
-        strval = create_string_buffer(32)
-        if FL.fluid_settings_copystr(self.st, opt.encode(), strval, 32) == FLUIDSETTING_EXISTS:
+        if FL.fluid_settings_get_type(self.st, opt.encode()) == FLUID_STR_TYPE:
+            strval = create_string_buffer(32)
+            FL.fluid_settings_copystr(self.st, opt.encode(), strval, 32)
             return strval.value.decode()
-        num = c_double()
-        if FL.fluid_settings_getnum(self.st, opt.encode(), byref(num)) == FLUIDSETTING_EXISTS:
+        elif FL.fluid_settings_get_type(self.st, opt.encode()) == FLUID_INT_TYPE:
+            val = c_int()
+            FL.fluid_settings_getint(self.st, opt.encode(), byref(val))
+            return val.value
+        elif FL.fluid_settings_get_type(self.st, opt.encode()) == FLUID_NUM_TYPE:
+            num = c_double()
+            FL.fluid_settings_getnum(self.st, opt.encode(), byref(num))
             return round(num.value, 6)
         return None
 
