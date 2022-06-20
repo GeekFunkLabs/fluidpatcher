@@ -24,18 +24,20 @@ Run the setup program in the [latest release](https://github.com/albedozero/flui
 
 ### Linux (Debian/Ubuntu)\*
 ```
-sudo apt install git fluidsynth fluid-soundfont-gm python3-pip python3-wxgtk4.0
+sudo apt install fluidsynth fluid-soundfont-gm python3-pip python3-wxgtk4.0
 sudo pip3 install oyaml
-git clone https://github.com/albedozero/fluidpatcher.git
-ln -s /usr/share/sounds/sf2/FluidR3_GM.sf2 fluidpatcher/SquishBox/sf2/
+wget -O- https://github.com/albedozero/fluidpatcher/tarball/master | tar -xzm --strip-components=1
+ln -s /usr/share/sounds/sf2/FluidR3_GM.sf2 SquishBox/sf2/
+gcc -shared assets/patchcord.c -o patchcord.so && sudo mv -f patchcord.so /usr/lib/ladspa/
 ```
 
 ### MacOS\*
 ```
-brew install git fluidsynth fluid-soundfont-gm python3-pip
+brew install fluidsynth fluid-soundfont-gm python3-pip
 sudo pip3 install oyaml wxpython
-git clone https://github.com/albedozero/fluidpatcher.git
-ln -s /usr/share/sounds/sf2/FluidR3_GM.sf2 fluidpatcher/SquishBox/sf2/
+wget -O- https://github.com/albedozero/fluidpatcher/tarball/master | tar -xzm --strip-components=1
+ln -s /usr/share/sounds/sf2/FluidR3_GM.sf2 SquishBox/sf2/
+gcc -shared assets/patchcord.c -o patchcord.so && sudo mv -f patchcord.so /usr/lib/ladspa/
 ```
 
 \* The package repositories on these systems may not provide the latest version of FluidSynth. If you want newer features, it can be [compiled from source](https://github.com/FluidSynth/fluidsynth/wiki/BuildingWithCMake).
