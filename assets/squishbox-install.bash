@@ -277,6 +277,8 @@ if [[ $update == "yes" ]]; then
     find $fproot -type f -name "*.yaml" -exec cp -n {} $installdir/{} \;
     rm -rf $fptemp
     ln -s /usr/share/sounds/sf2/FluidR3_GM.sf2 $installdir/SquishBox/sf2/ 2> /dev/null
+	gcc -shared $installdir/assets/patchcord.c -o patchcord.so
+	sudo cp -f $installdir/assets/patchcord.so /usr/lib/ladspa
 fi
 
 # compile/install fluidsynth
