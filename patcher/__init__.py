@@ -30,6 +30,7 @@ SYNTH_DEFAULTS = {'synth.chorus.active': 1, 'synth.reverb.active': 1,
                   'synth.reverb.room-size': 0.2, 'synth.reverb.width': 0.5,
                   'synth.gain': 0.2}
 
+LADSPAFX_PATCHCORD = {'patchcordxxx': {'lib': 'patchcord', 'audio': 'mono'}}
 
 class Patcher:
 
@@ -165,9 +166,9 @@ class Patcher:
             self.fluid_set(opt, val)
         # ladspa effects
         self._fluid.fxchain_clear(save=merge('ladspafx'))
-        for name, info in merge('ladspafx').items():
+        for name, info in {**merge('ladspafx'), **LADSPAFX_PATCHCORD}.items():
             libfile = self.plugindir / info['lib']
-            fxchan = fpyaml.tochanset(info['chan']) if 'chan' in info else set(range(self._max_channels))
+            fxchan = fpyaml.tochanset(info['chan']) if 'chan' in info else None
             self._fluid.fxchain_add(name, **{**info, 'lib': libfile, 'chan': fxchan})
         self._fluid.fxchain_connect()
         # router rules
