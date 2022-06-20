@@ -9,8 +9,8 @@ fluidsettings:
   player.reset-synth: 0
   synth.ladspa.active: 1
 
-# The settings in the nodes below are ignored.
-# To use one of them instead, truncate its name to `fluidsettings`
+# The fluidsettings below are alternative setups
+# To use one of them, change its name to `fluidsettings`
 
 fluidsettings-windows-lowlatency:
   audio.driver: wasapi
@@ -26,6 +26,5 @@ fluidsettings-linux-jack:
   audio.jack.multi: 1
   midi.autoconnect: 1
   player.reset-synth: 0
-  synth.audio-channels: 16
   synth.audio-groups: 16
   synth.ladspa.active: 1
