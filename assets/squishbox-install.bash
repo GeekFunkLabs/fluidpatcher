@@ -220,7 +220,7 @@ if yesno "Set up web-based file manager?"; then
     echo "  Please create a user name and password."
     read -r -p "    username: " fmgr_user < /dev/tty
     read -r -p "    password: " password < /dev/tty
-    fmgr_hash=`wget -qO- geekfunklabs.com/passhash.php?password=$password`
+    fmgr_hash=`wget -qO - geekfunklabs.com/passhash.php?password=$password`
 fi
 
 if yesno "Download and install ~400MB of additional soundfonts?"; then
@@ -268,17 +268,19 @@ apt_pkg_install "wah-plugins"
 if [[ $update == "yes" ]]; then
     inform "Installing/Updating FluidPatcher version $NEW_FP_VER ..."
     rm -rf fluidpatcher
-    fptemp=`mktemp -dp .`
-    wget -qO- https://github.com/albedozero/fluidpatcher/tarball/master | tar -xzmC $fptemp --strip-components=1
-    find $fptemp -type d -exec mkdir -p $installdir/{} \;
+    wget -qO - https://github.com/albedozero/fluidpatcher/tarball/master | tar -xzm
+    fptemp=`ls -d albedozero-fluidpatcher-* | head -n1`
+    cd $fptemp
+    find . -type d -exec mkdir -p $installdir/{} \;
     # copy files, but don't overwrite banks, config, hw_overlay.py
-    find $fptemp -type f ! -name "*.yaml" ! -name "hw_overlay.py" -exec cp -f {} $installdir/{} \;
-    find $fptemp -type f -name "hw_overlay.py" -exec cp -n {} $installdir/{} \;
-    find $fptemp -type f -name "*.yaml" -exec cp -n {} $installdir/{} \;
+    find . -type f ! -name "*.yaml" ! -name "hw_overlay.py" -exec cp -f {} $installdir/{} \;
+    find . -type f -name "hw_overlay.py" -exec cp -n {} $installdir/{} \;
+    find . -type f -name "*.yaml" -exec cp -n {} $installdir/{} \;
+    cd ..
     rm -rf $fptemp
     ln -s /usr/share/sounds/sf2/FluidR3_GM.sf2 $installdir/SquishBox/sf2/ 2> /dev/null
-	gcc -shared $installdir/assets/patchcord.c -o patchcord.so
-	sudo cp -f $installdir/assets/patchcord.so /usr/lib/ladspa
+    gcc -shared $installdir/assets/patchcord.c -o patchcord.so
+    sudo mv -f patchcord.so /usr/lib/ladspa
 fi
 
 # compile/install fluidsynth
@@ -294,8 +296,8 @@ if [[ $compile == "yes" ]]; then
         || echo E: install failed; } | grep '^[WE]:'; then
         warning "Couldn't get all dependencies!"
     fi
-    fstemp=`mktemp -dp .`
-    wget -qO- https://github.com/FluidSynth/fluidsynth/tarball/master | tar -xzmC $fstemp --strip-components=1
+    wget -qO - https://github.com/FluidSynth/fluidsynth/tarball/master | tar -xzm
+    fstemp=`ls -d FluidSynth-fluidsynth-* | head -n1`
     mkdir $fstemp/build
     cd $fstemp/build
     echo "Configuring..."
@@ -326,8 +328,8 @@ if (( $audiosetup > 0 )); then
             echo "/usr/bin/jackd --silent --realtime --realtime-priority 90 -d alsa --softmode --playback -S \\
 --device hw:$AUDIO --period 64 --nperiods 3 --rate 44100" > ~/.jackdrc
         fi
-	else
-		echo "/usr/bin/jackd --silent --realtime --realtime-priority 90 -d alsa --softmode --playback -S" > ~/.jackdrc
+    else
+        echo "/usr/bin/jackd --silent --realtime --realtime-priority 90 -d alsa --softmode --playback -S" > ~/.jackdrc
     fi
 fi
 
@@ -447,7 +449,7 @@ fi
 if [[ $soundfonts == "yes" ]]; then
     # download extra soundfonts
     inform "Downloading free soundfonts..."
-    wget -qO- --show-progress https://geekfunklabs.com/squishbox_soundfonts.tar.gz | tar -xzC $installdir/SquishBox --skip-old-files
+    wget -qO - --show-progress https://geekfunklabs.com/squishbox_soundfonts.tar.gz | tar -xzC $installdir/SquishBox --skip-old-files
 fi
 
 success "Tasks complete!"
