@@ -312,6 +312,7 @@ if [[ $compile == "yes" ]]; then
     sudo ldconfig
     cd ../..
     rm -rf $fstemp
+fi
 if [[ ! $INST_VER ]]; then
     apt_pkg_install "fluidsynth" required
 fi
