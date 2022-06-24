@@ -341,7 +341,7 @@ class StompBox():
 
     def gpio_set(self, n, state):
         if n < len(PIN_OUT):
-            if state == 1:
+            if state:
                 GPIO.output(PIN_OUT[n], GPIO.HIGH)
             else:
                 GPIO.output(PIN_OUT[n], GPIO.LOW)
