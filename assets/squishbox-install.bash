@@ -312,9 +312,9 @@ if (( $audiosetup > 0 )); then
         AUDIO=${AUDIOCARDS[$audiosetup-2]}
 		sed -i "/audio.alsa.device/d" $installdir/SquishBox/squishboxconf.yaml
         if [[ $AUDIO == "Headphones" ]]; then
-			sed -i "/fluidsettings:/a  audio.alsa.device: hw:Headphones" $installdir/SquishBox/squishboxconf.yaml
+			sed -i "/fluidsettings:/a\  audio.alsa.device: hw:Headphones" $installdir/SquishBox/squishboxconf.yaml
 		else
-			sed -i "/fluidsettings:/a  audio.alsa.device: hw:$AUDIO" $installdir/SquishBox/squishboxconf.yaml
+			sed -i "/fluidsettings:/a\  audio.alsa.device: hw:$AUDIO" $installdir/SquishBox/squishboxconf.yaml
 		fi
     fi
 fi
@@ -412,7 +412,7 @@ EOF
     wget -q https://raw.githubusercontent.com/prasathmani/tinyfilemanager/master/tinyfilemanager.php
     sed -i "/define('APP_TITLE'/cdefine('APP_TITLE', 'SquishBox Manager');" tinyfilemanager.php
     sed -i "/'admin' =>/d;/'user' =>/d" tinyfilemanager.php
-    sed -i "/\$auth_users =/a    '$fmgr_user' => '$fmgr_hash'" tinyfilemanager.php
+    sed -i "/\$auth_users =/a\    '$fmgr_user' => '$fmgr_hash'" tinyfilemanager.php
     sed -i "/\$theme =/c\$theme = 'dark';" tinyfilemanager.php
     sed -i "0,/root_path =/s|root_path = .*|root_path = '$installdir/SquishBox';|" tinyfilemanager.php
     sed -i "0,/favicon_path =/s|favicon_path = .*|favicon_path = 'gfl_logo.png';|" tinyfilemanager.php
