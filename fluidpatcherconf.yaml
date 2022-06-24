@@ -9,8 +9,9 @@ fluidsettings:
   player.reset-synth: 0
   synth.ladspa.active: 1
 
-# The fluidsettings below are alternative setups
-# To use one of them, change its name to `fluidsettings`
+info: |
+  The fluidsetting-* nodes below are alternative setups
+  To use one of them, truncate its name to `fluidsettings`
 
 fluidsettings-windows-lowlatency:
   audio.driver: wasapi

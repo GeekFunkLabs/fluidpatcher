@@ -149,6 +149,7 @@ if ! ($ENVCHECK); then
 fi
 
 query "Install location" $HOME; installdir=$response
+
 if test -f "$installdir/patcher/__init__.py"; then
     FP_VER=`sed -n '/^VERSION/s|[^0-9\.]*||gp' $installdir/patcher/__init__.py`
     echo "Installed FluidPatcher is version $FP_VER"
@@ -238,31 +239,19 @@ warning "\nThis may take some time ... go make some coffee.\n"
 
 # friendly permissions for web file manager
 umask 002 
-# desktop distros play an audio message when first booting to setup; this disables it
-sudo mv -f /etc/xdg/autostart/piwiz.desktop /etc/xdg/autostart/piwiz.disabled 2> /dev/null
-# add user to audio group
-sudo usermod -a -G audio $USER
-# allow JACK to grant self-connect requests
-if ! grep -q "export JACK_NO_AUDIO_RESERVATION=1" $HOME/.profile; then
-    echo "export JACK_NO_AUDIO_RESERVATION=1" >> $HOME/.profile
-fi
-
 
 # get dependencies
 inform "Installing/Updating required software..."
 if $UPGRADE; then sysupdate; fi
 apt_pkg_install "python3-pip" required
 apt_pkg_install "fluid-soundfont-gm" required
-apt_pkg_install "jackd2" required
-# allow JACK to set real-time priority for audio
-sudo mv /etc/security/limits.d/audio.conf.disabled /etc/security/limits.d/audio.conf 2> /dev/null
 pip_install "oyaml" required
 pip_install "RPi.GPIO" $squishbox_pkg
 pip_install "RPLCD" $squishbox_pkg
 apt_pkg_install "ladspa-sdk"
+apt_pkg_install "swh-plugins"
 apt_pkg_install "tap-plugins"
 apt_pkg_install "wah-plugins"
-
 
 # install/update fluidpatcher
 if [[ $update == "yes" ]]; then
@@ -290,7 +279,6 @@ if [[ $compile == "yes" ]]; then
         sudo sed -i "/^#deb-src/s|#||" /etc/apt/sources.list
     fi
     UPDATED=false
-    apt_pkg_install "libjack-jackd2-dev"
     echo "Getting build dependencies..."
     if { sudo DEBIAN_FRONTEND=noninteractive apt-get build-dep fluidsynth -y --no-install-recommends 2>&1 \
         || echo E: install failed; } | grep '^[WE]:'; then
@@ -322,15 +310,12 @@ if (( $audiosetup > 0 )); then
     inform "Setting up audio..."
     if (( $audiosetup > 1 )); then
         AUDIO=${AUDIOCARDS[$audiosetup-2]}
+		sed -i "/audio.alsa.device/d" $installdir/SquishBox/squishboxconf.yaml
         if [[ $AUDIO == "Headphones" ]]; then
-            echo "/usr/bin/jackd --silent --realtime --realtime-priority 90 -d alsa --softmode --playback -S -i 0 -o 2 \\
---device hw:Headphones --period 444 --nperiods 3 --rate 22050" > ~/.jackdrc
-        else
-            echo "/usr/bin/jackd --silent --realtime --realtime-priority 90 -d alsa --softmode --playback -S \\
---device hw:$AUDIO --period 64 --nperiods 3 --rate 44100" > ~/.jackdrc
-        fi
-    else
-        echo "/usr/bin/jackd --silent --realtime --realtime-priority 90 -d alsa --softmode --playback -S" > ~/.jackdrc
+			sed -i "/fluidsettings:/a  audio.alsa.device: hw:Headphones" $installdir/SquishBox/squishboxconf.yaml
+		else
+			sed -i "/fluidsettings:/a  audio.alsa.device: hw:$AUDIO" $installdir/SquishBox/squishboxconf.yaml
+		fi
     fi
 fi
 
@@ -348,7 +333,6 @@ Type=simple
 ExecStart=$installdir/squishbox.py
 User=$USER
 WorkingDirectory=$installdir
-Environment="JACK_NO_AUDIO_RESERVATION=1"
 Restart=on-failure
 
 [Install]
@@ -369,7 +353,6 @@ Type=simple
 ExecStart=$installdir/headlesspi.py
 User=$USER
 WorkingDirectory=$installdir
-Environment="JACK_NO_AUDIO_RESERVATION=1"
 Restart=on-failure
 
 [Install]
@@ -416,22 +399,16 @@ server {
 }
 EOF
     # some tweaks to allow uploading bigger files
-    if grep -q "client_max_body_size" /etc/nginx/nginx.conf; then
-        sudo sed -i "/client_max_body_size/cclient_max_body_size 900M;" /etc/nginx/nginx.conf
-    else
-        sudo sed -i "/^http {/aclient_max_body_size 900M;" /etc/nginx/nginx.conf
-    fi
+	sudo sed -i "/client_max_body_size/d" /etc/nginx/nginx.conf
+	sudo sed -i "/^http {/aclient_max_body_size 900M;" /etc/nginx/nginx.conf
     sudo sed -i "/upload_max_filesize/cupload_max_filesize = 900M" /etc/php/$phpver/fpm/php.ini
     sudo sed -i "/post_max_size/cpost_max_size = 999M" /etc/php/$phpver/fpm/php.ini
     # set permissions and umask to avoid permissions problems
     sudo usermod -a -G $USER www-data
     sudo chmod -R g+rw $installdir/SquishBox
-    if grep -q "UMask" /lib/systemd/system/php$phpver-fpm.service; then
-        sudo sed -i "/UMask/cUMask=0002" /lib/systemd/system/php$phpver-fpm.service
-    else
-        sudo sed -i "/\[Service\]/aUMask=0002" /lib/systemd/system/php$phpver-fpm.service
-    fi
-    # install and configure [tinyfilemanager](https://tinyfilemanager.github.io)
+	sudo sed -i "/UMask/d" /lib/systemd/system/php$phpver-fpm.service
+	sudo sed -i "/\[Service\]/aUMask=0002" /lib/systemd/system/php$phpver-fpm.service
+    # install and configure tinyfilemanager (https://tinyfilemanager.github.io)
     wget -q https://raw.githubusercontent.com/prasathmani/tinyfilemanager/master/tinyfilemanager.php
     sed -i "/define('APP_TITLE'/cdefine('APP_TITLE', 'SquishBox Manager');" tinyfilemanager.php
     sed -i "/'admin' =>/d;/'user' =>/d" tinyfilemanager.php
