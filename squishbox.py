@@ -165,8 +165,9 @@ class SquishBox:
             self.lastmsg = msg
 
     def handle_buttonevent(self, n, val):
-        pxr.send_event(f"cc:{BUTTON_MIDICHANNEL}:{BUTTON_MOM_CC[n]}:{val}")
-        if val:
+        if n < len(BUTTON_MOM_CC):
+            pxr.send_event(f"cc:{BUTTON_MIDICHANNEL}:{BUTTON_MOM_CC[n]}:{val}")
+        if val and n < len(BUTTON_TOG_CC):
             button_state[n] ^= 1
             pxr.send_event(f"cc:{BUTTON_MIDICHANNEL}:{BUTTON_TOG_CC[n]}:{button_state[n]}")
             sb.gpio_set(n, button_state[n])
