@@ -173,7 +173,7 @@ class Patcher:
         self._fluid.fxchain_connect()
         # router rules
         self._fluid.router_default()
-        rules = merge('router_rules')[::-1]
+        rules = [*merge('router_rules')][::-1]
         for rule in rules if 'clear' not in rules else rules[:rules.index('clear')]:
             self.add_router_rule(rule)
         # midi messages
