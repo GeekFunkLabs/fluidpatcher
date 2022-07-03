@@ -17,8 +17,8 @@ import patcher
 
 POLL_TIME = 25
 APP_NAME = 'FluidPatcher'
-MSG_TYPES = 'note', 'noteoff', 'cc', 'kpress', 'prog', 'pbend', 'cpress'
-MSG_NAMES = "Note On", "Note Off", "Control Change", "Key Pressure", "Program Change", "Pitch Bend", "Aftertouch"
+MSG_TYPES = 'note', 'noteoff', 'kpress', 'cc', 'prog', 'pbend', 'cpress'
+MSG_NAMES = "Note On", "Note Off", "Key Pressure", "Control Change", "Program Change", "Pitch Bend", "Aftertouch"
 
 
 def gui_excepthook(etype, val, tb):
