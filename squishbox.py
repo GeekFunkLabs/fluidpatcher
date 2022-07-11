@@ -94,7 +94,7 @@ def update_device():
     sb.progresswheel_stop()
     fup, sysup = 0, 0
     if newver[1].split('.') > patcher.VERSION.split('.'):
-        fup = sb.confirm_choice(f"install {newver}", row=1, timeout=0)
+        fup = sb.confirm_choice(f"install {newver[1]}", row=1, timeout=0)
     else:
         sb.lcd_write("Up to date", 1, rjust=True)
         sb.waitfortap()
