@@ -14,7 +14,7 @@ Check the [wiki](https://github.com/albedozero/fluidpatcher/wiki) for more infor
 Requires [Python 3](https://python.org). Installation of FluidSynth and needed Python modules varies a bit by system.
 
 ### Raspberry Pi
-The install script in the [assets/](assets/) directory will install the software, configure your system, and provides the option to install some useful extras. You can run the script from a command line by entering
+The [squishbox-install.bash](assets/squishbox-install.bash) script will install the required software and some optional extras. It can also be used to update the software without altering your banks/settings. You can download and run the script from a command line by entering
 ```
 curl -L git.io/squishbox | bash
 ```
