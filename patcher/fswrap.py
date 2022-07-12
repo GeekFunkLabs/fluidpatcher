@@ -493,10 +493,10 @@ class Player:
         self.frouter_callback = fl_eventcallback(FL.fluid_midi_router_handle_midi_event)
         self.frouter = FL.new_fluid_midi_router(synth.st, self.frouter_callback, synth.frouter)
         FL.fluid_midi_router_clear_rules(self.frouter)
-        for rtype in list(set(RULE_TYPES) - set(mask)):
+        for rtype in set(RULE_TYPES) - set(mask):
             rule = FL.new_fluid_midi_router_rule()
             if chan: FL.fluid_midi_router_rule_set_chan(rule, *Route(*chan))
-            FL.fluid_midi_router_add_rule(self.frouter, rule, rtype)
+            FL.fluid_midi_router_add_rule(self.frouter, rule, RULE_TYPES.index(rtype))
         self.playback_callback = fl_eventcallback(FL.fluid_midi_router_handle_midi_event)
         FL.fluid_player_set_playback_callback(self.fplayer, self.playback_callback, self.frouter)
         if FLUID_VERSION >= (2, 2, 0):
@@ -801,7 +801,7 @@ class Synth:
             FL.fluid_midi_router_add_rule(self.frouter, rule, RULE_TYPES.index(rtype))
 
     def players_clear(self, save=[]):
-        for name in [x for x in self.players if x not in save]:
+        for name in set(self.players) - set(save):
             self.players[name].dismiss()
             del self.players[name]
 
@@ -815,7 +815,7 @@ class Synth:
             self.players[name] = Arpeggiator(self, tdiv, swing, groove, style, octaves)
             self.players[name].set_tempo(tempo)
 
-    def player_add(self, name, file, loops=[], barlength=1, chan=None, mask=['prog'], tempo=0):
+    def player_add(self, name, file, loops=[], barlength=1, chan=None, mask={'prog'}, tempo=0):
         if name not in self.players:
             self.players[name] = Player(self, file, loops, barlength, chan, mask)
             if tempo > 0:
@@ -844,7 +844,7 @@ class Synth:
 
     if LADSPA_SUPPORT:
         def fxchain_clear(self, save=[]):
-            clear = [x for x in self.ladspafx if x not in save]
+            clear = set(self.ladspafx) - set(save)
             if clear:
                 FL.fluid_ladspa_reset(self.ladspa)
                 for name in clear:
