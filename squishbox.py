@@ -2,7 +2,7 @@
 """
 Description: an implementation of patcher.py for a Raspberry Pi in a stompbox
 """
-import re, sys, os, subprocess, shutil, tempfile
+import re, sys, os, subprocess
 from pathlib import Path
 import patcher
 from utils import stompboxpi as SB
@@ -15,9 +15,9 @@ BUTTON_TOG_CC = 31,
 button_state = [0] * len(BUTTON_TOG_CC)
 
 def wifi_settings():
-    x = re.search("SSID: ([^\n]+)", subprocess.check_output('iw dev wlan0 link'.split()).decode())
+    x = re.search("SSID: ([^\n]+)", subprocess.check_output("iw dev wlan0 link".split(), encoding='ascii'))
     ssid = x[1] if x else "Not connected"
-    ip = subprocess.check_output(['hostname', '-I']).decode().strip()
+    ip = subprocess.check_output(['hostname', '-I'], encoding='ascii').strip()
     sb.lcd_clear()
     sb.lcd_write(ssid, 0)
     sb.lcd_write(ip, 1, rjust=True)
@@ -30,7 +30,7 @@ def wifi_settings():
         elif j == len(networks):
             sb.lcd_write("scanning ", 1, rjust=True, now=True)
             sb.progresswheel_start()
-            x = subprocess.check_output('sudo iw wlan0 scan'.split()).decode()
+            x = subprocess.check_output("sudo iw wlan0 scan".split(), encoding='ascii')
             sb.progresswheel_stop()
             networks[:] = [s for s in re.findall('SSID: ([^\n]*)', x) if s]
         else:
@@ -41,16 +41,20 @@ def wifi_settings():
             sb.lcd_write(networks[j], 0)
             sb.lcd_write("adding network ", 1, rjust=True, now=True)
             sb.progresswheel_start()
-            e = subprocess.Popen(('echo', f'network={{\n  ssid="{networks[j]}"\n  psk="{newpsk}"\n}}\n'), stdout=subprocess.PIPE)
-            subprocess.run(('sudo', 'tee', '-a', '/etc/wpa_supplicant/wpa_supplicant.conf'), stdin=e.stdout, stdout=subprocess.DEVNULL)
-            subprocess.run('sudo systemctl restart dhcpcd'.split())
+            subprocess.run(f"""echo '
+network={{
+  ssid="{net}"
+  psk="{psk}"
+}}
+' | sudo tee -a /etc/wpa_supplicant/wpa_supplicant.conf""", shell=True)
+            subprocess.run("sudo systemctl restart dhcpcd".split())
             sb.progresswheel_stop()
             wifi_settings()
             return
 
 def addfrom_usb():
     sb.lcd_clear()
-    b = subprocess.check_output(['sudo', 'blkid']).decode()
+    b = subprocess.check_output(['sudo', 'blkid'], encoding='ascii')
     x = re.findall('/dev/sd[a-z]\d*', b)
     if not x:
         sb.lcd_write("USB not found", 0)
@@ -60,7 +64,7 @@ def addfrom_usb():
     sb.lcd_write("copying files ", 1, rjust=True, now=True)
     sb.progresswheel_start()
     try:
-        subprocess.run(['sudo', 'mkdir', '-p', '/mnt/usbdrv'])
+        subprocess.run("sudo mkdir -p /mnt/usbdrv".split())
         for usb in x:
             subprocess.run(['sudo', 'mount', usb, '/mnt/usbdrv/'], timeout=30)
             for src in Path('/mnt/usbdrv/SquishBox').rglob('*'):
@@ -68,7 +72,7 @@ def addfrom_usb():
                 dest = 'SquishBox' / src.relative_to('/mnt/usbdrv/SquishBox')
                 if not dest.parent.exists():
                     dest.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(src, dest)
+                subprocess.run(['cp', '-f', src, dest])
             subprocess.run(['sudo', 'umount', usb], timeout=30)
     except Exception as e:
         sb.progresswheel_stop()
@@ -78,50 +82,62 @@ def addfrom_usb():
         sb.progresswheel_stop()
 
 def update_device():
-    sb.lcd_write(f"version {patcher.VERSION}", 0, scroll=True)
+    sb.lcd_write("Update Device:", 0)
     sb.lcd_write("checking ", 1, rjust=True, now=True)
     sb.progresswheel_start()
-    try: x = subprocess.check_output(('curl', '-s', 'https://api.github.com/repos/albedozero/fluidpatcher/releases/latest'))
-    except subprocess.CalledProcessError: x = b''
-    newver = re.search('tag_name": "v([0-9\.]+)', x.decode())
-    if not newver:
+    try:
+        fpver = re.search('tag_name": "v([0-9\.]+)', subprocess.check_output(['curl', '-s',
+            'https://api.github.com/repos/albedozero/fluidpatcher/releases/latest'], encoding='ascii'))
+        fsver = re.search('tag_name": "v([0-9\.]+)', subprocess.check_output(['curl', '-s',
+            'https://api.github.com/repos/FluidSynth/fluidsynth/releases/latest'], encoding='ascii'))
+    except subprocess.CalledProcessError:
         sb.progresswheel_stop()
         sb.lcd_write("can't connect", 1)
         sb.waitfortap()
         return
-    subprocess.run(['sudo', 'apt-get', 'update'])
-    u = subprocess.check_output(['sudo', 'apt-get', 'upgrade', '-sy'])
     sb.progresswheel_stop()
-    fup, sysup = 0, 0
-    if newver[1].split('.') > patcher.VERSION.split('.'):
-        fup = sb.confirm_choice(f"install {newver[1]}", row=1, timeout=0)
-    else:
-        sb.lcd_write("Up to date", 1, rjust=True)
-        sb.waitfortap()
-    if not re.search('0 upgraded, 0 newly installed', u.decode()):
-        sb.lcd_write("OS out of date", 0)
-        sysup = sb.confirm_choice("upgrade OS", row=1, timeout=0)
-    if not (fup or sysup):
-        return
+    fpup, fsup, sysup = 0, 0, 0
+    if fpver[1].split('.') > patcher.VERSION.split('.'):
+        fpup = sb.confirm_choice("software", row=1, timeout=0)
+    if fsver[1].split('.') > patcher.FLUID_VERSION.split('.'):
+        fsup = sb.confirm_choice("fluidsynth", row=1, timeout=0)
+    sysup = sb.confirm_choice("system", row=1, timeout=0)
+    if not (fpup or fsup or sysup): return
     sb.lcd_write("please wait", 0)
     sb.lcd_write("updating ", 1, rjust=True, now=True)
     sb.progresswheel_start()
     try:
-        if fup:
-            with tempfile.TemporaryDirectory() as tmp:
-                wg = subprocess.Popen(('wget', '-qO-', 'https://github.com/albedozero/fluidpatcher/tarball/master'), stdout=subprocess.PIPE)
-                subprocess.run(('tar', '-xzC', tmp), stdin=wg.stdout)
-                base = next(Path(tmp).glob('albedozero-fluidpatcher-*'))
-                for src in Path(base).rglob('*'):
-                    if not src.is_file(): continue
-                    if src.suffix == ".yaml": continue
-                    if src.name == "hw_overlay.py": continue
-                    dest = Path.cwd() / src.relative_to(base)
-                    if not dest.parent.exists():
-                        dest.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copyfile(src, dest)
+        if fpup:
+            subprocess.run("""
+wget -qO - https://github.com/albedozero/fluidpatcher/tarball/master | tar -xzm
+fptemp=`ls -dt albedozero-fluidpatcher-* | head -n1`
+cd $fptemp
+find . -type d -exec mkdir -p ../{} \;
+find . -type f ! -name "*.yaml" ! -name "hw_overlay.py" -exec cp -f {} ../{} \;
+find . -type f -name "hw_overlay.py" -exec cp -n {} ../{} \;
+find . -type f -name "*.yaml" -exec cp -n {} ../{} \;
+cd ..
+rm -rf $fptemp
+""", shell=True)
+        if fsup:
+            subprocess.run("""
+sudo sed -i "/^#deb-src/s|#||" /etc/apt/sources.list
+sudo apt-get update
+sudo DEBIAN_FRONTEND=noninteractive apt-get build-dep fluidsynth -y --no-install-recommends
+wget -qO - https://github.com/FluidSynth/fluidsynth/tarball/master | tar -xzm
+fstemp=`ls -dt FluidSynth-fluidsynth-* | head -n1`
+mkdir $fstemp/build
+cd $fstemp/build
+cmake ..
+make
+sudo make install
+sudo ldconfig
+cd ../..
+rm -rf $fstemp
+""", shell=True)
         if sysup:
-            subprocess.run(['sudo', 'apt-get', 'upgrade', '-y'])
+            subprocess.run("sudo apt-get update".split())
+            subprocess.run("sudo apt-get upgrade -y".split())
         sb.progresswheel_stop()
         sb.lcd_write("rebooting", 1, rjust=True, now=True)
         subprocess.run(['sudo', 'reboot'])
@@ -373,7 +389,7 @@ class SquishBox:
         if k == 0:
             sb.lcd_write("Shutting down..", 0)
             sb.lcd_write("Wait 30s, unplug", 1, now=True)
-            subprocess.run('sudo shutdown -h now'.split())            
+            subprocess.run(['sudo', 'poweroff'])
         elif k == 1: self.midi_devices()
         elif k == 2: wifi_settings()
         elif k == 3: addfrom_usb()
@@ -381,13 +397,13 @@ class SquishBox:
 
     def midi_devices(self):
         sb.lcd_write("MIDI Devices:", 0)
-        readable = re.findall(" (\d+): '([^\n]*)'", subprocess.check_output(['aconnect', '-i']).decode())
+        readable = re.findall(" (\d+): '([^\n]*)'", subprocess.check_output(['aconnect', '-i'], encoding='ascii'))
         rports, names = list(zip(*readable))
         p = sb.choose_opt([*names, "MIDI monitor.."], row=1, scroll=True, timeout=0)
         if p < 0: return
         if 0 <= p < len(rports):
             sb.lcd_write("Connect to:", 0)
-            writable = re.findall(" (\d+): '([^\n]*)'", subprocess.check_output(['aconnect', '-o']).decode())
+            writable = re.findall(" (\d+): '([^\n]*)'", subprocess.check_output(['aconnect', '-o'], encoding='ascii'))
             wports, names = list(zip(*writable))
             op = sb.choose_opt(names, row=1, scroll=True, timeout=0)
             if op < 0: return
