@@ -256,28 +256,25 @@ apt_pkg_install "wah-plugins"
 # install/update fluidpatcher
 if [[ $update == "yes" ]]; then
     inform "Installing/Updating FluidPatcher version $NEW_FP_VER ..."
-    rm -rf fluidpatcher
     wget -qO - https://github.com/albedozero/fluidpatcher/tarball/master | tar -xzm
-    fptemp=`ls -d albedozero-fluidpatcher-* | head -n1`
+    fptemp=`ls -dt albedozero-fluidpatcher-* | head -n1`
     cd $fptemp
-    find . -type d -exec mkdir -p $installdir/{} \;
+    find . -type dt -exec mkdir -p ../{} \;
     # copy files, but don't overwrite banks, config, hw_overlay.py
-    find . -type f ! -name "*.yaml" ! -name "hw_overlay.py" -exec cp -f {} $installdir/{} \;
-    find . -type f -name "hw_overlay.py" -exec cp -n {} $installdir/{} \;
-    find . -type f -name "*.yaml" -exec cp -n {} $installdir/{} \;
+    find . -type f ! -name "*.yaml" ! -name "hw_overlay.py" -exec cp -f {} ../{} \;
+    find . -type f -name "hw_overlay.py" -exec cp -n {} ../{} \;
+    find . -type f -name "*.yaml" -exec cp -n {} ../{} \;
     cd ..
     rm -rf $fptemp
-    ln -s /usr/share/sounds/sf2/FluidR3_GM.sf2 $installdir/SquishBox/sf2/ 2> /dev/null
-    gcc -shared $installdir/assets/patchcord.c -o patchcord.so
+    ln -s /usr/share/sounds/sf2/FluidR3_GM.sf2 SquishBox/sf2/ 2> /dev/null
+    gcc -shared assets/patchcord.c -o patchcord.so
     sudo mv -f patchcord.so /usr/lib/ladspa
 fi
 
 # compile/install fluidsynth
 if [[ $compile == "yes" ]]; then
     inform "Compiling latest FluidSynth from source..."
-    if grep -q "#deb-src" /etc/apt/sources.list; then
-        sudo sed -i "/^#deb-src/s|#||" /etc/apt/sources.list
-    fi
+	sudo sed -i "/^#deb-src/s|#||" /etc/apt/sources.list
     UPDATED=false
     echo "Getting build dependencies..."
     if { sudo DEBIAN_FRONTEND=noninteractive apt-get build-dep fluidsynth -y --no-install-recommends 2>&1 \
@@ -285,7 +282,7 @@ if [[ $compile == "yes" ]]; then
         warning "Couldn't get all dependencies!"
     fi
     wget -qO - https://github.com/FluidSynth/fluidsynth/tarball/master | tar -xzm
-    fstemp=`ls -d FluidSynth-fluidsynth-* | head -n1`
+    fstemp=`ls -dt FluidSynth-fluidsynth-* | head -n1`
     mkdir $fstemp/build
     cd $fstemp/build
     echo "Configuring..."
