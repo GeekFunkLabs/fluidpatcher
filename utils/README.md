@@ -1,6 +1,6 @@
 # Utilities
 
-These files contain code that is used in the _implementations_ of patcher (i.e squishbox.py, headlesspi.py, fluidpatcher.pyw) but not patcher itself.
+This is a place to stash useful code that doesn't depend on fluidpatcher.
 
 ## stompboxpi.py
 
