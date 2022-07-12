@@ -86,7 +86,7 @@ Allows a user to enter text strings charater by character. _SELECT_ toggles the 
 
 **gpio_set**(_n, state_)
 
-Sets the state of the _n_th pin in _PIN_OUT_ to _state_. 1=on; 0=off
+Sets the state of the _n_<sup>th</sup> pin in _PIN_OUT_ to _state_. 1=high; 0=low
 
 ### Example
 
