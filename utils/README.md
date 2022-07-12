@@ -19,7 +19,7 @@ BTN_SW                         | a button or list of buttons that trigger a call
 PIN_OUT                        | a list of GPIO pins that are allowed to be set by **gpio_set**, e.g. for LEDs
 ACTIVE_HIGH                    | 1=buttons connect to 3.3V; 0=buttons connect to ground
 
-The constants _HOLD_TIME, MENU_TIMEOUT, BLINK_TIME, SCROLL_TIME, POLL_TIME, BOUNCE_TIME_ at the top of _squishbox.py_ can be modified as desired, or redefined in _hw_overlay.py_.
+The constants _HOLD_TIME, MENU_TIMEOUT, BLINK_TIME, SCROLL_TIME, POLL_TIME, BOUNCE_TIME_ at the top of _stompboxpi.py_ can be modified as desired, or redefined in _hw_overlay.py_.
 
 ### class StompBox
 
