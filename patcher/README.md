@@ -45,6 +45,7 @@ A generic Python object that handles patches and banks and starts an instance of
 - _banks_ : list of bank files in _bankdir_ and its directory tree
 - _soundfonts_ : list of soundfonts in _sfdir_ and its directory tree
 - _patches_ : list of patches in the current bank
+- _sfpresets_ : normally empty. If a single soundfont is loaded by **load_soundfont**(), contains a list of _PresetInfo_ objects
 
 #### Public Methods
 
@@ -116,7 +117,7 @@ Delete a patch from the currently loaded bank
 
 **load_soundfont**(_soundfont_)
 
-Load a single soundfont, scan through all the presets in it and store them as a list of _PresetInfo_ objects in _sfpresets_. Also resets the synth to a default state and routes all incoming MIDI messages to channel 1. This function is not used to load the soundfonts in a bank file - that is handled by **load_bank()** - its purpose is for previewing the instruments in a soundfont when creating new patches or bank files. The soundfont is unloaded and _sfpresets_ cleared the next time **select_patch()** or **load_bank()** is called.
+Unloads all soundfonts, loads the specified soundfont, scans all its presets, and stores them as a list of _PresetInfo_ objects in _sfpresets_. Resets the synth to a default state and routes all incoming MIDI messages to channel 1.
 - Parameters:
   - _soundfont_: soundfont file to load
 - Returns: **True** if successful, **False** if loading fails or there are no presets
@@ -126,7 +127,7 @@ Load a single soundfont, scan through all the presets in it and store them as a 
 If a single soundfont has been loaded by **load_soundfont()**, load a preset from _sfpresets_ to MIDI channel 1.
 - Parameters:
   - _presetnum_: index of the preset
-- Returns: **False** if a bank is loaded instead of a single soundfont or selecting the preset fails, **True** otherwise
+- Returns: a list of warnings, empty if none
 
 **fluid_get**(_opt_)
 
@@ -155,8 +156,20 @@ Add a rule describing how MIDI messages will be interpreted/acted upon. This fun
 
 **send_event**(_msg=None, **kwargs_)
 
-Sends a MIDI event to FluidSynth
+Sends a MIDI event to FluidSynth, passed either as a string or via keywords.
 - Parameters:
-  - _msg_: string containing a [midi message](file_formats.md#keywords)
-  - _**kwargs_: midi message as a set of key=value pairs
+  - _msg_: midi message as a [bank file](file_formats.md#keywords)-styled string (`<type>:<channel>:<par1>:<par2>`)
+  - _**kwargs_: keyword parameters describing the midi message
+    - _type_: one of `note`, `noteoff`, `cc`, `pbend`, `prog`, `kpress`, `cpress`
+    - _chan_: the MIDI channel of the message
+    - _par1_: first parameter of the message, can be an integer or note name for `note` messages
+    - _par2_: second parameter of the message, not required for `pbend`, `prog`, `cpress`, `noteoff`
 - Returns: nothing
+
+### class fswrap.PresetInfo
+
+#### Attributes
+
+- _bank_: bank number
+- _prog_: program number
+- _name_: preset name
