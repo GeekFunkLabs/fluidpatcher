@@ -348,14 +348,17 @@ class PresetInfo:
     
     if FLUID_VERSION >= (2, 0, 0):
         def __init__(self, preset_obj):        
-            self.name = FL.fluid_preset_get_name(preset_obj).decode()
             self.bank = FL.fluid_preset_get_banknum(preset_obj)
             self.prog = FL.fluid_preset_get_num(preset_obj)
+            self.name = FL.fluid_preset_get_name(preset_obj).decode()
     else:
         def __init__(self, name, bank, prog):        
-            self.name = name
             self.bank = bank
             self.prog = prog
+            self.name = name
+
+    def __repr__(self):
+        return str(self.__dict__)
 
 
 class SequencerNote:
@@ -697,26 +700,28 @@ class Synth:
         return FL.fluid_midi_router_handle_midi_event(self.frouter, mevent.event)
 
     def setting(self, opt, val):
-        if FL.fluid_settings_get_type(self.st, opt.encode()) == FLUID_STR_TYPE:
+        stype = FL.fluid_settings_get_type(self.st, opt.encode())
+        if stype == FLUID_STR_TYPE:
             FL.fluid_settings_setstr(self.st, opt.encode(), str(val).encode())
-        elif FL.fluid_settings_get_type(self.st, opt.encode()) == FLUID_INT_TYPE:
+        elif stype == FLUID_INT_TYPE:
             FL.fluid_settings_setint(self.st, opt.encode(), int(val))
-        elif FL.fluid_settings_get_type(self.st, opt.encode()) == FLUID_NUM_TYPE:
+        elif stype == FLUID_NUM_TYPE:
             FL.fluid_settings_setnum(self.st, opt.encode(), c_double(val))
 
     def get_setting(self, opt):
-        if FL.fluid_settings_get_type(self.st, opt.encode()) == FLUID_STR_TYPE:
+        stype = FL.fluid_settings_get_type(self.st, opt.encode())
+        if stype == FLUID_STR_TYPE:
             strval = create_string_buffer(32)
-            FL.fluid_settings_copystr(self.st, opt.encode(), strval, 32)
-            return strval.value.decode()
-        elif FL.fluid_settings_get_type(self.st, opt.encode()) == FLUID_INT_TYPE:
+            if FL.fluid_settings_copystr(self.st, opt.encode(), strval, 32) == FLUIDSETTING_EXISTS:
+                return strval.value.decode()
+        elif stype == FLUID_INT_TYPE:
             val = c_int()
-            FL.fluid_settings_getint(self.st, opt.encode(), byref(val))
-            return val.value
-        elif FL.fluid_settings_get_type(self.st, opt.encode()) == FLUID_NUM_TYPE:
+            if FL.fluid_settings_getint(self.st, opt.encode(), byref(val)) == FLUIDSETTING_EXISTS:
+                return val.value
+        elif stype == FLUID_NUM_TYPE:
             num = c_double()
-            FL.fluid_settings_getnum(self.st, opt.encode(), byref(num))
-            return round(num.value, 6)
+            if FL.fluid_settings_getnum(self.st, opt.encode(), byref(num)) == FLUIDSETTING_EXISTS:
+                return round(num.value, 6)
         return None
 
     def load_soundfont(self, sfont):
