@@ -175,7 +175,10 @@ class Patcher:
         # router rules
         self._fluid.router_default()
         rules = [*merge('router_rules')][::-1]
-        for rule in rules if 'clear' not in rules else rules[:rules.index('clear')]:
+        if 'clear' in rules:
+            self._fluid.router_clear()
+            rules = rules[:rules.index('clear')]
+        for rule in rules:
             self.add_router_rule(rule)
         # midi messages
         for msg in merge('messages'):
@@ -251,6 +254,8 @@ class Patcher:
         return self._fluid.get_setting(opt)
 
     def fluid_set(self, opt, val, updatebank=False, patch=None):
+    # :updatebank if true, add/update the fluidsetting in current bank
+    # :patch current patch to remove fluidsetting from if updating bank
         self._fluid.setting(opt, val)
         if updatebank:
             if 'fluidsettings' not in self._bank:
@@ -264,17 +269,14 @@ class Patcher:
     def add_router_rule(self, rule=None, **kwargs):
     # :rule text or a RouterRule object
     # :kwargs router rule parameters, as text or values
-        if rule == 'clear':
-            self._fluid.router_clear()
-        else:
-            if rule == None:
-                rule = {par: fpyaml.parse(str(val))
-                        for par, val in kwargs.items()}
-                rule = fpyaml.RouterRule(**rule)
-            elif isinstance(rule, str):
-                rule = fpyaml.parse(rule)
-                rule = fpyaml.RouterRule(**rule)
-            rule.add(self._fluid.router_addrule)
+        if rule == None:
+            rule = {par: fpyaml.parse(str(val))
+                    for par, val in kwargs.items()}
+            rule = fpyaml.RouterRule(**rule)
+        elif isinstance(rule, str):
+            rule = fpyaml.parse(rule)
+            rule = fpyaml.RouterRule(**rule)
+        rule.add(self._fluid.router_addrule)
 
     def send_event(self, msg=None, **kwargs):
     # :msg text, RouterRule object, or 'clear'
@@ -341,11 +343,3 @@ class Patcher:
                 for x in msg: port.send(mido.Message('sysex', data=x))
         except NameError:
             pass
-
-
-class PresetInfo:
-    
-    def __init__(self, name, bank, prog):
-        self.name = name
-        self.bank = bank
-        self.prog = prog
