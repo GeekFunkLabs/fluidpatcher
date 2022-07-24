@@ -45,16 +45,9 @@ A generic Python object that handles patches and banks and starts an instance of
 - _banks_ : list of bank files in _bankdir_ and its directory tree
 - _soundfonts_ : list of soundfonts in _sfdir_ and its directory tree
 - _patches_ : list of patches in the current bank
-- _sfpresets_ : normally empty. If a single soundfont is loaded by **load_soundfont**(), contains a list of _PresetInfo_ objects
+- _sfpresets_ : list of presets in the single soundfont loaded by **load_soundfont**() as [_PresetInfo_](#class-fswrappresetinfo) objects; empty when in bank mode
 
 #### Public Methods
-
-**set_midimessage_callback**(_func_)
-
-Sets a function to be called when MIDI messages are received by the synth, or when custom router rules that aren't otherwise handled are triggered by MIDI messages. This can be disabled by calling this function with _None_. MIDI messages will be passsed as python objects with `type`, `par1`, and `par2` attributes. Custom router rules will pass a python object with the transformed attributes of the routed MIDI message, additional attributes corresponding to the parameters of the rule, and a `val` attribute that is the result of `par1` or `par2` routing of the MIDI message, depending on whether it is a one- or two-parameter type.
-- Parameters:
-  - _func_: a function that can accept a python object as its single argument
-- Returns: nothing
 
 **read_config**()
 
@@ -117,10 +110,10 @@ Delete a patch from the currently loaded bank
 
 **load_soundfont**(_soundfont_)
 
-Unloads all soundfonts, loads the specified soundfont, scans all its presets, and stores them as a list of _PresetInfo_ objects in _sfpresets_. Resets the synth to a default state and routes all incoming MIDI messages to channel 1.
+Unloads all soundfonts, loads the specified soundfont, scans all its presets, and stores them as a list of [_PresetInfo_](#class-fswrappresetinfo) objects in _sfpresets_. Resets the synth to a default state and routes all incoming MIDI messages to channel 1.
 - Parameters:
   - _soundfont_: soundfont file to load
-- Returns: **True** if successful, **False** if loading fails or there are no presets
+- Returns: **False** if loading fails, **True** otherwise
 
 **select_sfpreset**(_presetnum_)
 
@@ -164,6 +157,13 @@ Sends a MIDI event to FluidSynth, passed either as a string or via keywords.
     - _chan_: the MIDI channel of the message
     - _par1_: first parameter of the message, can be an integer or note name for `note` messages
     - _par2_: second parameter of the message, not required for `pbend`, `prog`, `cpress`, `noteoff`
+- Returns: nothing
+
+**set_midimessage_callback**(_func_)
+
+Sets a function to be called when MIDI messages are received by the synth, or when custom router rules that aren't otherwise handled are triggered by MIDI messages. This can be disabled by calling this function with _None_. MIDI messages will be passsed as python objects with `type`, `par1`, and `par2` attributes. Custom router rules will pass a python object with the transformed attributes of the routed MIDI message, additional attributes corresponding to the parameters of the rule, and a `val` attribute that is the result of `par1` or `par2` routing of the MIDI message, depending on whether it is a one- or two-parameter type.
+- Parameters:
+  - _func_: a function that can accept a python object as its single argument
 - Returns: nothing
 
 ### class fswrap.PresetInfo
