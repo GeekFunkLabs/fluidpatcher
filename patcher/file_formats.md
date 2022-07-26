@@ -52,7 +52,7 @@ These are the example bank files included in this repository. The **parsed** lin
 
 Bank files contain a `patches` item that stores the settings of the individual patches, described using the keywords below. Keywords can also be used at the bank level, outside the patches item. When a patch is selected, the bank keywords will be applied first, followed by the keywords in the selected patch. If a bank contains an `init` item, the keywords in `init` will be applied once, when the bank is first loaded (although this only makes sense for `messages` and `fluidsettings` - other keywords are ignored).
 
-Unrecognized keywords in a bank file are just be ignored. Anything on a line after a hash symbol (`#`) is a comment. Because hash symbol comments are ignored by YaML, they may be lost if a bank file is modified and saved. A way of preserving comments is to store them in unique keywords, e.g. `comment1`, `comment2` etc.
+Unrecognized keywords in a bank file are ignored. Anything on a line after a hash symbol (`#`) is a comment. Because hash symbol comments are not read by YaML, they may be lost if a bank file is modified and saved. A way of preserving comments is to store them in unique keywords, e.g. `comment1`, `comment2` etc.
 
 ### Keywords
 
