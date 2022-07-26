@@ -278,39 +278,29 @@ class TransRule:
     def apply(self, mevent):
         newevent = MidiEvent(FL.new_fluid_midi_event())
         newevent.type = self.type2
-        if self.chan == None:
-            newevent.chan = mevent.chan
+        newevent.chan = mevent.chan
+        newevent.par1 = mevent.par1
+        newevent.par2 = mevent.par2
+        if self.type in ('clock', 'start', 'stop', 'continue'):
+            if self.chan != None: newevent.chan = self.chan.min
+            if self.par1 != None: newevent.par1 = self.par1.min
+            if self.par2 != None: newevent.par2 = self.par2.min
         else:
-            newevent.chan = int(mevent.chan * self.chan.mul + self.chan.add + 0.5)
-        if self.type in ('note', 'cc', 'kpress', 'noteoff'): # 2-parameter events
-            if self.type2 in ('note', 'cc', 'kpress', 'noteoff'): # 2-parameter targets
-                if self.par1 == None:
-                    newevent.par1 = mevent.par1
-                else:
-                    newevent.par1 = int(mevent.par1 * self.par1.mul + self.par1.add + 0.5)
-                if self.par2 == None:
-                    newevent.par2 = mevent.par2
-                else:
-                    newevent.par2 = int(mevent.par2 * self.par2.mul + self.par2.add + 0.5)
-            else: # 1-parameter targets
-                if self.par2 == None:
-                    newevent.par1 = mevent.par2
-                else:
-                    newevent.par1 = int(mevent.par2 * self.par2.mul + self.par2.add + 0.5)
-        else: # 1-parameter events
-            if self.type2 in ('pbend', 'prog', 'cpress'): # 1-parameter targets
-                if self.par1 == None:
-                    newevent.par1 = mevent.par1
-                else:
-                    newevent.par1 = int(mevent.par1 * self.par1.mul + self.par1.add + 0.5)
-            else: # 2-parameter targets
-                if self.par1 == None:
-                    newevent.par2 = mevent.par1
-                else:
-                    newevent.par2 = int(mevent.par1 * self.par1.mul + self.par1.add + 0.5)
-                if self.par2:
-                    newevent.par1 = self.par2.min
-                else: newevent.par1 = 1
+            if self.chan != None: newevent.chan = int(mevent.chan * self.chan.mul + self.chan.add + 0.5)
+        if self.type in ('note', 'cc', 'kpress', 'noteoff'):
+            if self.type2 in ('note', 'cc', 'kpress', 'noteoff'):
+                if self.par1 != None: newevent.par1 = int(mevent.par1 * self.par1.mul + self.par1.add + 0.5)
+                if self.par2 != None: newevent.par2 = int(mevent.par2 * self.par2.mul + self.par2.add + 0.5)
+            elif self.type2 in ('pbend', 'prog', 'cpress'):
+                if self.par2 == None: newevent.par1 = mevent.par2
+                else: newevent.par1 = int(mevent.par2 * self.par2.mul + self.par2.add + 0.5)
+        elif self.type in ('pbend', 'prog', 'cpress'):
+            if self.type2 in ('pbend', 'prog', 'cpress'):
+                if self.par1 != None: newevent.par1 = int(mevent.par1 * self.par1.mul + self.par1.add + 0.5)
+            elif self.type2 in ('note', 'cc', 'kpress', 'noteoff'):
+                if self.par2 != None: newevent.par1 = self.par2.min
+                if self.par1 == None: newevent.par2 = mevent.par1
+                else: newevent.par2 = int(mevent.par1 * self.par1.mul + self.par1.add + 0.5)
         return newevent
 
 
@@ -323,12 +313,9 @@ class ExtRule(TransRule):
 
     def apply(self, mevent):
         msg = ExtMessage(mevent, extrule=self)
-        if self.chan != None:
-            msg.chan = int(mevent.chan * self.chan.mul + self.chan.add + 0.5)
-        if self.par1 != None:
-            msg.par1 = int(mevent.par1 * self.par1.mul + self.par1.add + 0.5)
-        if self.par2 != None:
-            msg.par2 = int(mevent.par2 * self.par2.mul + self.par2.add + 0.5)
+        if self.chan != None: msg.chan = int(mevent.chan * self.chan.mul + self.chan.add + 0.5)
+        if self.par1 != None: msg.par1 = int(mevent.par1 * self.par1.mul + self.par1.add + 0.5)
+        if self.par2 != None: msg.par2 = int(mevent.par2 * self.par2.mul + self.par2.add + 0.5)
         if self.type in ('note', 'cc', 'kpress', 'noteoff'):
             msg.val = mevent.par2
             if self.par2: msg.val = msg.val * self.par2.mul + self.par2.add
