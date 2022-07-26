@@ -807,7 +807,7 @@ class Synth:
             self.players[name] = Arpeggiator(self, tdiv, swing, groove, style, octaves)
             self.players[name].set_tempo(tempo)
 
-    def player_add(self, name, file, loops=[], barlength=1, chan=None, mask={'prog'}, tempo=0):
+    def player_add(self, name, file, loops=[], barlength=1, chan=None, mask=[], tempo=0):
         if name not in self.players:
             self.players[name] = Player(self, file, loops, barlength, chan, mask)
             if tempo > 0:
