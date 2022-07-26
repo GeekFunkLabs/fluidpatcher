@@ -61,6 +61,7 @@ patches: # indented list of patches
       groove:
         file: elevatorgroove.mid
         chan: 1-10*1+5 # shift channels of messages in song
+        mask: ['prog'] # ignore program changes in the file
         barlength: 1536 # if given, finishes measure before seeking
         loops: [15350, 18419] # pairs of begin, end ticks
     6: VintageDreamsWaves-v2.sf2:000:035
