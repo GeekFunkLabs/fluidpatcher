@@ -108,7 +108,7 @@ A mapping of player units that can play, loop, and seek within MIDI files.
 - `loops` - a list of pairs of _start, end_ ticks. When the song reaches an _end_ tick, it will seek back to the previous _start_ tick in the list. A loop _end_ with a negative value refers to ticks starting from the end of the song and going backward. A negative _start_ value rewinds to the beginning of the song and stops playback.
 - `barlength` - the number of ticks corresponding to a whole number of musical measures in the song. If the player is playing and a router rule tells it to seek to a point in the song, it will wait until the end of a bar to do so. By default barlength is 0 and seeking will occur immediately.
 - `chan` - a channel routing specification, of the same format as for a router rule, for all the messages in the file. This can be useful if your MIDI controller plays on the same channel as one or more of the tracks in the file, and you don't want the messages to interfere.
-- `mask` - a list of MIDI message types to ignore in the file.
+- `mask` - a list of MIDI message types to ignore in the file. A useful value is ['prog'], which will prevent program changes in the file from changing your patch settings.
   
 A router rule with a `player` parameter will tell the named player to play if its value is >0, or stop otherwise. If the rule also has a `tick` parameter, the player will seek to that tick value, possibly waiting until the end of a bar as described above.
   
