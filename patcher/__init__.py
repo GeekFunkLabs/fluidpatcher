@@ -9,7 +9,7 @@ except ModuleNotFoundError:
     pass # mido is optional, only needed to read .syx and send to external devices
 from . import fswrap, fpyaml
 
-VERSION = '0.7.9'
+VERSION = '0.7.10'
 FLUID_VERSION = '.'.join(map(str, fswrap.FLUID_VERSION))
 
 CC_DEFAULTS = [0] * 120
