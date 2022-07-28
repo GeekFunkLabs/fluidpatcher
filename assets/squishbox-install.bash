@@ -259,7 +259,7 @@ if [[ $update == "yes" ]]; then
     wget -qO - https://github.com/albedozero/fluidpatcher/tarball/master | tar -xzm
     fptemp=`ls -dt albedozero-fluidpatcher-* | head -n1`
     cd $fptemp
-    find . -type dt -exec mkdir -p ../{} \;
+    find . -type d -exec mkdir -p ../{} \;
     # copy files, but don't overwrite banks, config, hw_overlay.py
     find . -type f ! -name "*.yaml" ! -name "hw_overlay.py" -exec cp -f {} ../{} \;
     find . -type f -name "hw_overlay.py" -exec cp -n {} ../{} \;
