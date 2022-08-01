@@ -473,8 +473,8 @@ class Player:
 
     def __init__(self, synth, file, loops, barlength, chan, mask):
         self.fplayer = FL.new_fluid_player(synth.fsynth)
-        if isinstance(file, list):
-            for f in file: FL.fluid_player_add(self.fplayer, str(f).encode())
+        for f in file if isinstance(file, list) else [file]:
+            FL.fluid_player_add(self.fplayer, str(f).encode())
         else: FL.fluid_player_add(self.fplayer, str(file).encode())
         self.loops = list(zip(loops[::2], loops[1::2]))
         self.barlength = barlength
@@ -499,10 +499,10 @@ class Player:
         def transport(self, play, seek=None):
             if play == 0:
                 FL.fluid_player_stop(self.fplayer)
-            elif FL.fluid_player_get_status(self.fplayer) != FLUID_PLAYER_PLAYING:
+            elif FL.fluid_player_get_status(self.fplayer) == FLUID_PLAYER_PLAYING:
+                if seek != None: self.pendingseek = seek
+            elif play > 0:
                 if seek != None:
-                    maxticks = FL.fluid_player_get_total_ticks(self.fplayer)
-                    if maxticks: seek = min(seek, maxticks)
                     FL.fluid_player_seek(self.fplayer, seek)
                     if seek > self.lasttick:
                         self.lasttick = self.pendingseek
@@ -510,8 +510,6 @@ class Player:
                     else:
                         self.pendingseek = SEEK_DONE
                 FL.fluid_player_play(self.fplayer)
-            elif seek != None:
-                self.pendingseek = seek
 
         def looper(self, data, tick):
             if self.pendingseek > SEEK_DONE:
@@ -529,8 +527,6 @@ class Player:
                     self.lasttick = tick
             else:
                 for start, end in self.loops:
-                    if end < 0:
-                        end = FL.fluid_player_get_total_ticks(self.fplayer) + end + 1
                     if self.lasttick < end <= tick:
                         if start < 0:
                             self.transport(0)
