@@ -323,7 +323,7 @@ class ExtRule(TransRule):
             msg.val = mevent.par1
             if self.par1: msg.val = msg.val * self.par1.mul + self.par1.add
         elif self.type == 'clock':
-            msg.val = 24
+            msg.val = 0.041666664
         elif self.type in ('start', 'continue'):
             msg.val = self.par1.min if self.par1 else -1
         elif self.type == 'stop':
@@ -675,7 +675,7 @@ class Synth:
             elif hasattr(res, 'sync'):
                 if res.sync in self.players:
                     dt, dt2 = t - self.clocks[0], self.clocks[0] - self.clocks[1]
-                    bpm = 1000 * 60 / dt / res.val
+                    bpm = 1000 * 60 * res.val / dt
                     if dt2/dt > 0.5: self.players[res.sync].set_tempo(bpm)
             elif hasattr(res, 'ladspafx'):
                 if res.ladspafx in getattr(self, 'ladspafx', {}):
