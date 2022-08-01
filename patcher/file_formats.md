@@ -105,12 +105,12 @@ To make the arpeggiator work, create a `note` type router rule with an `arpeggia
 A mapping of player units that can play, loop, and seek within MIDI files.
 - `file`(required) - the MIDI file to play, can also be a list of files to play in sequence
 - `tempo` - tempo at which to play the file, in bpm. If not given, the tempo messages in the file will be obeyed
-- `loops` - a list of pairs of _start, end_ ticks. When the song reaches an _end_ tick, it will seek back to the previous _start_ tick in the list. A loop _end_ with a negative value refers to ticks starting from the end of the song and going backward. A negative _start_ value rewinds to the beginning of the song and stops playback.
+- `loops` - a list of pairs of _start, end_ ticks. When the song reaches an _end_ tick, it will seek back to the previous _start_ tick in the list. A negative _start_ value rewinds to the beginning of the song and stops playback.
 - `barlength` - the number of ticks corresponding to a whole number of musical measures in the song. If the player is playing and a router rule tells it to seek to a point in the song, it will wait until the end of a bar to do so. By default barlength is 0 and seeking will occur immediately.
 - `chan` - a channel routing specification, of the same format as for a router rule, for all the messages in the file. This can be useful if your MIDI controller plays on the same channel as one or more of the tracks in the file, and you don't want the messages to interfere.
 - `mask` - a list of MIDI message types to ignore in the file. A useful value is `['prog']`, which will prevent program changes in the file from changing your patch settings.
   
-A router rule with a `player` parameter will tell the named player to play if its value is >0, or stop otherwise. If the rule also has a `tick` parameter, the player will seek to that tick value, possibly waiting until the end of a bar as described above.
+A router rule with a `player` parameter will tell the named player to play if its value is nonzero, and stop if the value is zero. If the rule also has a `tick` parameter, the player will seek to that tick value, possibly waiting until the end of a bar as described above. If the message value is negative, seeking only occurs if the player is already playing.
   
 The names of sequencers, arpeggiators, and players should all be unique. The tempo of a sequencer, arpeggiator, or player can be set with a router rule that has a `tempo` parameter with the target's name as its value. A router rule with a `sync` parameter will measure the time between successive MIDI messages matching the rule and use this to set the tempo of the named player/sequencer/arpeggiator, allowing a user to set the tempo by tapping a button or key.
 
