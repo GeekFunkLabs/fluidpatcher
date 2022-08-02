@@ -274,10 +274,12 @@ fi
 # compile/install fluidsynth
 if [[ $compile_fs == "yes" ]]; then
     inform "Compiling latest FluidSynth from source..."
-    sudo sed -i "/^#deb-src/s|#||" /etc/apt/sources.list
-    UPDATED=false
-    sysupdate
     echo "Getting build dependencies..."
+    if { grep -q ^#deb-src /etc/apt/sources.list; } then
+        sudo sed -i "/^#deb-src/s|#||" /etc/apt/sources.list
+        UPDATED=false
+        sysupdate
+    }
     if { sudo DEBIAN_FRONTEND=noninteractive apt-get build-dep fluidsynth -y --no-install-recommends 2>&1 \
         || echo E: install failed; } | grep '^[WE]:'; then
         warning "Couldn't get all dependencies!"
