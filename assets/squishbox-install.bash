@@ -279,7 +279,7 @@ if [[ $compile_fs == "yes" ]]; then
         sudo sed -i "/^#deb-src/s|#||" /etc/apt/sources.list
         UPDATED=false
         sysupdate
-    }
+    fi
     if { sudo DEBIAN_FRONTEND=noninteractive apt-get build-dep fluidsynth -y --no-install-recommends 2>&1 \
         || echo E: install failed; } | grep '^[WE]:'; then
         warning "Couldn't get all dependencies!"
