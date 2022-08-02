@@ -156,7 +156,7 @@ if test -f "$installdir/patcher/__init__.py"; then
 fi
 NEW_FP_VER=`curl -s https://api.github.com/repos/albedozero/fluidpatcher/releases/latest | sed -n '/tag_name/s|[^0-9\.]*||gp'`
 if yesno "Install/update FluidPatcher version $NEW_FP_VER?"; then
-    update="yes"
+    update_fp="yes"
 fi
 
 if command -v fluidsynth > /dev/null; then
@@ -165,7 +165,7 @@ if command -v fluidsynth > /dev/null; then
 fi
 BUILD_VER=`curl -s https://api.github.com/repos/FluidSynth/fluidsynth/releases/latest | sed -n '/tag_name/s|[^0-9\.]*||gp'`
 if yesno "Compile and install FluidSynth $BUILD_VER from source?"; then
-    compile="yes"
+    compile_fs="yes"
 elif [[ ! $INST_VER ]]; then
     PKG_VER=`apt-cache policy fluidsynth | sed -n '/Candidate:/s/  Candidate: //p'`
     echo "FluidSynth version $PKG_VER will be installed"
@@ -237,12 +237,12 @@ warning "\nThis may take some time ... go make some coffee.\n"
 
 ## do things
 
-# friendly permissions for web file manager
+# friendly file permissions for web file manager
 umask 002 
 
 # get dependencies
 inform "Installing/Updating required software..."
-if $UPGRADE; then sysupdate; fi
+sysupdate
 apt_pkg_install "python3-pip" required
 apt_pkg_install "fluid-soundfont-gm" required
 pip_install "oyaml" required
@@ -254,7 +254,7 @@ apt_pkg_install "tap-plugins"
 apt_pkg_install "wah-plugins"
 
 # install/update fluidpatcher
-if [[ $update == "yes" ]]; then
+if [[ $update_fp == "yes" ]]; then
     inform "Installing/Updating FluidPatcher version $NEW_FP_VER ..."
     wget -qO - https://github.com/albedozero/fluidpatcher/tarball/master | tar -xzm
     fptemp=`ls -dt albedozero-fluidpatcher-* | head -n1`
@@ -272,10 +272,11 @@ if [[ $update == "yes" ]]; then
 fi
 
 # compile/install fluidsynth
-if [[ $compile == "yes" ]]; then
+if [[ $compile_fs == "yes" ]]; then
     inform "Compiling latest FluidSynth from source..."
-	sudo sed -i "/^#deb-src/s|#||" /etc/apt/sources.list
+    sudo sed -i "/^#deb-src/s|#||" /etc/apt/sources.list
     UPDATED=false
+    sysupdate
     echo "Getting build dependencies..."
     if { sudo DEBIAN_FRONTEND=noninteractive apt-get build-dep fluidsynth -y --no-install-recommends 2>&1 \
         || echo E: install failed; } | grep '^[WE]:'; then
@@ -307,12 +308,12 @@ if (( $audiosetup > 0 )); then
     inform "Setting up audio..."
     if (( $audiosetup > 1 )); then
         AUDIO=${AUDIOCARDS[$audiosetup-2]}
-		sed -i "/audio.alsa.device/d" $installdir/SquishBox/squishboxconf.yaml
+        sed -i "/audio.alsa.device/d" $installdir/SquishBox/squishboxconf.yaml
         if [[ $AUDIO == "Headphones" ]]; then
-			sed -i "/fluidsettings:/a\  audio.alsa.device: hw:Headphones" $installdir/SquishBox/squishboxconf.yaml
-		else
-			sed -i "/fluidsettings:/a\  audio.alsa.device: hw:$AUDIO" $installdir/SquishBox/squishboxconf.yaml
-		fi
+            sed -i "/fluidsettings:/a\  audio.alsa.device: hw:Headphones" $installdir/SquishBox/squishboxconf.yaml
+        else
+            sed -i "/fluidsettings:/a\  audio.alsa.device: hw:$AUDIO" $installdir/SquishBox/squishboxconf.yaml
+        fi
     fi
 fi
 
@@ -396,15 +397,15 @@ server {
 }
 EOF
     # some tweaks to allow uploading bigger files
-	sudo sed -i "/client_max_body_size/d" /etc/nginx/nginx.conf
-	sudo sed -i "/^http {/aclient_max_body_size 900M;" /etc/nginx/nginx.conf
+    sudo sed -i "/client_max_body_size/d" /etc/nginx/nginx.conf
+    sudo sed -i "/^http {/aclient_max_body_size 900M;" /etc/nginx/nginx.conf
     sudo sed -i "/upload_max_filesize/cupload_max_filesize = 900M" /etc/php/$phpver/fpm/php.ini
     sudo sed -i "/post_max_size/cpost_max_size = 999M" /etc/php/$phpver/fpm/php.ini
     # set permissions and umask to avoid permissions problems
     sudo usermod -a -G $USER www-data
     sudo chmod -R g+rw $installdir/SquishBox
-	sudo sed -i "/UMask/d" /lib/systemd/system/php$phpver-fpm.service
-	sudo sed -i "/\[Service\]/aUMask=0002" /lib/systemd/system/php$phpver-fpm.service
+    sudo sed -i "/UMask/d" /lib/systemd/system/php$phpver-fpm.service
+    sudo sed -i "/\[Service\]/aUMask=0002" /lib/systemd/system/php$phpver-fpm.service
     # install and configure tinyfilemanager (https://tinyfilemanager.github.io)
     wget -q https://raw.githubusercontent.com/prasathmani/tinyfilemanager/master/tinyfilemanager.php
     sed -i "/define('APP_TITLE'/cdefine('APP_TITLE', 'SquishBox Manager');" tinyfilemanager.php
