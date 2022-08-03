@@ -14,6 +14,10 @@ BUTTON_TOG_CC = 31,
 
 button_state = [0] * len(BUTTON_TOG_CC)
 
+def exceptstr(e): return re.sub(' {2,}', ' ', re.sub('\n|\^', ' ', str(e)))
+    
+def sver2ints(v): return list(map(int, v.split('.')))
+
 def wifi_settings():
     x = re.search("SSID: ([^\n]+)", subprocess.check_output("iw dev wlan0 link".split(), encoding='ascii'))
     ssid = x[1] if x else "Not connected"
@@ -87,9 +91,9 @@ def update_device():
     sb.progresswheel_start()
     try:
         fpver = re.search('tag_name": "v([0-9\.]+)', subprocess.check_output(['curl', '-s',
-            'https://api.github.com/repos/albedozero/fluidpatcher/releases/latest'], encoding='ascii'))
+            'https://api.github.com/repos/albedozero/fluidpatcher/releases/latest'], encoding='ascii'))[1]
         fsver = re.search('tag_name": "v([0-9\.]+)', subprocess.check_output(['curl', '-s',
-            'https://api.github.com/repos/FluidSynth/fluidsynth/releases/latest'], encoding='ascii'))
+            'https://api.github.com/repos/FluidSynth/fluidsynth/releases/latest'], encoding='ascii'))[1]
     except subprocess.CalledProcessError:
         sb.progresswheel_stop()
         sb.lcd_write("can't connect", 1)
@@ -97,9 +101,9 @@ def update_device():
         return
     sb.progresswheel_stop()
     fpup, fsup, sysup = 0, 0, 0
-    if fpver[1].split('.') > patcher.VERSION.split('.'):
+    if sver2ints(fpver) > sver2ints(patcher.VERSION):
         fpup = sb.confirm_choice("software", row=1, timeout=0)
-    if fsver[1].split('.') > patcher.FLUID_VERSION.split('.'):
+    if sver2ints(fsver) > sver2ints(patcher.FLUID_VERSION):
         fsup = sb.confirm_choice("fluidsynth", row=1, timeout=0)
     sysup = sb.confirm_choice("system", row=1, timeout=0)
     if not (fpup or fsup or sysup): return
@@ -145,10 +149,6 @@ rm -rf $fstemp
         sb.progresswheel_stop()
         sb.lcd_write(f"halted - errors: {exceptstr(e)}", 1, scroll=True)
         sb.waitfortap()
-
-def exceptstr(e):
-    x = re.sub('\n|\^', ' ', str(e))
-    return re.sub(' {2,}', ' ', x)
 
 
 class SquishBox:
