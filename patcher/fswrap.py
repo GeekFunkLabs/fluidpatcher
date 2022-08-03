@@ -476,7 +476,7 @@ class Arpeggiator(Sequencer):
             self.play(loops=0)
 
 
-class Player:
+class MidiPlayer:
 
     def __init__(self, synth, file, loops, barlength, chan, mask):
         self.fplayer = FL.new_fluid_player(synth.fsynth)
@@ -508,7 +508,7 @@ class Player:
                 FL.fluid_player_stop(self.fplayer)
             elif FL.fluid_player_get_status(self.fplayer) == FLUID_PLAYER_PLAYING:
                 if seek != None: self.pendingseek = seek
-            elif play > 0:
+            else:
                 if seek != None:
                     FL.fluid_player_seek(self.fplayer, seek)
                     if seek > self.lasttick:
@@ -516,7 +516,7 @@ class Player:
                         self.pendingseek = SEEK_WAIT
                     else:
                         self.pendingseek = SEEK_DONE
-                FL.fluid_player_play(self.fplayer)
+                if play > 0: FL.fluid_player_play(self.fplayer)
 
         def looper(self, data, tick):
             if self.pendingseek > SEEK_DONE:
@@ -556,10 +556,8 @@ class Player:
                 FL.fluid_player_stop(self.fplayer)
             else:
                 if FLUID_VERSION >= (2, 0, 0) and seek != None:
-                    maxticks = FL.fluid_player_get_total_ticks(self.fplayer)
-                    if maxticks: seek = min(seek, maxticks)
                     FL.fluid_player_seek(self.fplayer, seek)
-                FL.fluid_player_play(self.fplayer)
+                if play > 0: FL.fluid_player_play(self.fplayer)
 
         def set_tempo(self, bpm=None):
             pass
@@ -669,9 +667,9 @@ class Synth:
             elif hasattr(res, 'arpeggiator'):
                 if res.arpeggiator in self.players:
                     self.players[res.arpeggiator].note(res.chan, res.par1, res.val)
-            elif hasattr(res, 'player'):
-                if res.player in self.players:
-                    self.players[res.player].transport(res.val, getattr(res, 'tick', None))
+            elif hasattr(res, 'midiplayer'):
+                if res.midiplayer in self.players:
+                    self.players[res.midiplayer].transport(res.val, getattr(res, 'tick', None))
             elif hasattr(res, 'tempo'):
                 if res.tempo in self.players:
                     self.players[res.tempo].set_tempo(res.val)
@@ -810,9 +808,9 @@ class Synth:
             self.players[name] = Arpeggiator(self, tdiv, swing, groove, style, octaves)
             self.players[name].set_tempo(tempo)
 
-    def player_add(self, name, file, loops=[], barlength=1, chan=None, mask=[], tempo=0):
+    def midiplayer_add(self, name, file, loops=[], barlength=1, chan=None, mask=[], tempo=0):
         if name not in self.players:
-            self.players[name] = Player(self, file, loops, barlength, chan, mask)
+            self.players[name] = MidiPlayer(self, file, loops, barlength, chan, mask)
             if tempo > 0:
                 self.players[name].set_tempo(tempo)
 

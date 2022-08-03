@@ -152,16 +152,16 @@ class Patcher:
                     warnings.append(f"Unable to select preset {preset} on channel {ch}")
             else:
                 self._fluid.program_unset(ch - 1)
-        # sequencers, arpeggiators, players
-        self._fluid.players_clear(save=[*merge('sequencers'), *merge('arpeggiators'), *merge('players')])
+        # sequencers, arpeggiators, midiplayers
+        self._fluid.players_clear(save=[*merge('sequencers'), *merge('arpeggiators'), *merge('midiplayers')])
         for name, info in merge('sequencers').items():
             self._fluid.sequencer_add(name, **info)
         for name, info in merge('arpeggiators').items():
             self._fluid.arpeggiator_add(name, **info)
-        for name, info in merge('players').items():
+        for name, info in merge('midiplayers').items():
             fpath = self.mfilesdir / info['file']
             pchan = fpyaml.tochantups(info['chan'])[0] if 'chan' in info else None
-            self._fluid.player_add(name, **{**info, 'file': fpath, 'chan': pchan})
+            self._fluid.midiplayer_add(name, **{**info, 'file': fpath, 'chan': pchan})
         # fluidsettings
         for opt, val in merge('fluidsettings').items():
             self.fluid_set(opt, val)

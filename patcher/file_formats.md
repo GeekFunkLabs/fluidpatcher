@@ -101,7 +101,7 @@ A mapping of special sequencers that will capture any notes routed to them and r
   
 To make the arpeggiator work, create a `note` type router rule with an `arpeggiator` parameter that has the arpeggiator's name as its value. There must be a soundfont preset assigned on the MIDI channel to which the notes are routed in order to hear them.
   
-#### players
+#### midiplayers
 A mapping of player units that can play, loop, and seek within MIDI files.
 - `file`(required) - the MIDI file to play, can also be a list of files to play in sequence
 - `tempo` - tempo at which to play the file, in bpm. If not given, the tempo messages in the file will be obeyed
@@ -110,7 +110,7 @@ A mapping of player units that can play, loop, and seek within MIDI files.
 - `chan` - a channel routing specification, of the same format as for a router rule, for all the messages in the file. This can be useful if your MIDI controller plays on the same channel as one or more of the tracks in the file, and you don't want the messages to interfere.
 - `mask` - a list of MIDI message types to ignore in the file. A useful value is `['prog']`, which will prevent program changes in the file from changing your patch settings.
   
-A router rule with a `player` parameter will tell the named player to play if its value is nonzero, and stop if the value is zero. If the rule also has a `tick` parameter, the player will seek to that tick value, possibly waiting until the end of a bar as described above. If the message value is negative, seeking only occurs if the player is already playing.
+A router rule with a `midiplayer` parameter will tell the named player to play if its value is positive or stop if the value is zero. If the rule also has a `tick` parameter, the player will seek to that tick value, possibly waiting until the end of a bar as described above.
   
 The names of sequencers, arpeggiators, and players should all be unique. The tempo of a sequencer, arpeggiator, or player can be set with a router rule that has a `tempo` parameter with the target's name as its value. A router rule with a `sync` parameter will measure the time between successive MIDI messages matching the rule and use this to set the tempo of the named player/sequencer/arpeggiator, allowing a user to set the tempo by tapping a button or key.
 
