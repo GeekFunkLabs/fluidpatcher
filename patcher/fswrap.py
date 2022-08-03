@@ -27,6 +27,13 @@ FLUID_VERSION = major.value, minor.value, micro.value
 FLUID_OK = 0
 FLUID_FAILED = -1
 
+# logging
+fl_logfunction = CFUNCTYPE(c_void_p, c_int, c_char_p, c_void_p)
+specfunc(FL.fluid_set_log_function, c_void_p, c_int, fl_logfunction, c_void_p)
+nolog = fl_logfunction(lambda level, message, data: None)
+for lvl in range(1,5):
+    FL.fluid_set_log_function(lvl, nolog, None)
+
 # settings
 specfunc(FL.new_fluid_settings, c_void_p)
 specfunc(FL.fluid_settings_get_type, c_int, c_void_p, c_char_p)
