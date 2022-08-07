@@ -57,13 +57,13 @@ patches: # indented list of patches
     arpeggiators:
       ep_arp: {tdiv: 8, style: both, octaves: 2} # style can be up, down, both, or nothing
     5: VintageDreamsWaves-v2.sf2:000:069
-    players:
+    midiplayers:
       groove:
         file: elevatorgroove.mid
         chan: 1-10*1+5 # shift channels of messages in song
-        mask: ['prog'] # ignore program changes in the file
         barlength: 1536 # if given, finishes measure before seeking
         loops: [15350, 18419] # pairs of begin, end ticks
+        mask: ['prog'] # block message types in midi file
     6: VintageDreamsWaves-v2.sf2:000:035
     7: VintageDreamsWaves-v2.sf2:000:020
     15: VintageDreamsWaves-v2.sf2:128:004
@@ -73,10 +73,10 @@ patches: # indented list of patches
     - {type: note, chan: 1, par1: F#2, par2: 1-127=-1, sequencer: fluteloop} # loop forever
     - {type: note, chan: 1, par1: G#2, par2: 1-127=0, sequencer: fluteloop} # stop
     - {type: note, chan: 1, par1: A#2, par2: 1-127=2, sequencer: fluteloop} # loop twice
-    - {type: note, chan: 1, par1: F2, par2: 1-127=1, player: groove} # starts song
-    - {type: note, chan: 1, par1: G2, par2: 1-127=0, player: groove} # stops song
-    - {type: note, chan: 1, par1: A2, par2: 1-127=1, player: groove, tick: 10752} # seek to chorus
-    - {type: note, chan: 1, par1: B2, par2: 1-127=1, player: groove, tick: 13824} # seek to verse
+    - {type: note, chan: 1, par1: F2, par2: 1-127=1, midiplayer: groove} # starts song
+    - {type: note, chan: 1, par1: G2, par2: 1-127=0, midiplayer: groove} # stops song
+    - {type: note, chan: 1, par1: A2, par2: 1-127=-1, midiplayer: groove, tick: 10752} # seek to chorus
+    - {type: note, chan: 1, par1: B2, par2: 1-127=-1, midiplayer: groove, tick: 13824} # seek to verse
     - {type: cc, chan: 1, par1: 13, par2: 0-127=30-240, tempo: groove}
     - {type: cc, chan: 1, par1: 13, par2: 0-127=30-240, tempo: fluteloop}
     - {type: cc, chan: 1, par1: 13, par2: 0-127=30-240, tempo: ep_arp}
