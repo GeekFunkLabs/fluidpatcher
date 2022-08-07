@@ -61,7 +61,7 @@ A soundfont preset is selected on a MIDI channel using an expression of the form
 
 #### router_rules
 Contains a list of rules describing how to route incoming MIDI messages to synthesizer events. An incoming message is compared to all rules and for each rule that matches, an event is created that is modified according to the rule and sent on to the synth. By default, FluidSynth creates one-to-one routing rules for all channels, message types, and parameters. If an item in `router_rules` is the string `clear` it will clear all previous router rules, including the default rules. Each rule is a mapping that can have any of the parameters specified below.
-- `type`(required) - the type of MIDI message to match. Can be `note`, `cc`, `prog`, `pbend`, `kpress`, `cpress`, or `noteoff`, or system realtime message types `clock`, `start`, `stop`, or `continue`.
+- `type`(required) - the type of MIDI message to match. This can be one of the channel message types `note`, `cc`, `prog`, `pbend`, `kpress`, `cpress`, or `noteoff`, or system realtime message types `clock`, `start`, `stop`, or `continue`. System messages have none of the parameters below.
 - `chan` - the channel(s) from which to route messages and how to route them. This can be specified in any of the following ways:
   - `<channel #>` - only messages on the specified channel will match
   - `<from_min>-<from_max>` - a range of channels to match
@@ -73,7 +73,7 @@ Contains a list of rules describing how to route incoming MIDI messages to synth
 
 Additional parameters can be used to make rules that trigger actions or control things, as opposed to sending MIDI messages. The rule will pass a value that is the result of `par1` or `par2` routing, depending on whether the triggering MIDI message is a one- or two-parameter type.
 - `fluidsetting` - a FluidSynth setting to change when a matching MIDI message is received.
-- `sequencer|arpeggiator|player|tempo|sync|ladspafx` - these are used to control MIDI players and external LADSPA effects, described below
+- `sequencer|arpeggiator|midiplayer|tempo|sync|ladspafx` - these are used to control MIDI players and external LADSPA effects, described below
   
 Arbitrary parameters can be added to create custom rules. These rules pass information about the rule type and the triggering MIDI message to a callback function that an implementation can use to trigger its own events. An example is the `patch` rule, which the _squishbox.py_, _headlesspi.py_, and _fluidpatcher.pyw_ implementations will use to change patches. If the value of `patch` is a number, the patch number will be incremented by that amount. If the value is `select`, then the number resulting from `par1` or `par2` routing is used to select the patch, depending on whether the triggering message is a one- or two-parameter type.
 
@@ -102,17 +102,17 @@ A mapping of special sequencers that will capture any notes routed to them and r
 To make the arpeggiator work, create a `note` type router rule with an `arpeggiator` parameter that has the arpeggiator's name as its value. There must be a soundfont preset assigned on the MIDI channel to which the notes are routed in order to hear them.
   
 #### midiplayers
-A mapping of player units that can play, loop, and seek within MIDI files.
+A mapping of units that can play, loop, and seek within MIDI files.
 - `file`(required) - the MIDI file to play, can also be a list of files to play in sequence
 - `tempo` - tempo at which to play the file, in bpm. If not given, the tempo messages in the file will be obeyed
 - `loops` - a list of pairs of _start, end_ ticks. When the song reaches an _end_ tick, it will seek back to the previous _start_ tick in the list. A negative _start_ value rewinds to the beginning of the song and stops playback.
-- `barlength` - the number of ticks corresponding to a whole number of musical measures in the song. If the player is playing and a router rule tells it to seek to a point in the song, it will wait until the end of a bar to do so. By default barlength is 0 and seeking will occur immediately.
+- `barlength` - the number of ticks corresponding to a whole number of musical measures in the song. If the midiplayer is playing and a router rule tells it to seek to a point in the song, it will wait until the end of a bar to do so. By default barlength is 0 and seeking will occur immediately.
 - `chan` - a channel routing specification, of the same format as for a router rule, for all the messages in the file. This can be useful if your MIDI controller plays on the same channel as one or more of the tracks in the file, and you don't want the messages to interfere.
 - `mask` - a list of MIDI message types to ignore in the file. A useful value is `['prog']`, which will prevent program changes in the file from changing your patch settings.
   
-A router rule with a `midiplayer` parameter will tell the named player to play if its value is positive or stop if the value is zero. If the rule also has a `tick` parameter, the player will seek to that tick value, possibly waiting until the end of a bar as described above.
-  
-The names of sequencers, arpeggiators, and players should all be unique. The tempo of a sequencer, arpeggiator, or player can be set with a router rule that has a `tempo` parameter with the target's name as its value. A router rule with a `sync` parameter will measure the time between successive MIDI messages matching the rule and use this to set the tempo of the named player/sequencer/arpeggiator, allowing a user to set the tempo by tapping a button or key.
+A router rule with a `midiplayer` parameter will tell the named midiplayer to play if the routed message value is positive or pause if the value is zero. If the rule also has a `tick` parameter, the midiplayer will seek to that tick position in the song. If the value of `tick` has a `+` or `-` suffix the midiplayer will seek forward or backward from the current position. If the routed message value is negative and the midiplayer is currently playing, seeking will be postponed until the song reaches the end of a measure as specified by `barlength`.
+
+The names of sequencers, arpeggiators, and midiplayers should all be unique. The tempo of any of these units can be set with a router rule that has a `tempo` parameter with the target's name as its value. A router rule with a `sync` parameter will set the tempo of the named unit by measuring the time between successive MIDI messages matching the rule, allowing a user to set the tempo by tapping a button or key. These units can also be synchronized with an external device or program that sends a MIDI clock signal by adding a router rule of type `clock` with a `sync` parameter.
 
 #### ladspafx
 A mapping of external [LADSPA](https://github.com/FluidSynth/fluidsynth/blob/master/doc/ladspa.md) effects units to activate. These must be installed separately and are system-dependent. On Linux, the `listplugins` and `analyseplugin` commands are useful for determining the available plugins and their parameters.
