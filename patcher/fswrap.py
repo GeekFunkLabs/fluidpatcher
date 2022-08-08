@@ -482,7 +482,6 @@ class MidiPlayer:
         self.fplayer = FL.new_fluid_player(synth.fsynth)
         for f in file if isinstance(file, list) else [file]:
             FL.fluid_player_add(self.fplayer, str(f).encode())
-        else: FL.fluid_player_add(self.fplayer, str(file).encode())
         self.loops = list(zip(loops[::2], loops[1::2]))
         self.barlength = barlength
         self.seek = None

@@ -159,7 +159,8 @@ class Patcher:
         for name, info in merge('arpeggiators').items():
             self._fluid.arpeggiator_add(name, **info)
         for name, info in merge('midiplayers').items():
-            fpath = self.mfilesdir / info['file']
+            if isinstance(info['file'], list): fpath = [self.mfilesdir / f for f in info['file']]
+            else: fpath = self.mfilesdir / info['file']
             pchan = fpyaml.tochantups(info['chan'])[0] if 'chan' in info else None
             self._fluid.midiplayer_add(name, **{**info, 'file': fpath, 'chan': pchan})
         # fluidsettings
