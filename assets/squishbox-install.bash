@@ -308,14 +308,12 @@ fi
 # set up audio
 if (( $audiosetup > 0 )); then
     inform "Setting up audio..."
+	sed -i "/audio.driver/d" $installdir/SquishBox/squishboxconf.yaml
+	sed -i "/fluidsettings:/a\  audio.driver: alsa" $installdir/SquishBox/squishboxconf.yaml
+	sed -i "/audio.alsa.device/d" $installdir/SquishBox/squishboxconf.yaml
     if (( $audiosetup > 1 )); then
-        AUDIO=${AUDIOCARDS[$audiosetup-2]}
-        sed -i "/audio.alsa.device/d" $installdir/SquishBox/squishboxconf.yaml
-        if [[ $AUDIO == "Headphones" ]]; then
-            sed -i "/fluidsettings:/a\  audio.alsa.device: hw:Headphones" $installdir/SquishBox/squishboxconf.yaml
-        else
-            sed -i "/fluidsettings:/a\  audio.alsa.device: hw:$AUDIO" $installdir/SquishBox/squishboxconf.yaml
-        fi
+        card=${AUDIOCARDS[$audiosetup-2]}
+		sed -i "/audio.driver/a\  audio.alsa.device: hw:$card" $installdir/SquishBox/squishboxconf.yaml
     fi
 fi
 
