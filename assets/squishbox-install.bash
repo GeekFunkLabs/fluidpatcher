@@ -129,6 +129,9 @@ View the full source code at
 https://github.com/albedozero/fluidpatcher
 Report issues with this script at
 https://github.com/albedozero/fluidpatcher/issues
+
+Choose your install options. Empty responses will use the [default options].
+Setup will begin after all options have been selected.
 "
 
 ENVCHECK=true
@@ -148,7 +151,7 @@ if ! ($ENVCHECK); then
     fi
 fi
 
-query "Install location" $HOME; installdir=$response
+query "Enter install location" $HOME; installdir=$response
 if ! [[ -d $installdir ]]; then
     if noyes "'$installdir' does not exist. Create it and proceed?"; then
         exit 1
