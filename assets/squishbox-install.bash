@@ -149,6 +149,13 @@ if ! ($ENVCHECK); then
 fi
 
 query "Install location" $HOME; installdir=$response
+if ! [[ -d $installdir ]]; then
+    if noyes "'$installdir' does not exist. Create it and proceed?"; then
+        exit 1
+    else
+		mkdir -p $installdir
+	fi
+fi
 
 if test -f "$installdir/patcher/__init__.py"; then
     FP_VER=`sed -n '/^VERSION/s|[^0-9\.]*||gp' $installdir/patcher/__init__.py`
@@ -308,12 +315,12 @@ fi
 # set up audio
 if (( $audiosetup > 0 )); then
     inform "Setting up audio..."
-	sed -i "/audio.driver/d" $installdir/SquishBox/squishboxconf.yaml
-	sed -i "/fluidsettings:/a\  audio.driver: alsa" $installdir/SquishBox/squishboxconf.yaml
-	sed -i "/audio.alsa.device/d" $installdir/SquishBox/squishboxconf.yaml
+    sed -i "/audio.driver/d" $installdir/SquishBox/squishboxconf.yaml
+    sed -i "/fluidsettings:/a\  audio.driver: alsa" $installdir/SquishBox/squishboxconf.yaml
+    sed -i "/audio.alsa.device/d" $installdir/SquishBox/squishboxconf.yaml
     if (( $audiosetup > 1 )); then
         card=${AUDIOCARDS[$audiosetup-2]}
-		sed -i "/audio.driver/a\  audio.alsa.device: hw:$card" $installdir/SquishBox/squishboxconf.yaml
+        sed -i "/audio.driver/a\  audio.alsa.device: hw:$card" $installdir/SquishBox/squishboxconf.yaml
     fi
 fi
 
