@@ -50,7 +50,7 @@ failout() {
 
 sysupdate() {
     if ! $UPDATED || $UPGRADE; then
-        echo "Updating apt indexes..."
+        echo "Updating package indexes..."
         if { sudo apt-get update 2>&1 || echo E: update failed; } | grep '^[WE]:'; then
             warning "Updating incomplete"
         fi
@@ -70,35 +70,27 @@ sysupdate() {
 }
 
 apt_pkg_install() {
-    APT_CHK=$(dpkg-query -W -f='${Status}\n' "$1" 2> /dev/null | grep "install ok installed")
-    if [[ $APT_CHK == "" ]]; then
-        sysupdate
-        echo "Installing package $1..."
-        if { sudo DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install "$1" 2>&1 \
-            || echo E: install failed; } | grep '^[WE]:'; then
-            if [[ $2 == "required" ]]; then
-                failout "Problems installing $1!"
-            else
-                warning "Problems installing $1!"
-            fi
-        fi
-    fi
+	sysupdate
+	echo "Installing package $1..."
+	if { sudo DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install "$1" 2>&1 \
+		|| echo E: install failed; } | grep '^[WE]:'; then
+		if [[ ! $2 == "optional" ]]; then
+			failout "Problems installing $1!"
+		else
+			warning "Problems installing $1!"
+		fi
+	fi
 }
 
 pip_install() {
-    if [[ $PYTHON_PKG == "" ]]; then
-        PYTHON_PKG=$(pip3 list 2> /dev/null)
-    fi
-    if ! [[ $PYTHON_PKG =~ "$1" ]]; then
-        echo "Installing Python module $1..."
-        if ! { sudo -H pip3 install -U "$1"; } then
-            if [[ $2 == "required" ]]; then
-                failout "Failed to install $1!"
-            else
-                warning "Failed to install $1!"
-            fi
-        fi
-    fi
+	echo "Installing Python module $1..."
+	if ! { sudo -H pip3 install "$1" &> /dev/null; } then
+		if [[ ! $2 == "optional" ]]; then
+			failout "Failed to install $1!"
+		else
+			warning "Failed to install $1!"
+		fi
+	fi
 }
 
 
@@ -131,7 +123,7 @@ Report issues with this script at
 https://github.com/albedozero/fluidpatcher/issues
 
 Choose your install options. Empty responses will use the [default options].
-Setup will begin after all options have been selected.
+Setup will begin after all questions are answered.
 "
 
 ENVCHECK=true
@@ -144,11 +136,35 @@ if test -f /etc/os-release; then
     fi
 fi
 if ! ($ENVCHECK); then
-    warning "These scripts are designed to run on Raspberry Pi OS (Bullseye),"
-    warning "which does not appear to be the case here. YMMV!"
+    warning "This software is designed for the latest Raspberry Pi OS (Bullseye),"
+    warning "which does not appear to be the situation here. YMMV!"
     if noyes "Proceed anyway?"; then
         exit 1
     fi
+fi
+
+echo "What are you setting up?"
+echo "  1. SquishBox"
+echo "  2. Headless Raspberry Pi Synth"
+query "Choose" "1"; installtype=$response
+AUDIOCARDS=(`cat /proc/asound/cards | sed -n 's/.*\[//;s/ *\].*//p'`)
+if [[ $installtype == 1 ]]; then
+	if [[ ! " ${AUDIOCARDS[*]} " =~ " sndrpihifiberry " ]]; then
+		inform "This script must reboot your computer to activate your sound card."
+		inform "Once this is complete, run this script again to continue setup."
+		if yesno "Reboot?"; then
+			sudo sed -i '$ a\dtoverlay=hifiberry-dac' /boot/config.txt
+			sync; sudo reboot
+		fi
+	fi
+elif [[ $installtype == 2 ]]; then
+    echo "Set up controls for Headless Pi Synth:"
+    query "    MIDI channel for controls" "1"; ctrls_channel=$response
+    query "    Previous patch button CC" "21"; decpatch=$response
+    query "    Next patch button CC" "22"; incpatch=$response
+    query "    Bank change button CC" "23"; bankinc=$response
+else
+	exit 1
 fi
 
 query "Enter install location" $HOME; installdir=$response
@@ -160,74 +176,32 @@ if ! [[ -d $installdir ]]; then
 	fi
 fi
 
-if test -f "$installdir/patcher/__init__.py"; then
-    FP_VER=`sed -n '/^VERSION/s|[^0-9\.]*||gp' $installdir/patcher/__init__.py`
-    echo "Installed FluidPatcher is version $FP_VER"
-fi
-NEW_FP_VER=`curl -s https://api.github.com/repos/albedozero/fluidpatcher/releases/latest | sed -n '/tag_name/s|[^0-9\.]*||gp'`
-if yesno "Install/update FluidPatcher version $NEW_FP_VER?"; then
-    update_fp="yes"
+if yesno "Install/update synthesizer software?"; then
+	install_synth=true
 fi
 
-if command -v fluidsynth > /dev/null; then
-    INST_VER=`fluidsynth --version | sed -n '/runtime version/s|[^0-9\.]*||gp'`
-    echo "Installed FluidSynth is version $INST_VER"
-fi
-BUILD_VER=`curl -s https://api.github.com/repos/FluidSynth/fluidsynth/releases/latest | sed -n '/tag_name/s|[^0-9\.]*||gp'`
-if yesno "Compile and install FluidSynth $BUILD_VER from source?"; then
-    compile_fs="yes"
-elif [[ ! $INST_VER ]]; then
-    PKG_VER=`apt-cache policy fluidsynth | sed -n '/Candidate:/s/  Candidate: //p'`
-    echo "FluidSynth version $PKG_VER will be installed"
-fi
-
-if yesno "OK to upgrade your system (if possible)?"; then
+if yesno "Update/upgrade your operating system?"; then
     UPGRADE=true
 fi
 
-IFS=$'\n'
-AUDIOCARDS=(`aplay -l | grep ^card | cut -d' ' -f 3`)
 defcard=0
-defscript=2
 echo "Which audio output would you like to use?"
 echo "  0. No change"
 echo "  1. Default"
 i=2
 for dev in ${AUDIOCARDS[@]}; do
     echo "  $i. $dev"
-    if [[ $dev == "Headphones" ]]; then
+    if [[ $installtype == 1 && $dev == "sndrpihifiberry" ]]; then
+		defcard=$i
+	elif [[ $installtype == 2 && $dev == "Headphones" ]]; then
         defcard=$i
-    fi
-    ((i+=1))
-done
-i=2
-for dev in ${AUDIOCARDS[@]}; do
-    if [[ $dev == "sndrpihifiberry" ]]; then
-        defcard=$i
-        defscript=1
     fi
     ((i+=1))
 done
 query "Choose" $defcard; audiosetup=$response
 
-echo "What script should be run on startup?"
-echo "  0. No change"
-echo "  1. squishbox.py"
-echo "  2. headlesspi.py"
-echo "  3. Nothing"
-query "Choose" $defscript; startup=$response
-if [[ $startup == 1 ]]; then
-    squishbox_pkg="required"
-elif [[ $startup == 2 ]]; then
-    echo "Set up controls for headless pi:"
-    query "    MIDI channel for controls" "use default"; ctrls_channel=$response
-    query "    Next patch button CC" "use default"; incpatch=$response
-    query "    Previous patch button CC" "use default"; decpatch=$response
-    query "    Bank change button CC" "use default"; bankinc=$response
-fi
-
 if yesno "Set up web-based file manager?"; then
-    filemgr="yes"
+    filemgr=true
     echo "  Please create a user name and password."
     read -r -p "    username: " fmgr_user < /dev/tty
     read -r -p "    password: " password < /dev/tty
@@ -235,7 +209,7 @@ if yesno "Set up web-based file manager?"; then
 fi
 
 if yesno "Download and install ~400MB of additional soundfonts?"; then
-    soundfonts="yes"
+    soundfonts=true
 fi
 
 echo ""
@@ -250,69 +224,75 @@ warning "\nThis may take some time ... go make some coffee.\n"
 # friendly file permissions for web file manager
 umask 002 
 
-# get dependencies
-inform "Installing/Updating required software..."
-sysupdate
-apt_pkg_install "python3-pip" required
-apt_pkg_install "fluid-soundfont-gm" required
-pip_install "oyaml" required
-pip_install "RPi.GPIO" $squishbox_pkg
-pip_install "RPLCD" $squishbox_pkg
-apt_pkg_install "ladspa-sdk"
-apt_pkg_install "swh-plugins"
-apt_pkg_install "tap-plugins"
-apt_pkg_install "wah-plugins"
+if [[ $install_synth ]]; then
+	# get dependencies
+	inform "Installing/Updating supporting software..."
+	sysupdate
+	apt_pkg_install "python3-pip"
+	apt_pkg_install "fluid-soundfont-gm"
+	apt_pkg_install "ladspa-sdk" optional
+	apt_pkg_install "swh-plugins" optional
+	apt_pkg_install "tap-plugins" optional
+	apt_pkg_install "wah-plugins" optional
+	pip_install "oyaml"
+	pip_install "mido" optional
+	if [[ $installtype == 1 ]]; then
+		pip_install "RPi.GPIO"
+		pip_install "RPLCD"
+	fi
 
-# install/update fluidpatcher
-if [[ $update_fp == "yes" ]]; then
-    inform "Installing/Updating FluidPatcher version $NEW_FP_VER ..."
-    wget -qO - https://github.com/albedozero/fluidpatcher/tarball/master | tar -xzm
-    fptemp=`ls -dt albedozero-fluidpatcher-* | head -n1`
-    cd $fptemp
-    find . -type d -exec mkdir -p ../{} \;
-    # copy files, but don't overwrite banks, config, hw_overlay.py
-    find . -type f ! -name "*.yaml" ! -name "hw_overlay.py" -exec cp -f {} ../{} \;
-    find . -type f -name "hw_overlay.py" -exec cp -n {} ../{} \;
-    find . -type f -name "*.yaml" -exec cp -n {} ../{} \;
-    cd ..
-    rm -rf $fptemp
-    ln -s /usr/share/sounds/sf2/FluidR3_GM.sf2 SquishBox/sf2/ 2> /dev/null
-    gcc -shared assets/patchcord.c -o patchcord.so
-    sudo mv -f patchcord.so /usr/lib/ladspa
-fi
+	# install/update fluidpatcher
+	FP_VER=`sed -n '/^VERSION/s|[^0-9\.]*||gp' $installdir/patcher/__init__.py &> /dev/null`
+	NEW_FP_VER=`curl -s https://api.github.com/repos/albedozero/fluidpatcher/releases/latest | sed -n '/tag_name/s|[^0-9\.]*||gp'`
+	if [[ ! $FP_VER == $NEW_FP_VER ]]; then
+		inform "Installing/Updating FluidPatcher version $NEW_FP_VER ..."
+		wget -qO - https://github.com/albedozero/fluidpatcher/tarball/master | tar -xzm
+		fptemp=`ls -dt albedozero-fluidpatcher-* | head -n1`
+		cd $fptemp
+		find . -type d -exec mkdir -p ../{} \;
+		# copy files, but don't overwrite banks, config, hw_overlay.py
+		find . -type f ! -name "*.yaml" ! -name "hw_overlay.py" -exec cp -f {} ../{} \;
+		find . -type f -name "hw_overlay.py" -exec cp -n {} ../{} \;
+		find . -type f -name "*.yaml" -exec cp -n {} ../{} \;
+		cd ..
+		rm -rf $fptemp
+		ln -s /usr/share/sounds/sf2/FluidR3_GM.sf2 SquishBox/sf2/ > /dev/null
+		gcc -shared assets/patchcord.c -o patchcord.so
+		sudo mv -f patchcord.so /usr/lib/ladspa
+	fi
 
-# compile/install fluidsynth
-if [[ $compile_fs == "yes" ]]; then
-    inform "Compiling latest FluidSynth from source..."
-    echo "Getting build dependencies..."
-    if { grep -q ^#deb-src /etc/apt/sources.list; } then
-        sudo sed -i "/^#deb-src/s|#||" /etc/apt/sources.list
-        UPDATED=false
-        sysupdate
-    fi
-    if { sudo DEBIAN_FRONTEND=noninteractive apt-get build-dep fluidsynth -y --no-install-recommends 2>&1 \
-        || echo E: install failed; } | grep '^[WE]:'; then
-        warning "Couldn't get all dependencies!"
-    fi
-    wget -qO - https://github.com/FluidSynth/fluidsynth/tarball/master | tar -xzm
-    fstemp=`ls -dt FluidSynth-fluidsynth-* | head -n1`
-    mkdir $fstemp/build
-    cd $fstemp/build
-    echo "Configuring..."
-    cmake ..
-    echo "Compiling..."
-    make
-    if { sudo make install; } then
-        INST_VER=$BUILD_VER
-    else
-        warning "Unable to compile FluidSynth $BUILD_VER"
-    fi
-    sudo ldconfig
-    cd ../..
-    rm -rf $fstemp
-fi
-if [[ ! $INST_VER ]]; then
-    apt_pkg_install "fluidsynth" required
+	# compile/install fluidsynth
+	FS_VER=`fluidsynth --version 2> /dev/null | sed -n '/runtime version/s|[^0-9\.]*||gp'`
+	BUILD_FS_VER=`curl -s https://api.github.com/repos/FluidSynth/fluidsynth/releases/latest | sed -n '/tag_name/s|[^0-9\.]*||gp'`
+	if [[ ! $FS_VER == $BUILD_FS_VER ]]; then
+		inform "Compiling latest FluidSynth from source..."
+		echo "Getting build dependencies..."
+		if { grep -q ^#deb-src /etc/apt/sources.list; } then
+			sudo sed -i "/^#deb-src/s|#||" /etc/apt/sources.list
+			UPDATED=false
+			sysupdate
+		fi
+		if { sudo DEBIAN_FRONTEND=noninteractive apt-get build-dep fluidsynth -y --no-install-recommends 2>&1 \
+			|| echo E: install failed; } | grep '^[WE]:'; then
+			warning "Couldn't get all dependencies!"
+		fi
+		wget -qO - https://github.com/FluidSynth/fluidsynth/tarball/master | tar -xzm
+		fstemp=`ls -dt FluidSynth-fluidsynth-* | head -n1`
+		mkdir $fstemp/build
+		cd $fstemp/build
+		echo "Configuring..."
+		cmake ..
+		echo "Compiling..."
+		make
+		if { sudo make install; } then
+			sudo ldconfig
+		else
+			warning "Unable to compile FluidSynth $BUILD_VER"
+			apt_pkg_install "fluidsynth"
+		fi
+		cd ../..
+		rm -rf $fstemp
+	fi
 fi
 
 # set up audio
@@ -328,7 +308,7 @@ if (( $audiosetup > 0 )); then
 fi
 
 # set up services
-if [[ $startup == "1" ]]; then
+if [[ $installtype == 1 ]]; then
     inform "Enabling SquishBox startup service..."
     chmod a+x $installdir/squishbox.py
     cat <<EOF | sudo tee /etc/systemd/system/squishbox.service
@@ -348,8 +328,8 @@ WantedBy=multi-user.target
 EOF
     sudo systemctl enable squishbox.service
     ASK_TO_REBOOT=true
-elif [[ $startup == "2" ]]; then
-    inform "Enabling headless Pi synth startup service..."
+elif [[ $installtype == 2 ]]; then
+    inform "Enabling Headless Pi Synth startup service..."
     chmod a+x $installdir/headlesspi.py
     cat <<EOF | sudo tee /etc/systemd/system/squishbox.service
 [Unit]
@@ -367,28 +347,20 @@ Restart=on-failure
 WantedBy=multi-user.target
 EOF
     sudo systemctl enable squishbox.service
-    if [[ $decpatch != "use default" ]]; then
-        sed -i "/^DEC_PATCH/s|[0-9]\+|$decpatch|" $installdir/headlesspi.py; fi
-    if [[ $incpatch != "use default" ]]; then
-        sed -i "/^INC_PATCH/s|[0-9]\+|$incpatch|" $installdir/headlesspi.py; fi
-    if [[ $bankinc != "use default" ]]; then
-        sed -i "/^BANK_INC/s|[0-9]\+|$bankinc|" $installdir/headlesspi.py; fi
-    if [[ $ctrls_channel != "use default" ]]; then
-        sed -i "/^CTRLS_MIDI_CHANNEL/s|[0-9]\+|$ctrls_channel|" $installdir/headlesspi.py; fi
-    ASK_TO_REBOOT=true
-elif [[ $startup == "3" ]]; then
-    inform "Disabling startup service..."
-    sudo systemctl disable squishbox.service
+	sed -i "/^DEC_PATCH/s|[0-9]\+|$decpatch|" $installdir/headlesspi.py
+	sed -i "/^INC_PATCH/s|[0-9]\+|$incpatch|" $installdir/headlesspi.py
+	sed -i "/^BANK_INC/s|[0-9]\+|$bankinc|" $installdir/headlesspi.py
+	sed -i "/^CTRLS_MIDI_CHANNEL/s|[0-9]\+|$ctrls_channel|" $installdir/headlesspi.py
     ASK_TO_REBOOT=true
 fi
 
-if [[ $filemgr == "yes" ]]; then
+if [[ $filemgr ]]; then
     # set up web server, install tinyfilemanager
     inform "Setting up web-based file manager..."
     sysupdate
     apt_pkg_install "nginx"
     apt_pkg_install "php-fpm"
-    phpver=`apt-cache policy php-fpm | sed -n '/Installed:/s/.*://p' | sed 's/[^0-9\.].*//'`
+    phpver=`ls -t /etc/php | head -n1`
     # enable php in nginx
     cat <<EOF | sudo tee /etc/nginx/sites-available/default
 server {
@@ -424,15 +396,13 @@ EOF
     sed -i "/\$theme =/c\$theme = 'dark';" tinyfilemanager.php
     sed -i "0,/root_path =/s|root_path = .*|root_path = '$installdir/SquishBox';|" tinyfilemanager.php
     sed -i "0,/favicon_path =/s|favicon_path = .*|favicon_path = 'gfl_logo.png';|" tinyfilemanager.php
-    sed -i '/aceMode/s|,"yaml":"YAML"||' tinyfilemanager.php
-    sed -i 's|"aceMode":{|&"yaml":"YAML",|' tinyfilemanager.php
     sudo mv -f tinyfilemanager.php /var/www/html/index.php
     wget -q https://geekfunklabs.com/gfl_logo.png
     sudo mv -f gfl_logo.png /var/www/html/
     ASK_TO_REBOOT=true
 fi
 
-if [[ $soundfonts == "yes" ]]; then
+if [[ $soundfonts ]]; then
     # download extra soundfonts
     inform "Downloading free soundfonts..."
     wget -qO - --show-progress https://geekfunklabs.com/squishbox_soundfonts.tar.gz | tar -xzC $installdir/SquishBox --skip-old-files
