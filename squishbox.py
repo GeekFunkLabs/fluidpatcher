@@ -158,7 +158,9 @@ class SquishBox:
         pxr.set_midimessage_callback(self.listener)
         if not (pxr.currentbank and self.load_bank(pxr.currentbank)):
             while not self.load_bank(): pass
-        self.patchmode()
+        self.load_soundfont('FluidR3_GM.sf2') # soundfont to load on startup
+        while True:
+            self.sfmode()
 
     def listener(self, msg):
         if hasattr(msg, 'val'):
@@ -348,7 +350,7 @@ class SquishBox:
             sfont = pxr.soundfonts[s]
         sb.lcd_write("loading presets ", 1, now=True)
         sb.progresswheel_start()
-        if not pxr.load_soundfont(pxr.soundfonts[s]):
+        if not pxr.load_soundfont(sfont):
             sb.progresswheel_stop()
             sb.lcd_write(f"Unable to load {str(pxr.soundfonts[s])}", 1, scroll=True)
             sb.waitfortap()
