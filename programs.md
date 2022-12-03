@@ -46,16 +46,18 @@ Some program settings, such as the initial height, width, and font size of the U
 
 The _squishbox.py_ script is written to run on a Raspberry Pi in standard effects pedal enclosure with buttons and/or a rotary encoder and a 16x2 character LCD, creating a complete open source MIDI sound module. The [SquishBox](http://geekfunklabs.com/hardware/squishbox/) is designed by [Geek Funk Labs](http://geekfunklabs.com/), where you can find information on downloading software, building your own, or obtaining a fully constructed unit.
 
-When activated, the current firmware version is displayed while the last-used bank is loaded. The current patch name, number, and total patches available are displayed on the LCD. 
+On startup, the FluidPatcher version is displayed while the last-used bank loads. The current patch name, number, and total patches available are displayed on the LCD. You scroll through patches using the encoder. You can also tap the encoder to advance to the next patch. The stompbutton sends MIDI messages that can be routed in banks or patches to act as a pedal, effects control, or perform other actions. The messages sent are control change 30 with a value of 127 and 0 on press and release, and control change 31 toggling between 0 and 127 with each press. 
 
 ### Navigating Patches/Menus
 
-The unit can be controlled with a left/right pair of momentary buttons or a pushbutton rotary encoder. Tapping (pressing and releasing quickly) the left or right buttons cycles through options or increases/decreases values, as does rotating the encoder. Pressing and holding the right button or rotary pushbutton for approximately one second opens the menu and selects options, and holding the left button for one second cancels.
+The unit is controlled with a momentary buttons and a pushbutton rotary encoder. Rotating the encoder cycles through patches. The encoder can also be tapped to advance to the next patch. The stompbutton sends MIDI messages that can be routed in banks or patches to act as a pedal, effects control, or perform other actions. The messages sent are control change 30 with a value of 127 and 0 on press and release, and control change 31 toggling between 0 and 127 with each press.
 
-- Most menus will time out if you don't press any buttons. If not a "cancel" option will be available.
-- When asked to confirm a choice, it will be shown with a checkmark or X next to it. Select the checkmark to confirm, X to cancel.
-- Some menus allow you to change a numerical setting. Tap the left or right buttons or rotate the encoder to adjust the value, then select to confirm it.
-- Some menus allow you to enter text character-by-character. The cursor will appear as an underline for changing position and a blinking square for changing the current character. Use the select action to toggle the cursor mode, and the cancel action to finish editing. You will be given the option to accept or reject your entry.
+Holding down the rotary encoder for one second opens the menu. In menus the stompbutton does not send MIDI messages. Instead, rotating the encoder scrolls through options, or tapping the encoder advances to the next option and tapping the stompbutton goes back. This makes it easier to use the SquishBox with feet if it’s placed on the floor. Holding the encoder for one second selects options, and holding the stompbutton for one second cancels or exits. Most menus will time out after a few seconds with no input.
+
+Some menus have specific interaction modes:
+-  When asked to confirm a choice, it will be shown with a check mark or X next to it. Selecting the check mark confirms, X cancels. 
+- Some menus allow changing a numerical setting. Rotating the encoder adjusts the value, and holding the encoder confirms it.
+- Some menus allow entering text character-by-character. The cursor appears as an underline for changing position and a blinking square for changing the current character. Holding the encoder switches between cursor modes. Holding the stompbutton exits editing, after which you will be asked to confirm or cancel your entry.
 
 ### Menu Options
 
@@ -72,5 +74,5 @@ The unit can be controlled with a left/right pair of momentary buttons or a push
   - **Power Down** – To protect the memory card of the SquishBox, this option should be used before unplugging. Allow 30 seconds for complete shutdown.
   - **MIDI Devices** – This menu can be used to view the list of available MIDI devices, and to interconnect MIDI inputs and outputs. By default, the SquishBox automatically connects to all available MIDI devices, but this could be used to send MIDI messages to an additional external device. It also includes a _MIDI Monitor_ option that displays incoming MIDI messages on the screen. Pressing any button exits the MIDI monitor.
   - **WIFI Settings** – Displays the current IP Address of the SquishBox, and provides a menu to scan for and connect to available WIFI networks.
-  - **Add From USB** – This option provides a quick, simple way of copying files to the SquishBox. It will search for a folder named _Squishbox_ on any connected USB storage devices and copy their entire contents, preserving directory structure. Note that files with the same name will be overwritten.
-  - **Update Device** - This will connect to the internet to check for updates to the SquishBox and FluidSynth software, and give the user the option to update them if available. You can also choose to update the Raspberry Pi operating system. The SquishBox will reboot after performing any updates. Note that updating FluidSynth and/or the OS can take a few minutes.
+  - **Add From USB** – This option provides a quick, simple way of copying files to the SquishBox. It will search for a folder named "SquishBox" on any connected USB storage devices and copy its entire contents, preserving directory structure. Note that files with the same name will be overwritten. 
+  - **Update Device** - This will connect to the internet to check for updates to the SquishBox software, and give the user the option to update if available. You can also choose to update the Raspberry Pi operating system. The SquishBox will reboot after performing any updates.
