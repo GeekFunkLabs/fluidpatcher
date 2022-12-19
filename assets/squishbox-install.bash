@@ -204,8 +204,7 @@ if yesno "Set up web-based file manager?"; then
     filemgr=true
     echo "  Please create a user name and password."
     read -r -p "    username: " fmgr_user < /dev/tty
-    read -r -p "    password: " password < /dev/tty
-    fmgr_hash=`wget -qO - geekfunklabs.com/passhash.php?password=$password`
+    read -r -p "    password: " fmgr_pass < /dev/tty
 fi
 
 if yesno "Download and install ~400MB of additional soundfonts?"; then
@@ -361,6 +360,7 @@ if [[ $filemgr ]]; then
     apt_pkg_install "nginx"
     apt_pkg_install "php-fpm"
     phpver=`ls -t /etc/php | head -n1`
+	fmgr_hash=`php -r 'print password_hash($fmgr_pass, PASSWORD_DEFAULT);'`
     # enable php in nginx
     cat <<EOF | sudo tee /etc/nginx/sites-available/default
 server {
