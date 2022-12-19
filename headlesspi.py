@@ -10,7 +10,7 @@ import patcher
 
 # change these values to correspond to buttons/pads on your MIDI keyboard/controller
 # or reprogram your controller to send the corresponding messages
-CTRLS_MIDI_CHANNEL = 1
+CTRL_CHAN = 1
 DEC_PATCH = 21          # decrement the patch number
 INC_PATCH = 22          # increment the patch number
 BANK_INC = 23           # load the next bank
@@ -25,16 +25,16 @@ SHUTDOWN_BTN = None
 # this function creates MIDI router rules that connect MIDI messages to the desired functions
 # modify this function directly if you want to change patches using notes or other MIDI messages
 def connect_controls():
-    pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=DEC_PATCH, patch=-1)
-    pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=INC_PATCH, patch=1)
+    pxr.add_router_rule(type='cc', chan=CTRL_CHAN, par1=DEC_PATCH, patch='1-')
+    pxr.add_router_rule(type='cc', chan=CTRL_CHAN, par1=INC_PATCH, patch='1+')
     selectspec =  f"0-127=0-{min(len(pxr.patches) - 1, 127)}" # transform CC values into patch numbers
-    pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=SELECT_PATCH, par2=selectspec, patch='select')
-    pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=BANK_INC, bank=1)
+    pxr.add_router_rule(type='cc', chan=CTRL_CHAN, par1=SELECT_PATCH, par2=selectspec, patch='select')
+    pxr.add_router_rule(type='cc', chan=CTRL_CHAN, par1=BANK_INC, bank=1)
     if SHUTDOWN_BTN != None:
-        pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=SHUTDOWN_BTN, shutdown=1)
+        pxr.add_router_rule(type='cc', chan=CTRL_CHAN, par1=SHUTDOWN_BTN, shutdown=1)
     else:
-        pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=DEC_PATCH, shutdown=1)
-        pxr.add_router_rule(type='cc', chan=CTRLS_MIDI_CHANNEL, par1=INC_PATCH, shutdown=1)
+        pxr.add_router_rule(type='cc', chan=CTRL_CHAN, par1=DEC_PATCH, shutdown=1)
+        pxr.add_router_rule(type='cc', chan=CTRL_CHAN, par1=INC_PATCH, shutdown=1)
 
 # toggling the onboard LEDs requires writing to the SD card, which can cause audio stutters
 # this is not usually noticeable, since it only happens when switching patches or shutting down
@@ -145,11 +145,9 @@ class HeadlessSynth:
 
     def listener(self, msg):
     # catches custom midi :msg to change patch/bank
-        if hasattr(msg, 'patch') and pxr.patches:
-            if msg.patch == 'select':
-                self.select_patch(int(msg.val))
-            elif msg.val > 0:
-                self.select_patch((self.pno + msg.patch) % len(pxr.patches))
+        if hasattr(msg, 'patch'):
+            pnew = pxr.parse_patchmsg(msg, self.pno)
+            if pnew > -1: self.select_patch(pnew)
         if hasattr(msg, 'bank') and msg.val > 0:
             if pxr.currentbank in pxr.banks:
                 bno = (pxr.banks.index(pxr.currentbank) + 1 ) % len(pxr.banks)

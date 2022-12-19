@@ -76,7 +76,7 @@ class Patcher:
     @property
     def patches(self):
         return list(self._bank['patches'])
-        
+
     def set_midimessage_callback(self, func):
         self._fluid.msg_callback = func
 
@@ -289,6 +289,20 @@ class Patcher:
                    for par, val in kwargs.items()}
             msg = fpyaml.MidiMsg(**msg)
         self._fluid.send_event(msg.type, msg.chan, msg.par1, msg.par2)
+
+    def parse_patchmsg(self, msg, pno):
+        if msg.patch == 'select':
+            pnew = int(msg.val)
+        elif msg.patch in self.patches:
+            pnew = self.patches.index(msg.patch)
+        elif str(msg.patch).endswith('+'):
+            pnew = (pno + int(msg.patch[:-1])) % len(self.patches)
+        elif str(msg.patch).endswith('-'):
+            pnew = (pno - int(msg.patch[:-1])) % len(self.patches)
+        elif isinstance(msg.patch, int) and 0 <= msg.patch < len(self.patches):
+            pnew = msg.patch
+        else: return -1
+        return pnew
 
     # private functions
     def _refresh_bankfonts(self):
