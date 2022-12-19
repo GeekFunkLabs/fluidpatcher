@@ -36,40 +36,18 @@ DOWN = 1
 HELD = 2
 
 # custom lcd characters
-XMARK = chr(0)
-CHECK = chr(1)
-BACKSLASH = chr(2)
-PADLEFT = chr(7)
-PADRIGHT = chr(8)
-XMARK_BITS = (
-0b00000,
-0b11011,
-0b01110,
-0b00100,
-0b01110,
-0b11011,
-0b00000,
-0b00000)
-CHECK_BITS = (
-0b00000,
-0b00001,
-0b00011,
-0b10110,
-0b11100,
-0b01000,
-0b00000,
-0b00000)
-BACKSLASH_BITS = (
-0b00000,
-0b10000,
-0b01000,
-0b00100,
-0b00010,
-0b00001,
-0b00000,
-0b00000)
-INPCHARS = " abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.\/"
-PRNCHARS = ''' abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~'''
+CUSTOMCHARS_BITS = (
+0b00000, 0b00000, 0b10000, 0b00100, 0b00000, 0b00000, 
+0b00001, 0b11011, 0b10000, 0b01110, 0b10000, 0b00000, 
+0b00011, 0b01110, 0b10100, 0b10101, 0b01000, 0b00000, 
+0b10110, 0b00100, 0b10010, 0b00100, 0b00100, 0b01101, 
+0b11100, 0b01110, 0b11111, 0b00100, 0b00010, 0b10010, 
+0b01000, 0b11011, 0b00010, 0b00100, 0b00001, 0b00000, 
+0b00000, 0b00000, 0b00100, 0b00111, 0b00000, 0b00000, 
+0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000)
+CHECK, XMARK, SUBDIR, UPDIR, BACKSLASH, TILDE, PADLEFT, PADRIGHT = tuple(chr(i) for i in range(8))
+INPCHARS = " abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_./" + BACKSLASH
+PRNCHARS = ''' abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'()*+,-.:;<=>?@[\]^_`{|}''' + BACKSLASH + TILDE
 
 class StompBox():
 
@@ -82,10 +60,10 @@ class StompBox():
                             pins_data=[LCD_D4, LCD_D5, LCD_D6, LCD_D7],
                             numbering_mode=GPIO.BCM,
                             cols=COLS, rows=ROWS,
-                            compat_mode=True)
-        self.LCD.create_char(ord(XMARK), XMARK_BITS)
-        self.LCD.create_char(ord(CHECK), CHECK_BITS)
-        self.LCD.create_char(ord(BACKSLASH), BACKSLASH_BITS)
+                            compat_mode=True,
+                            charmap='A00')
+        for i in range(6):
+            self.LCD.create_char(i, CUSTOMCHARS_BITS[i::6])
         self.lcd_clear()
         self.lastscroll = time.time()
 
@@ -212,7 +190,7 @@ class StompBox():
     
     def _progresswheel_spin(self):
         while self.spinning:
-            for x in BACKSLASH, '|', '/', '-':
+            for x in BACKSLASH + '|/-':
                 self.LCD.cursor_pos = ROWS - 1, COLS - 1
                 self.LCD.write_string(x)
                 time.sleep(BLINK_TIME)
@@ -335,7 +313,7 @@ class StompBox():
                 self.LCD.cursor_mode = 'hide'
             if self.LCD.cursor_mode == 'hide':
                 if self.confirm_choice(text.strip()[1 - COLS:], row=row):
-                    return text.strip()
+                    return text.strip().replace(BACKSLASH, '\\').replace(TILDE, '~')
                 else:
                     return ''
 
