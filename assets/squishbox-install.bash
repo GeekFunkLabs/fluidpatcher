@@ -411,10 +411,14 @@ fi
 success "Tasks complete!"
 
 if $ASK_TO_REBOOT; then
-    warning "\nSome changes made to your system require"
-    warning "your computer to reboot to take effect."
-    echo
-    if yesno "Would you like to reboot now?"; then
+    warning "\nSome changes made to your system require a restart to take effect."
+	echo "  1. Shut down"
+	echo "  2. Reboot"
+	echo "  3. Exit"
+	query "Choose" "1"
+	if [[ $response == 1 ]]; then
+        sync && sudo poweroff
+	elif [[ $response == 2 ]]; then
         sync && sudo reboot
     fi
 fi
