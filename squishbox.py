@@ -150,6 +150,24 @@ rm -rf $fstemp
         sb.lcd_write(f"halted - errors: {exceptstr(e)}", 1, scroll=True)
         sb.waitfortap()
 
+def choose_file(topdir, ext=None, last=""):
+    cdir = topdir if last == "" else last.parent
+    while True:
+        sb.lcd_write(str(cdir.relative_to(topdir.parent)) + "/:", 0, scroll=True)
+        x = sorted([p for p in cdir.glob('*') if p.is_dir() or p.suffix == ext or ext == None])
+        y = [SB.SUBDIR + p.name + "/" if p.is_dir() else p.name for p in x]
+        i = x.index(last) if last in x else 0
+        if cdir != topdir:
+            x.append(cdir.parent)
+            y.append(SB.UPDIR + " up directory")
+        j = sb.choose_opt(y, i, row=1, scroll=True, timeout=0)
+        if j < 0: return ""
+        if x[j].is_dir():
+            last = cdir
+            cdir = x[j]
+        else:
+            return x[j]
+
 
 class SquishBox:
 
@@ -288,21 +306,17 @@ class SquishBox:
                 else: continue
                 break
 
-    def load_bank(self, bank=''):
+    def load_bank(self, bank=""):
         lastbank = pxr.currentbank
-        lastpatch = pxr.patches[self.pno] if pxr.patches else ''
-        if bank == '':
-            sb.lcd_write("Load Bank:", 0)
+        lastpatch = pxr.patches[self.pno] if pxr.patches else ""
+        if bank == "":
             if not pxr.banks:
                 sb.lcd_write("no banks found", 1)
                 sb.waitfortap(2)
                 return False
-            bno = 0
-            if pxr.currentbank in pxr.banks:
-                bno = pxr.banks.index(pxr.currentbank)
-            i = sb.choose_opt([str(b) for b in pxr.banks], bno, row=1, scroll=True, timeout=0)
-            if i < 0: return False
-            bank = pxr.banks[i]
+            bank = choose_file(pxr.bankdir, '.yaml', pxr.bankdir / pxr.currentbank)
+            if bank == "": return False
+        sb.lcd_write(bank.name, 0, scroll=True, now=True)
         sb.lcd_write("loading patches ", 1, now=True)
         sb.progresswheel_start()
         try: pxr.load_bank(bank)
@@ -322,12 +336,14 @@ class SquishBox:
                 self.pno = 0
         return True
 
-    def save_bank(self, bank=''):
-        if bank == '':
-            sb.lcd_write("Save bank:", 0)
-            bank = sb.char_input(str(pxr.currentbank))
-            if bank == '': return
-        try: pxr.save_bank(bank)
+    def save_bank(self, bank=""):
+        if bank == "":
+            bank = choose_file(pxr.bankdir, '.yaml', pxr.bankdir / pxr.currentbank)
+            if bank == "": return
+            name = sb.char_input(bank.name)
+            if name == "": return
+            bank = bank.parent / name
+        try: pxr.save_bank(bank.with_suffix('.yaml'))
         except Exception as e:
             sb.lcd_write(f"bank save error: {exceptstr(e)}", 1, scroll=True)
             sb.waitfortap()
@@ -336,19 +352,18 @@ class SquishBox:
             sb.lcd_write("bank saved", 1)
             sb.waitfortap(2)
 
-    def load_soundfont(self, sfont=''):
-        if sfont == '':
-            sb.lcd_write("Open Soundfont:", 0)
+    def load_soundfont(self, sfont=""):
+        if sfont == "":
             if not pxr.soundfonts:
                 sb.lcd_write("no soundfonts", 1)
                 sb.waitfortap(2)
                 return False
-            s = sb.choose_opt([str(sf) for sf in pxr.soundfonts], row=1, scroll=True, timeout=0)
-            if s < 0: return False
-            sfont = pxr.soundfonts[s]
+            sfont = choose_file(pxr.sfdir, '.sf2')
+            if sfont == "": return False
+        sb.lcd_write(sfont.name, 0, scroll=True, now=True)
         sb.lcd_write("loading presets ", 1, now=True)
         sb.progresswheel_start()
-        if not pxr.load_soundfont(pxr.soundfonts[s]):
+        if not pxr.load_soundfont(sfont):
             sb.progresswheel_stop()
             sb.lcd_write(f"Unable to load {str(pxr.soundfonts[s])}", 1, scroll=True)
             sb.waitfortap()
