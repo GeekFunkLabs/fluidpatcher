@@ -166,6 +166,14 @@ Sets a function to be called when MIDI messages are received by the synth, or wh
   - _func_: a function that can accept a python object as its single argument
 - Returns: nothing
 
+**parse_patchmsg**(_msg, pno_)
+
+Parses a router rule with a `patch` attribute.
+- Parameters:
+  - _msg_: the midi message that triggered the patch change.
+  - _pno_: the current patch number
+- Returns: the index of the new patch, or -1 if not found
+
 ### class fswrap.PresetInfo
 
 #### Attributes
