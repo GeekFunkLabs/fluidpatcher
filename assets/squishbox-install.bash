@@ -346,10 +346,10 @@ Restart=on-failure
 WantedBy=multi-user.target
 EOF
     sudo systemctl enable squishbox.service
+	sed -i "/^CTRL_CHAN/s|[0-9]\+|$ctrls_channel|" $installdir/headlesspi.py
 	sed -i "/^DEC_PATCH/s|[0-9]\+|$decpatch|" $installdir/headlesspi.py
 	sed -i "/^INC_PATCH/s|[0-9]\+|$incpatch|" $installdir/headlesspi.py
 	sed -i "/^BANK_INC/s|[0-9]\+|$bankinc|" $installdir/headlesspi.py
-	sed -i "/^CTRLS_MIDI_CHANNEL/s|[0-9]\+|$ctrls_channel|" $installdir/headlesspi.py
     ASK_TO_REBOOT=true
 fi
 
