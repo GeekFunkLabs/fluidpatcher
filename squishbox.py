@@ -56,28 +56,31 @@ network={{
             wifi_settings()
             return
 
-def addfrom_usb():
+def file_transfer():
     sb.lcd_clear()
+    sb.lcd_write("File Transfer:", 0)
     b = subprocess.check_output(['sudo', 'blkid'], encoding='ascii')
-    x = re.findall('/dev/sd[a-z]\d*', b)
-    if not x:
-        sb.lcd_write("USB not found", 0)
+    usb = re.search('/dev/sd[a-z]\d*', b)
+    if not usb:
+        sb.lcd_write("USB not found", 1)
         sb.waitfortap(2)
         return
-    sb.lcd_write("USB drive found", 0)
+    j = sb.choose_opt(['Copy from USB', 'Copy to USB', 'Sync with USB'], row=1)
+    if j < 0: return
+    sb.lcd_write(['Copy from USB', 'Copy to USB', 'Sync with USB'][j], row=0)
     sb.lcd_write("copying files ", 1, rjust=True, now=True)
     sb.progresswheel_start()
     try:
-        subprocess.run("sudo mkdir -p /mnt/usbdrv".split())
-        for usb in x:
-            subprocess.run(['sudo', 'mount', usb, '/mnt/usbdrv/'], timeout=30)
-            for src in Path('/mnt/usbdrv/SquishBox').rglob('*'):
-                if not src.is_file(): continue
-                dest = 'SquishBox' / src.relative_to('/mnt/usbdrv/SquishBox')
-                if not dest.parent.exists():
-                    dest.parent.mkdir(parents=True, exist_ok=True)
-                subprocess.run(['cp', '-f', src, dest])
-            subprocess.run(['sudo', 'umount', usb], timeout=30)
+        subprocess.run("sudo mkdir -p /mnt/usbdrv", shell=True)
+        subprocess.run(f"sudo mount -o owner,fmask=0000,dmask=0000 {usb[0]} /mnt/usbdrv/", shell=True)
+        if j == 0:
+            subprocess.run("rsync -rtL /mnt/usbdrv/SquishBox/ SquishBox/", shell=True)
+        elif j == 1:
+            subprocess.run("rsync -rtL SquishBox/ /mnt/usbdrv/SquishBox/", shell=True)
+        elif j == 2:
+            subprocess.run("rsync -rtLu /mnt/usbdrv/SquishBox/ SquishBox/", shell=True)
+            subprocess.run("rsync -rtLu SquishBox/ /mnt/usbdrv/SquishBox/", shell=True)
+        subprocess.run("sudo umount /mnt/usbdrv", shell=True)
     except Exception as e:
         sb.progresswheel_stop()
         sb.lcd_write(f"halted - errors: {exceptstr(e)}", 1, scroll=True)
@@ -398,14 +401,14 @@ class SquishBox:
 
     def system_menu(self):
         sb.lcd_write("System Menu:", 0)
-        k = sb.choose_opt(['Power Down', 'MIDI Devices', 'Wifi Settings', 'Add From USB', 'Update Device'], row=1)
+        k = sb.choose_opt(['Power Down', 'MIDI Devices', 'Wifi Settings', 'File Transfer', 'Update Device'], row=1)
         if k == 0:
             sb.lcd_write("Shutting down..", 0)
             sb.lcd_write("Wait 30s, unplug", 1, now=True)
             subprocess.run(['sudo', 'poweroff'])
         elif k == 1: self.midi_devices()
         elif k == 2: wifi_settings()
-        elif k == 3: addfrom_usb()
+        elif k == 3: file_transfer()
         elif k == 4: update_device()
 
     def midi_devices(self):
