@@ -253,8 +253,8 @@ class MainWindow(wx.Frame):
     def listener(self, msg):
         if hasattr(msg, 'val'):
             if hasattr(msg, 'patch'):
-            	pnew = pxr.parse_patchmsg(msg, self.pno)
-				if pnew > -1: self.select_patch(pno=pnew)
+                pnew = pxr.parse_patchmsg(msg, self.pno)
+                if pnew > -1: self.select_patch(pno=pnew)
             elif hasattr(msg, 'lcdwrite'):
                 if hasattr(msg, 'format'):
                     val = format(msg.val, msg.format)
