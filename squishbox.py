@@ -443,6 +443,7 @@ class SquishBox:
 sb = SB.StompBox()
 sb.lcd_clear()
 sb.lcd_write(f"version {patcher.VERSION}", 0, now=True)
+sb.waitfortap(3)
 
 cfgfile = sys.argv[1] if len(sys.argv) > 1 else 'SquishBox/squishboxconf.yaml'
 try: pxr = patcher.Patcher(cfgfile)
