@@ -360,7 +360,7 @@ if [[ $filemgr ]]; then
     apt_pkg_install "nginx"
     apt_pkg_install "php-fpm"
     phpver=`ls -t /etc/php | head -n1`
-	fmgr_hash=`php -r 'print password_hash($fmgr_pass, PASSWORD_DEFAULT);'`
+    fmgr_hash=`php -r "print password_hash('$fmgr_pass', PASSWORD_DEFAULT);"`
     # enable php in nginx
     cat <<EOF | sudo tee /etc/nginx/sites-available/default
 server {
