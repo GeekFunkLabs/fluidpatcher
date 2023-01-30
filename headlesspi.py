@@ -10,31 +10,18 @@ import patcher
 
 # change these values to correspond to buttons/pads on your MIDI keyboard/controller
 # or reprogram your controller to send the corresponding messages
-CTRL_CHAN = 1
+CHAN = 1
+TYPE = 'cc'             # 'cc' or 'note'
 DEC_PATCH = 21          # decrement the patch number
 INC_PATCH = 22          # increment the patch number
 BANK_INC = 23           # load the next bank
 
 # a continuous controller e.g. knob/slider can be used to select patches by value
-SELECT_PATCH = 24
+SELECT_PATCH = None
 
 # hold this button down for 7 seconds to safely shut down the Pi
 # if this = None the patch change buttons are used
 SHUTDOWN_BTN = None
-
-# this function creates MIDI router rules that connect MIDI messages to the desired functions
-# modify this function directly if you want to change patches using notes or other MIDI messages
-def connect_controls():
-    pxr.add_router_rule(type='cc', chan=CTRL_CHAN, par1=DEC_PATCH, patch='1-')
-    pxr.add_router_rule(type='cc', chan=CTRL_CHAN, par1=INC_PATCH, patch='1+')
-    selectspec =  f"0-127=0-{min(len(pxr.patches) - 1, 127)}" # transform CC values into patch numbers
-    pxr.add_router_rule(type='cc', chan=CTRL_CHAN, par1=SELECT_PATCH, par2=selectspec, patch='select')
-    pxr.add_router_rule(type='cc', chan=CTRL_CHAN, par1=BANK_INC, bank=1)
-    if SHUTDOWN_BTN != None:
-        pxr.add_router_rule(type='cc', chan=CTRL_CHAN, par1=SHUTDOWN_BTN, shutdown=1)
-    else:
-        pxr.add_router_rule(type='cc', chan=CTRL_CHAN, par1=DEC_PATCH, shutdown=1)
-        pxr.add_router_rule(type='cc', chan=CTRL_CHAN, par1=INC_PATCH, shutdown=1)
 
 # toggling the onboard LEDs requires writing to the SD card, which can cause audio stutters
 # this is not usually noticeable, since it only happens when switching patches or shutting down
@@ -45,6 +32,19 @@ DISABLE_LED = False
 POLL_TIME = 0.025
 ACT_LED = 0
 PWR_LED = 1
+
+def connect_controls():
+    pxr.add_router_rule(type=TYPE, chan=CHAN, par1=DEC_PATCH, par2=1-127, patch='1-')
+    pxr.add_router_rule(type=TYPE, chan=CHAN, par1=INC_PATCH, par2=1-127, patch='1+')
+    pxr.add_router_rule(type=TYPE, chan=CHAN, par1=BANK_INC, par2=1-127, bank=1)
+    if SELECT_PATCH != None:
+        selectspec =  f"0-127=0-{min(len(pxr.patches) - 1, 127)}" # transform CC values into patch numbers
+        pxr.add_router_rule(type='cc', chan=CHAN, par1=SELECT_PATCH, par2=selectspec, patch='select')
+    if SHUTDOWN_BTN != None:
+        pxr.add_router_rule(type=TYPE, chan=CHAN, par1=SHUTDOWN_BTN, shutdown=1)
+    else:
+        pxr.add_router_rule(type=TYPE, chan=CHAN, par1=DEC_PATCH, shutdown=1)
+        pxr.add_router_rule(type=TYPE, chan=CHAN, par1=INC_PATCH, shutdown=1)
 
 if not os.path.exists('/sys/class/leds/led1/brightness'):
     PWR_LED = 0 # Pi Zero only has ACT led
