@@ -160,9 +160,9 @@ if [[ $installtype == 1 ]]; then
 elif [[ $installtype == 2 ]]; then
     echo "Set up controls for Headless Pi Synth:"
     query "    MIDI channel for controls" "1"; ctrls_channel=$response
-    query "    Previous patch button CC" "21"; decpatch=$response
-    query "    Next patch button CC" "22"; incpatch=$response
-    query "    Bank change button CC" "23"; bankinc=$response
+    query "    Previous patch momentary CC#" "21"; decpatch=$response
+    query "    Next patch momentary CC#" "22"; incpatch=$response
+    query "    Bank advance momentary CC#" "23"; bankinc=$response
 else
     exit 1
 fi
@@ -346,7 +346,7 @@ Restart=on-failure
 WantedBy=multi-user.target
 EOF
     sudo systemctl enable squishbox.service
-    sed -i "/^CTRL_CHAN/s|[0-9]\+|$ctrls_channel|" $installdir/headlesspi.py
+    sed -i "/^CHAN/s|[0-9]\+|$ctrls_channel|" $installdir/headlesspi.py
     sed -i "/^DEC_PATCH/s|[0-9]\+|$decpatch|" $installdir/headlesspi.py
     sed -i "/^INC_PATCH/s|[0-9]\+|$incpatch|" $installdir/headlesspi.py
     sed -i "/^BANK_INC/s|[0-9]\+|$bankinc|" $installdir/headlesspi.py
