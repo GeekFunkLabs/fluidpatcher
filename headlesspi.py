@@ -34,9 +34,9 @@ ACT_LED = 0
 PWR_LED = 1
 
 def connect_controls():
-    pxr.add_router_rule(type=TYPE, chan=CHAN, par1=DEC_PATCH, par2=1-127, patch='1-')
-    pxr.add_router_rule(type=TYPE, chan=CHAN, par1=INC_PATCH, par2=1-127, patch='1+')
-    pxr.add_router_rule(type=TYPE, chan=CHAN, par1=BANK_INC, par2=1-127, bank=1)
+    pxr.add_router_rule(type=TYPE, chan=CHAN, par1=DEC_PATCH, par2='1-127', patch='1-')
+    pxr.add_router_rule(type=TYPE, chan=CHAN, par1=INC_PATCH, par2='1-127', patch='1+')
+    pxr.add_router_rule(type=TYPE, chan=CHAN, par1=BANK_INC, par2='1-127', bank=1)
     if SELECT_PATCH != None:
         selectspec =  f"0-127=0-{min(len(pxr.patches) - 1, 127)}" # transform CC values into patch numbers
         pxr.add_router_rule(type='cc', chan=CHAN, par1=SELECT_PATCH, par2=selectspec, patch='select')
