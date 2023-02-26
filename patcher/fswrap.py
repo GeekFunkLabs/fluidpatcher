@@ -52,7 +52,7 @@ fl_eventcallback = CFUNCTYPE(c_int, c_void_p, c_void_p)
 specfunc(FL.new_fluid_synth, c_void_p, c_void_p)
 specfunc(FL.fluid_synth_system_reset, c_int, c_void_p)
 specfunc(FL.new_fluid_audio_driver, c_void_p, c_void_p, c_void_p)
-specfunc(FL.new_fluid_midi_router, c_void_p, c_void_p, fl_eventcallback, c_void_p)
+specfunc(FL.new_fluid_midi_router, c_void_p, c_void_p, fl_eventcallback, fl_eventcallback, c_void_p)
 specfunc(FL.new_fluid_midi_driver, c_void_p, c_void_p, fl_eventcallback, c_void_p)
 specfunc(FL.fluid_synth_handle_midi_event, c_int, c_void_p, c_void_p)
 specfunc(FL.fluid_midi_router_handle_midi_event, c_int, c_void_p, c_void_p)
@@ -69,6 +69,7 @@ specfunc(FL.new_fluid_midi_router_rule, c_void_p)
 specfunc(FL.fluid_midi_router_rule_set_chan, None, c_void_p, c_int, c_int, c_float, c_int)
 specfunc(FL.fluid_midi_router_rule_set_param1, None, c_void_p, c_int, c_int, c_float, c_int)
 specfunc(FL.fluid_midi_router_rule_set_param2, None, c_void_p, c_int, c_int, c_float, c_int)
+specfunc(FL.fluid_midi_router_rule_set_custom, None, c_void_p, c_int)
 specfunc(FL.fluid_midi_router_add_rule, c_int, c_void_p, c_void_p, c_int)
 specfunc(FL.fluid_midi_router_clear_rules, c_int, c_void_p)
 specfunc(FL.fluid_midi_router_set_default_rules, c_int, c_void_p)
@@ -616,10 +617,11 @@ class Synth:
         self.fseq = FL.new_fluid_sequencer2(0)
         self.fsynth_id = FL.fluid_sequencer_register_fluidsynth(self.fseq, self.fsynth)
         FL.new_fluid_audio_driver(self.st, self.fsynth)
+        self.fhandler = fl_eventcallback(FL.fluid_midi_router_handle_midi_event)
         self.frouter_callback = fl_eventcallback(FL.fluid_synth_handle_midi_event)
-        self.frouter = FL.new_fluid_midi_router(self.st, self.frouter_callback, self.fsynth)
         self.custom_router_callback = fl_eventcallback(self.custom_midi_router)
-        FL.new_fluid_midi_driver(self.st, self.custom_router_callback, None)      
+        self.frouter = FL.new_fluid_midi_router(self.st, self.frouter_callback, self.custom_router_callback, self.fsynth)
+        FL.new_fluid_midi_driver(self.st, self.fhandler, self.frouter)
         self.clocks = [0, 0]
         self.xrules = []
         self.sfid = {}
@@ -771,21 +773,30 @@ class Synth:
         self.xrules = []
 
     def router_addrule(self, rtype, chan, par1, par2, **apars):
+        rule = FL.new_fluid_midi_router_rule()
+        if chan:
+            FL.fluid_midi_router_rule_set_chan(rule, *Route(*chan))
+        if par1:
+            FL.fluid_midi_router_rule_set_param1(rule, *Route(*par1))
+        if par2:
+            FL.fluid_midi_router_rule_set_param2(rule, *Route(*par2))
         if 'type2' in apars:
+            FL.fluid_midi_router_rule_set_custom(rule, 1)
             self.xrules.insert(0, TransRule(rtype, chan, par1, par2, apars['type2']))
         elif apars:
-            self.xrules.insert(0, ExtRule(rtype, chan, par1, par2, **apars))
+            FL.fluid_midi_router_rule_set_custom(rule, 1)
             if 'arpeggiator' in apars:
+                offrule = FL.new_fluid_midi_router_rule()
+                if chan:
+                    FL.fluid_midi_router_rule_set_chan(offrule, *Route(*chan))
+                if par1:
+                    FL.fluid_midi_router_rule_set_param1(offrule, *Route(*par1))
+                FL.fluid_midi_router_rule_set_param2(offrule, 0, 127, 0, 0)
                 self.xrules.insert(0, ExtRule('noteoff', chan, par1, (0, 127, 0, 0), **apars))
-        elif rtype in RULE_TYPES:
-            rule = FL.new_fluid_midi_router_rule()
-            if chan:
-                FL.fluid_midi_router_rule_set_chan(rule, *Route(*chan))
-            if par1:
-                FL.fluid_midi_router_rule_set_param1(rule, *Route(*par1))
-            if par2:
-                FL.fluid_midi_router_rule_set_param2(rule, *Route(*par2))
-            FL.fluid_midi_router_add_rule(self.frouter, rule, RULE_TYPES.index(rtype))
+                FL.fluid_midi_router_add_rule(self.frouter, offrule, 0)
+            self.xrules.insert(0, ExtRule(rtype, chan, par1, par2, **apars))
+        FL.fluid_midi_router_add_rule(self.frouter, rule, RULE_TYPES.index(rtype))
+        
 
     def players_clear(self, save=[]):
         for name in set(self.players) - set(save):
