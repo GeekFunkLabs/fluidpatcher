@@ -10,9 +10,12 @@ FONTSIZE = 24
 PAD = 10
 FILLSCREEN = False
 
-
-import wx, sys, traceback, webbrowser
+import sys, traceback, webbrowser
 from pathlib import Path
+try:
+    import wx
+except ModuleNotFoundError:
+    sys.exit("wxPython not installed!")
 import patcher
 
 POLL_TIME = 25
@@ -452,6 +455,9 @@ github.com/albedozero/fluidpatcher
 
 by Bill Peterson
 geekfunklabs.com
+
+Python version {sys.version.split()[0]}
+WxPython version {wx.__version__}
 """
         wx.MessageBox(msg, "About", wx.OK)
 
