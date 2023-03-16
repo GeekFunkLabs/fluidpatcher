@@ -619,7 +619,7 @@ class Synth:
         self.frouter_callback = fl_eventcallback(FL.fluid_synth_handle_midi_event)
         self.frouter = FL.new_fluid_midi_router(self.st, self.frouter_callback, self.fsynth)
         self.custom_router_callback = fl_eventcallback(self.custom_midi_router)
-        FL.new_fluid_midi_driver(self.st, self.custom_router_callback, None)      
+        FL.new_fluid_midi_driver(self.st, self.custom_router_callback, None)
         self.clocks = [0, 0]
         self.xrules = []
         self.sfid = {}

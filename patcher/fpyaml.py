@@ -3,7 +3,7 @@ Description: yaml extensions for fluidpatcher
 """
 import re, oyaml
 
-nn = '[A-G]?[b#]?\d*[.]?\d+'
+nn = '[A-G]?[b#]?\d*[.]?\d+' # parameter number or scientific note name 
 sfp = re.compile('^(.+\.sf2):(\d+):(\d+)$', flags=re.I)
 msg = re.compile(f'^(note|cc|prog|pbend|cpress|kpress|noteoff):(\d+):({nn}):?(\d+)?$')
 syx = re.compile('^sysex:(.*?):(.+)$')
