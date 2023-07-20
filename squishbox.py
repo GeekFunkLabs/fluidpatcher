@@ -3,13 +3,12 @@
 Description: an implementation of patcher.py for a Raspberry Pi in a stompbox
 """
 import re, sys, os, subprocess
-from pathlib import Path
 import patcher
 from utils import stompboxpi as SB
 
 BUTTON_MIDICHANNEL = 16
-BUTTON_MOM_CC = 30, 
-BUTTON_TOG_CC = 31, 
+BUTTON_MOM_CC = 30,
+BUTTON_TOG_CC = 31,
 
 
 button_state = [0] * len(BUTTON_TOG_CC)
@@ -18,56 +17,69 @@ def exceptstr(e): return re.sub(' {2,}', ' ', re.sub('\n|\^', ' ', str(e)))
     
 def sver2ints(v): return list(map(int, v.split('.')))
 
+def wifi_state(setstate=""):
+    x = subprocess.check_output("rfkill list wifi -o SOFT -rn", shell=True, encoding='ascii').strip()
+    state = "on" if x == "unblocked" else "off"
+    if setstate == "on" or setstate == "off":
+        b = "unblock" if setstate == "on" else "block"
+        subprocess.run(f"sudo rfkill {b} wifi", shell=True)
+        state = setstate
+    return state
+
 def wifi_settings():
-    x = re.search("SSID: ([^\n]+)", subprocess.check_output("iw dev wlan0 link".split(), encoding='ascii'))
-    ssid = x[1] if x else "Not connected"
-    ip = subprocess.check_output(['hostname', '-I'], encoding='ascii').strip()
-    sb.lcd_clear()
-    sb.lcd_write(ssid, 0)
-    sb.lcd_write(ip, 1, rjust=True)
-    if not sb.waitfortap(10): return
-    while True:
-        sb.lcd_write("Connections:", 0)
-        opts = [*networks, 'Rescan..']
+    ip = subprocess.check_output("hostname -I", shell=True, encoding='ascii').strip()
+    if ip: sb.lcd_write(f"Connected as {ip}", 0, scroll=True)
+    else: sb.lcd_write("Not connected", 0)
+    if wifi_state() == "off":
+        if sb.choose_opt(["Enable WiFi"], row=1) == 0:
+            wifi_state("on")
+    else:
+        sb.lcd_write("scanning ", 1, rjust=True, now=True)
+        x = subprocess.check_output("iw dev wlan0 link", shell=True, encoding='ascii')
+        ssid = "".join(re.findall('SSID: ([^\n]+)', x))
+        opts = [SB.CHECK + ssid] if ssid else []
+        sb.progresswheel_start()
+        try: x = subprocess.check_output("sudo iw wlan0 scan", shell=True, encoding='ascii', timeout=15)
+        except subprocess.TimeoutExpired: x = ""
+        sb.progresswheel_stop()
+        networks = set(re.findall('SSID: ([^\n]+)', x))
+        opts += [*(networks - {ssid}), "Disable WiFi"]
         j = sb.choose_opt(opts, row=1, scroll=True, timeout=0)
         if j < 0: return
-        elif j == len(networks):
-            sb.lcd_write("scanning ", 1, rjust=True, now=True)
-            sb.progresswheel_start()
-            x = subprocess.check_output("sudo iw wlan0 scan".split(), encoding='ascii')
-            sb.progresswheel_stop()
-            networks[:] = [s for s in re.findall('SSID: ([^\n]*)', x) if s]
-        else:
+        elif opts[j] == "Disable WiFi":
+            wifi_state("off")
+        elif j >= 0:
+            if SB.CHECK in opts[j]: return
             sb.lcd_write("Password:", 0)
-            newpsk = sb.char_input(charset = SB.PRNCHARS)
-            if newpsk == '': return
+            psk = sb.char_input(charset = SB.PRNCHARS)
+            if psk == '': return
             sb.lcd_clear()
-            sb.lcd_write(networks[j], 0)
+            sb.lcd_write(opts[j], 0)
             sb.lcd_write("adding network ", 1, rjust=True, now=True)
             sb.progresswheel_start()
             subprocess.run(f"""echo '
 network={{
-  ssid="{net}"
-  psk="{psk}"
+ssid="{opts[j]}"
+psk="{psk}"
 }}
 ' | sudo tee -a /etc/wpa_supplicant/wpa_supplicant.conf""", shell=True)
             subprocess.run("sudo systemctl restart dhcpcd".split())
             sb.progresswheel_stop()
             wifi_settings()
-            return
 
-def file_transfer():
+def usb_filecopy():
     sb.lcd_clear()
-    sb.lcd_write("File Transfer:", 0)
+    sb.lcd_write("USB File Copy:", 0)
     b = subprocess.check_output(['sudo', 'blkid'], encoding='ascii')
     usb = re.search('/dev/sd[a-z]\d*', b)
     if not usb:
         sb.lcd_write("USB not found", 1)
         sb.waitfortap(2)
         return
-    j = sb.choose_opt(['Copy from USB', 'Copy to USB', 'Sync with USB'], row=1)
+    opts = ['USB -> SquishBox', 'SquishBox -> USB', 'Sync with USB']
+    j = sb.choose_opt(opts, row=1)
     if j < 0: return
-    sb.lcd_write(['Copy from USB', 'Copy to USB', 'Sync with USB'][j], row=0)
+    sb.lcd_write(opts[j], row=0)
     sb.lcd_write("copying files ", 1, rjust=True, now=True)
     sb.progresswheel_start()
     try:
@@ -162,7 +174,7 @@ def choose_file(topdir, ext=None, last=""):
         i = x.index(last) if last in x else 0
         if cdir != topdir:
             x.append(cdir.parent)
-            y.append(SB.UPDIR + " up directory")
+            y.append(SB.UPDIR + "../")
         j = sb.choose_opt(y, i, row=1, scroll=True, timeout=0)
         if j < 0: return ""
         if x[j].is_dir():
@@ -366,7 +378,7 @@ class SquishBox:
         sb.progresswheel_start()
         if not pxr.load_soundfont(sfont):
             sb.progresswheel_stop()
-            sb.lcd_write(f"Unable to load {str(pxr.soundfonts[s])}", 1, scroll=True)
+            sb.lcd_write(f"Unable to load {str(sfont)}", 1, scroll=True)
             sb.waitfortap()
             return False
         sb.progresswheel_stop()
@@ -401,14 +413,14 @@ class SquishBox:
 
     def system_menu(self):
         sb.lcd_write("System Menu:", 0)
-        k = sb.choose_opt(['Power Down', 'MIDI Devices', 'Wifi Settings', 'File Transfer', 'Update Device'], row=1)
+        k = sb.choose_opt(['Power Down', 'MIDI Devices', 'Wifi Settings', 'USB File Copy', 'Update Device'], row=1)
         if k == 0:
             sb.lcd_write("Shutting down..", 0)
             sb.lcd_write("Wait 30s, unplug", 1, now=True)
             subprocess.run(['sudo', 'poweroff'])
         elif k == 1: self.midi_devices()
         elif k == 2: wifi_settings()
-        elif k == 3: file_transfer()
+        elif k == 3: usb_filecopy()
         elif k == 4: update_device()
 
     def midi_devices(self):
@@ -440,6 +452,8 @@ class SquishBox:
                     sb.lcd_write(f"ch{msg.chan + 1:<3}{x}={msg.par1:<5}", 1)
 
 
+os.umask(0o002)
+
 sb = SB.StompBox()
 sb.lcd_clear()
 sb.lcd_write(f"version {patcher.VERSION}", 0, now=True)
@@ -450,8 +464,9 @@ try: pxr = patcher.Patcher(cfgfile)
 except Exception as e:
     sb.lcd_write(f"bad config file: {exceptstr(e)}", 1, scroll=True)
     sys.exit(f"Unable to load config file\n{e}")
-
-os.umask(0o002)
-networks = []
+#if "on" in pxr.cfg.get('wifistate', "alwayson"):
+#    wifi_state("on")
+#else:
+#    wifi_state("off")
 
 mainapp = SquishBox()
