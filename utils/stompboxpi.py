@@ -37,15 +37,15 @@ HELD = 2
 
 # custom lcd characters
 CUSTOMCHARS_BITS = (
-0b00000, 0b00000, 0b10000, 0b00100, 0b00000, 0b00000, 
-0b00001, 0b11011, 0b10000, 0b01110, 0b10000, 0b00000, 
-0b00011, 0b01110, 0b10100, 0b10101, 0b01000, 0b00000, 
-0b10110, 0b00100, 0b10010, 0b00100, 0b00100, 0b01101, 
-0b11100, 0b01110, 0b11111, 0b00100, 0b00010, 0b10010, 
-0b01000, 0b11011, 0b00010, 0b00100, 0b00001, 0b00000, 
-0b00000, 0b00000, 0b00100, 0b00111, 0b00000, 0b00000, 
-0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000)
-CHECK, XMARK, SUBDIR, UPDIR, BACKSLASH, TILDE, PADLEFT, PADRIGHT = tuple(chr(i) for i in range(8))
+0b00000, 0b00000, 0b10000, 0b00100, 0b00000, 0b00000, 0b01110, 0b00000, 
+0b00001, 0b11011, 0b10000, 0b01110, 0b10000, 0b00000, 0b10001, 0b00000, 
+0b00011, 0b01110, 0b10100, 0b10101, 0b01000, 0b00000, 0b00100, 0b11110, 
+0b10110, 0b00100, 0b10010, 0b00100, 0b00100, 0b01101, 0b01010, 0b10101, 
+0b11100, 0b01110, 0b11111, 0b00100, 0b00010, 0b10010, 0b00000, 0b10101, 
+0b01000, 0b11011, 0b00010, 0b00100, 0b00001, 0b00000, 0b00100, 0b00000, 
+0b00000, 0b00000, 0b00100, 0b00111, 0b00000, 0b00000, 0b00000, 0b00000, 
+0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000)
+CHECK, XMARK, SUBDIR, UPDIR, BACKSLASH, TILDE, WIFISTAT, MIDISTAT, PADLEFT, PADRIGHT = tuple(chr(i) for i in range(10))
 INPCHARS = " abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_./" + BACKSLASH
 PRNCHARS = ''' abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'()*+,-.:;<=>?@[\]^_`{|}''' + BACKSLASH + TILDE
 
@@ -63,7 +63,7 @@ class StompBox():
                             compat_mode=True,
                             charmap='A00')
         for i in range(6):
-            self.LCD.create_char(i, CUSTOMCHARS_BITS[i::6])
+            self.LCD.create_char(i, CUSTOMCHARS_BITS[i::8])
         self.lcd_clear()
         self.lastscroll = time.time()
 
@@ -226,8 +226,6 @@ class StompBox():
         # start with option :i
         # returns the choice index
         # or -1 if user backs out or time expires
-        if timeout == 0:
-            opts += (f"{XMARK} cancel", )
         while True:
             self.lcd_write(opts[i], row=row, scroll=scroll, rjust=rjust)
             tstop = time.time() + timeout
@@ -240,7 +238,6 @@ class StompBox():
                     i = (i - 1) % len(opts)
                     break
                 elif event == SELECT:
-                    if opts[i] == XMARK + " cancel": return -1
                     self.lcd_blink(opts[i], row, rjust=rjust)
                     return i
                 elif event == ESCAPE:
@@ -249,7 +246,6 @@ class StompBox():
             else:
                 self.lcd_write('', row)
                 return -1
-
 
     def choose_val(self, val, inc, minval, maxval, fmt=f'>{COLS}', timeout=MENU_TIMEOUT):
         # lets user choose a numeric parameter
