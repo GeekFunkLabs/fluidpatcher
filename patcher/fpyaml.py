@@ -245,8 +245,10 @@ class RouterRule(oyaml.YAMLObject):
     yaml_loader = oyaml.SafeLoader
     yaml_dumper = oyaml.SafeDumper
     
-    def __init__(self, type='', chan=None, par1=None, par2=None, **apars):
-        self.type = type
+    def __init__(self, type='', type2='', chan=None, par1=None, par2=None, **apars):
+        
+        self.type = type.split('=')[0]
+        self.type2 = type2 or type.split('=')[-1]
         self.chan = tochantups(chan)
         self.par1 = totups(par1)
         self.par2 = totups(par2)[0]
@@ -269,7 +271,7 @@ class RouterRule(oyaml.YAMLObject):
     def add(self, addfunc):
         for chan in self.chan:
             for par1 in self.par1:
-                addfunc(self.type, chan, par1, self.par2, **self.apars)
+                addfunc(self.type, self.type2, chan, par1, self.par2, **self.apars)
 
     @classmethod
     def from_yaml(cls, loader, node):
