@@ -25,8 +25,6 @@ BTN_L = 2
 BTN_R = 3
 ACTIVE_HIGH = 0
 
-"""
-
 # models 0100-
 # SquishBox PCB v4
 LCD_RS = 4
@@ -40,4 +38,20 @@ ROT_R = 3
 BTN_R = 27
 BTN_SW = 22
 PIN_OUT = 10
+ACTIVE_HIGH = 0
+
+"""
+
+# SquishBox PCB v6
+LCD_RS = 2
+LCD_EN = 3
+LCD_D4 = 11
+LCD_D5 = 5
+LCD_D6 = 6
+LCD_D7 = 13
+ROT_L = 22
+ROT_R = 10
+BTN_R = 9
+BTN_SW = 27
+PIN_OUT = 17
 ACTIVE_HIGH = 0
