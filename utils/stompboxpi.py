@@ -226,8 +226,6 @@ class StompBox():
         # start with option :i
         # returns the choice index
         # or -1 if user backs out or time expires
-        if timeout == 0:
-            opts += (f"{XMARK} cancel", )
         while True:
             self.lcd_write(opts[i], row=row, scroll=scroll, rjust=rjust)
             tstop = time.time() + timeout
@@ -240,7 +238,6 @@ class StompBox():
                     i = (i - 1) % len(opts)
                     break
                 elif event == SELECT:
-                    if opts[i] == XMARK + " cancel": return -1
                     self.lcd_blink(opts[i], row, rjust=rjust)
                     return i
                 elif event == ESCAPE:
@@ -249,7 +246,6 @@ class StompBox():
             else:
                 self.lcd_write('', row)
                 return -1
-
 
     def choose_val(self, val, inc, minval, maxval, fmt=f'>{COLS}', timeout=MENU_TIMEOUT):
         # lets user choose a numeric parameter
