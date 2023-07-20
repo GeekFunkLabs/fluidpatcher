@@ -1,0 +1,11 @@
+patches:
+  LoopTest:
+    1: FluidR3_GM.sf2:000:000
+    midiplayers:
+      groove:
+        file: funkyexample.mid
+        loops: [122880, 130560] # pairs of begin, end ticks
+    router_rules:
+    - {type: cc, chan: 1, par1: 21, par2: 127=1, midiplayer: groove} # starts song
+    - {type: cc, chan: 1, par1: 22, par2: 127=0, midiplayer: groove} # stops song
+    - {type: cc, chan: 1, par1: 23, par2: 127=-1, midiplayer: groove, tick: 122880} # seek to loop
