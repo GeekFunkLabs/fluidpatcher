@@ -246,14 +246,17 @@ class RouterRule(oyaml.YAMLObject):
     yaml_dumper = oyaml.SafeDumper
     
     def __init__(self, type='', chan=None, par1=None, par2=None, **apars):
-        self.type = type
+        if 'type2' in apars: # convert older style
+            type = f"{type.split('=')[0]}={apars.pop('type2')}"
+        self.type = type.split('=')
         self.chan = tochantups(chan)
         self.par1 = totups(par1)
         self.par2 = totups(par2)[0]
         self.apars = apars
         rule = dict(type=type)
-        for par, val in [('chan', chan), ('par1', par1), ('par2', par2)]:
-            if val != None: rule[par] = val
+        if chan: rule['chan'] = chan
+        if par1: rule['par1'] = par1
+        if par2: rule['par2'] = par2
         self.rule = {**rule, **apars}
         self.kwstr = ', '.join([f"{k}={v}" for k, v in self.rule.items()])
 

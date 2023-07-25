@@ -244,20 +244,20 @@ class Route:
 
 class TransRule:
 
-    def __init__(self, type, chan, par1, par2, type2):
-        self.type = type
+    def __init__(self, type, chan, par1, par2):
+        self.hastype = type[0]
+        self.newtype = type[-1]
         self.chan = Route(*chan) if chan else None
         self.par1 = Route(*par1) if par1 else None
         self.par2 = Route(*par2) if par2 else None
-        self.type2 = type2
 
     def __repr__(self):
         return str(self.__dict__)
 
     def applies(self, mevent):
-        if self.type != mevent.type:
+        if self.hastype != mevent.type:
             return False
-        if self.type in ('clock', 'start', 'continue', 'stop'):
+        if self.hastype in ('clock', 'start', 'continue', 'stop'):
             return True
         if self.chan != None:
             if self.chan.min > self.chan.max:
@@ -273,7 +273,7 @@ class TransRule:
             else:
                 if not (self.par1.min <= mevent.par1 <= self.par1.max):
                     return False
-        if self.type in ('note', 'cc', 'kpress', 'noteoff') and self.par2 != None:
+        if self.hastype in ('note', 'cc', 'kpress', 'noteoff') and self.par2 != None:
             if self.par2.min > self.par2.max:
                 if self.par2.min < mevent.par2 < self.par2.max:
                     return False
@@ -284,27 +284,27 @@ class TransRule:
 
     def apply(self, mevent):
         newevent = MidiEvent(FL.new_fluid_midi_event())
-        newevent.type = self.type2
+        newevent.type = self.newtype
         newevent.chan = mevent.chan
         newevent.par1 = mevent.par1
         newevent.par2 = mevent.par2
-        if self.type in ('clock', 'start', 'stop', 'continue'):
+        if self.hastype in ('clock', 'start', 'stop', 'continue'):
             if self.chan != None: newevent.chan = self.chan.min
             if self.par1 != None: newevent.par1 = self.par1.min
             if self.par2 != None: newevent.par2 = self.par2.min
         else:
             if self.chan != None: newevent.chan = int(mevent.chan * self.chan.mul + self.chan.add + 0.5)
-        if self.type in ('note', 'cc', 'kpress', 'noteoff'):
-            if self.type2 in ('note', 'cc', 'kpress', 'noteoff'):
+        if self.hastype in ('note', 'cc', 'kpress', 'noteoff'):
+            if self.newtype in ('note', 'cc', 'kpress', 'noteoff'):
                 if self.par1 != None: newevent.par1 = int(mevent.par1 * self.par1.mul + self.par1.add + 0.5)
                 if self.par2 != None: newevent.par2 = int(mevent.par2 * self.par2.mul + self.par2.add + 0.5)
-            elif self.type2 in ('pbend', 'prog', 'cpress'):
+            elif self.newtype in ('pbend', 'prog', 'cpress'):
                 if self.par2 == None: newevent.par1 = mevent.par2
                 else: newevent.par1 = int(mevent.par2 * self.par2.mul + self.par2.add + 0.5)
-        elif self.type in ('pbend', 'prog', 'cpress'):
-            if self.type2 in ('pbend', 'prog', 'cpress'):
+        elif self.hastype in ('pbend', 'prog', 'cpress'):
+            if self.newtype in ('pbend', 'prog', 'cpress'):
                 if self.par1 != None: newevent.par1 = int(mevent.par1 * self.par1.mul + self.par1.add + 0.5)
-            elif self.type2 in ('note', 'cc', 'kpress', 'noteoff'):
+            elif self.newtype in ('note', 'cc', 'kpress', 'noteoff'):
                 if self.par2 != None: newevent.par1 = self.par2.min
                 if self.par1 == None: newevent.par2 = mevent.par1
                 else: newevent.par2 = int(mevent.par1 * self.par1.mul + self.par1.add + 0.5)
@@ -314,7 +314,7 @@ class TransRule:
 class ExtRule(TransRule):
 
     def __init__(self, type, chan, par1, par2, **apars):
-        super().__init__(type, chan, par1, par2, None)
+        super().__init__(type, chan, par1, par2)
         for attr, val in apars.items():
             setattr(self, attr, val)
 
@@ -323,17 +323,17 @@ class ExtRule(TransRule):
         if self.chan != None: msg.chan = int(mevent.chan * self.chan.mul + self.chan.add + 0.5)
         if self.par1 != None: msg.par1 = int(mevent.par1 * self.par1.mul + self.par1.add + 0.5)
         if self.par2 != None: msg.par2 = int(mevent.par2 * self.par2.mul + self.par2.add + 0.5)
-        if self.type in ('note', 'cc', 'kpress', 'noteoff'):
+        if self.hastype in ('note', 'cc', 'kpress', 'noteoff'):
             msg.val = mevent.par2
             if self.par2: msg.val = msg.val * self.par2.mul + self.par2.add
-        elif self.type in ('prog', 'pbend', 'cpress'):
+        elif self.hastype in ('prog', 'pbend', 'cpress'):
             msg.val = mevent.par1
             if self.par1: msg.val = msg.val * self.par1.mul + self.par1.add
-        elif self.type == 'clock':
+        elif self.hastype == 'clock':
             msg.val = 0.041666664
-        elif self.type in ('start', 'continue'):
+        elif self.hastype in ('start', 'continue'):
             msg.val = self.par1.min if self.par1 else -1
-        elif self.type == 'stop':
+        elif self.hastype == 'stop':
             msg.val = self.par1.min if self.par1 else 0
         return msg
 
@@ -770,14 +770,14 @@ class Synth:
         FL.fluid_midi_router_set_default_rules(self.frouter)
         self.xrules = []
 
-    def router_addrule(self, rtype, chan, par1, par2, **apars):
-        if 'type2' in apars:
-            self.xrules.insert(0, TransRule(rtype, chan, par1, par2, apars['type2']))
+    def router_addrule(self, type, chan, par1, par2, **apars):
+        if type[0] != type[-1]:
+            self.xrules.insert(0, TransRule(type, chan, par1, par2))
         elif apars:
-            self.xrules.insert(0, ExtRule(rtype, chan, par1, par2, **apars))
+            self.xrules.insert(0, ExtRule(type, chan, par1, par2, **apars))
             if 'arpeggiator' in apars:
-                self.xrules.insert(0, ExtRule('noteoff', chan, par1, (0, 127, 0, 0), **apars))
-        elif rtype in RULE_TYPES:
+                self.xrules.insert(0, ExtRule(['noteoff'], chan, par1, (0, 127, 0, 0), **apars))
+        elif type[0] in RULE_TYPES:
             rule = FL.new_fluid_midi_router_rule()
             if chan:
                 FL.fluid_midi_router_rule_set_chan(rule, *Route(*chan))
@@ -785,7 +785,7 @@ class Synth:
                 FL.fluid_midi_router_rule_set_param1(rule, *Route(*par1))
             if par2:
                 FL.fluid_midi_router_rule_set_param2(rule, *Route(*par2))
-            FL.fluid_midi_router_add_rule(self.frouter, rule, RULE_TYPES.index(rtype))
+            FL.fluid_midi_router_add_rule(self.frouter, rule, RULE_TYPES.index(type[0]))
 
     def players_clear(self, save=[]):
         for name in set(self.players) - set(save):
