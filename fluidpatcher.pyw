@@ -10,13 +10,17 @@ FONTSIZE = 24
 PAD = 10
 FILLSCREEN = False
 
-import sys, traceback, webbrowser
+import sys
+import traceback
+import webbrowser
 from pathlib import Path
+
 try:
     import wx
 except ModuleNotFoundError:
     sys.exit("wxPython not installed!")
-import patcher
+
+from fluidpatcher import FluidPatcher, __version__
 
 POLL_TIME = 25
 APP_NAME = 'FluidPatcher'
@@ -81,9 +85,9 @@ class ControlBoard(wx.Panel):
         event.Skip()
         if event.LeftDown() and event.GetY() > self.h2:
             if event.GetX() < self.w / 3 * 1:
-                main.select_patch(pno=(main.pno - 1) % len(pxr.patches))
+                main.select_patch(pno=(main.pno - 1) % len(fp.patches))
             elif event.GetX() < self.w / 3 * 2:
-                main.select_patch(pno=(main.pno + 1) % len(pxr.patches))
+                main.select_patch(pno=(main.pno + 1) % len(fp.patches))
             elif event.GetX() < self.w / 3 * 3:
                 main.next_bankfile()
 
@@ -148,11 +152,13 @@ class MidiMonitor(wx.Dialog):
     
 class SoundfontBrowser(wx.Dialog):
 
-    def __init__(self, parent, sf):
-        super(SoundfontBrowser, self).__init__(parent, title=str(sf), size=(400, 650),
-            style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
+    def __init__(self, parent, sf, presets):
         self.sf = sf
+        self.presets = presets
         self.copypreset = ''
+        sfrel = str(Path(sf).relative_to(fp.sfdir))
+        super(SoundfontBrowser, self).__init__(parent, title=sfrel, size=(400, 650),
+            style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
 
         self.presetlist = wx.ListCtrl(self, style=wx.LC_REPORT|wx.LC_SINGLE_SEL)
         self.presetlist.AppendColumn('Bank')
@@ -163,30 +169,25 @@ class SoundfontBrowser(wx.Dialog):
         vbox.Add(self.CreateStdDialogButtonSizer(wx.OK|wx.CANCEL), 0, wx.ALL|wx.EXPAND, 10)
         self.SetSizer(vbox)
 
-        pxr.load_soundfont(sf)
-        for p in pxr.sfpresets:
-            self.presetlist.Append((f"{p.bank:03d}:", f"{p.prog:03d}:", p.name))
+        for bank, prog, name in presets:
+            self.presetlist.Append((f"{bank:03d}:", f"{prog:03d}:", name))
         
         self.presetlist.SetColumnWidth(0, wx.LIST_AUTOSIZE_USEHEADER)
         self.presetlist.SetColumnWidth(1, wx.LIST_AUTOSIZE_USEHEADER)
         self.presetlist.SetColumnWidth(2, wx.LIST_AUTOSIZE_USEHEADER)
         self.Bind(wx.EVT_LIST_ITEM_SELECTED, self.preset_select, self.presetlist)
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.onActivate, self.presetlist)
-        self.preset_select(val=0)
+        self.presetlist.SetItemState(0, wx.LIST_STATE_SELECTED, wx.LIST_STATE_SELECTED)
         
-    def preset_select(self, event=None, val=''):
-        if val == 0:
-            self.pno = 0
-            self.presetlist.SetItemState(0, wx.LIST_STATE_SELECTED, wx.LIST_STATE_SELECTED)
+    def preset_select(self, event):
+        if (i := event.GetIndex()) < 0:
             return
-        self.pno = self.presetlist.GetNextSelected(-1)
-        if self.pno < 0: return
-        warn = pxr.select_sfpreset(self.pno)
+        bank, prog, name = self.presets[i]
+        warn = fp.select_sfpreset(self.sf, bank, prog)
         if warn:
             wx.MessageBox('\n'.join(warn), "Warning", wx.OK|wx.ICON_WARNING)
-        bank, prog = [self.presetlist.GetItemText(event.GetIndex(), x).strip(':') for x in (0, 1)]
-        self.copypreset = ':'.join((self.sf.as_posix(), bank, prog))
-        
+        self.copypreset = f"{self.sf.as_posix()}:{bank:03d}:{prog:03d}"
+
     def onActivate(self, event):
         self.EndModal(wx.ID_OK)
 
@@ -249,100 +250,100 @@ class MainWindow(wx.Frame):
         self.SetIcon(_icon)
         if FILLSCREEN: self.onFillScreen()
         
-        self.lastdir = dict(bank=pxr.bankdir, sf2=pxr.sfdir)
+        self.lastdir = dict(bank=fp.bankdir, sf2=fp.sfdir)
         self.onNew()
-        if pxr.currentbank: self.load_bankfile(str(pxr.currentbank))
+        if fp.currentbank: self.load_bankfile(fp.currentbank)
 
-    def listener(self, msg):
-        if hasattr(msg, 'val'):
-            if hasattr(msg, 'patch'):
-                pnew = pxr.parse_patchmsg(msg, self.pno)
-                if pnew > -1: self.select_patch(pno=pnew)
-            elif hasattr(msg, 'lcdwrite'):
-                if hasattr(msg, 'format'):
-                    val = format(msg.val, msg.format)
-                    display[2] = f"{msg.lcdwrite} {val}"
+    def listener(self, sig):
+        if hasattr(sig, 'val'):
+            if hasattr(sig, 'patch'):
+                if sig.patch < 0:
+                    self.select_patch(pno=self.pno + sig.val)
                 else:
-                    display[2] = msg.lcdwrite
+                    self.select_patch(pno=self.patch)
+            elif hasattr(sig, 'lcdwrite'):
+                if hasattr(sig, 'format'):
+                    val = format(sig.val, sig.format)
+                    display[2] = f"{sig.lcdwrite} {val}"
+                else:
+                    display[2] = sig.lcdwrite
                 self.ctrlboard.Refresh()
-        elif hasattr(self.midimon, 'timer') and self.midimon.timer.IsRunning() and msg.type in MSG_TYPES:
-            t = MSG_TYPES.index(msg.type)
+        elif hasattr(self.midimon, 'timer') and self.midimon.timer.IsRunning() and sig.type in MSG_TYPES:
+            t = MSG_TYPES.index(sig.type)
             if t < 3:
-                octave = int(msg.par1 / 12) - 1
-                note = ('C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B')[msg.par1 % 12]
-                midimsgs.append((MSG_NAMES[t], str(msg.chan + 1), f"{msg.par1} ({note}{octave})={msg.par2}"))
+                octave = int(sig.par1 / 12) - 1
+                note = ('C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B')[sig.par1 % 12]
+                midisigs.append((MSG_NAMES[t], str(sig.chan + 1), f"{sig.par1} ({note}{octave})={sig.par2}"))
             elif t < 4:
-                midimsgs.append((MSG_NAMES[t], str(msg.chan + 1), f"{msg.par1}={msg.par2}"))
+                midisigs.append((MSG_NAMES[t], str(sig.chan + 1), f"{sig.par1}={sig.par2}"))
             elif t < 7:
-                midimsgs.append((MSG_NAMES[t], str(msg.chan + 1), str(msg.par1)))
+                midisigs.append((MSG_NAMES[t], str(sig.chan + 1), str(sig.par1)))
 
     def load_bankfile(self, bfile=''):
-        display[:] = [bfile, "", "loading patches"]
+        display[:] = [str(bfile), "", "loading patches"]
         self.ctrlboard.Refresh()
         self.ctrlboard.Update()
         try:
-            rawbank = pxr.load_bank(bfile)
+            rawbank = fp.load_bank(bfile)
         except Exception as e:
             wx.MessageBox(str(e), f"Error Loading {bfile}", wx.OK|wx.ICON_ERROR)
             display[0] = self.currentfile
             self.select_patch(pno=self.pno, force=True)
             return False
-        pxr.write_config()
+        fp.write_config()
         self.bedit.text.Clear()
         self.bedit.text.AppendText(rawbank)
         self.bedit.text.SetInsertionPoint(0)
-        self.bedit.caption.SetLabel(bfile)
+        self.bedit.caption.SetLabel(str(bfile))
         for i in self.patchMenu.GetMenuItems():
             self.patchMenu.Delete(i)
-        for p in pxr.patches:
+        for p in fp.patches:
             x = self.patchMenu.Append(wx.ID_ANY, p)
             self.Bind(wx.EVT_MENU, self.select_patch, x)
-        self.currentfile = bfile
+        self.currentfile = str(bfile)
         self.select_patch(pno=0, force=True)
         return True
 
     def next_bankfile(self):
-        if pxr.currentbank in pxr.banks:
-            bno = (pxr.banks.index(pxr.currentbank) + 1 ) % len(pxr.banks)
-        else:
-            bno = 0
-        self.load_bankfile(str(pxr.banks[bno]))
+        banks = sorted([b.relative_to(fp.bankdir) for b in fp.bankdir.rglob('*.yaml')])
+        bno = (banks.index(fp.currentbank) + 1 ) % len(banks) if fp.currentbank in banks else 0
+        self.load_bankfile(banks[bno])
 
     def parse_bank(self, text=''):
-        lastpatch = pxr.patches[self.pno] if pxr.patches else ''
+        lastpatch = fp.patches[self.pno] if fp.patches else ''
         try:
-            pxr.load_bank(raw=text or self.bedit.text.GetValue())
+            fp.load_bank(raw=text or self.bedit.text.GetValue())
         except Exception as e:
             wx.MessageBox(str(e), "Error Reading Bank", wx.OK|wx.ICON_ERROR)
             return False
         for i in self.patchMenu.GetMenuItems():
             self.patchMenu.Delete(i)
-        for p in pxr.patches:
+        for p in fp.patches:
             x = self.patchMenu.Append(wx.ID_ANY, p)
             self.Bind(wx.EVT_MENU, self.select_patch, x)
-        if lastpatch in pxr.patches:
-            self.select_patch(pno=pxr.patches.index(lastpatch), force=True)
-        elif self.pno < len(pxr.patches):
+        if lastpatch in fp.patches:
+            self.select_patch(pno=fp.patches.index(lastpatch), force=True)
+        elif self.pno < len(fp.patches):
             self.select_patch(pno=self.pno, force=True)
         else:
             self.select_patch(pno=0, force=True)
         return True
         
     def select_patch(self, event=None, pno=0, force=False):
-        if not pxr.patches:
+        if not fp.patches:
             self.pno = 0
             display[1:] = "No Patches", "patch 0/0"
-            warn = pxr.apply_patch(None)
+            warn = fp.apply_patch('')
         else:
             if event:
                 p = self.patchMenu.FindItemById(event.GetId()).GetItemLabelText()
-                self.pno = pxr.patches.index(p)
+                self.pno = fp.patches.index(p)
             elif pno == self.pno and not force:
                 return
             else:
                 self.pno = pno
-            warn = pxr.apply_patch(self.pno)
-            display[1:] = pxr.patches[self.pno], f"patch {self.pno + 1}/{len(pxr.patches)}"
+            warn = fp.apply_patch(self.pno)
+            display[1:] = fp.patches[self.pno], f"patch {self.pno + 1}/{len(fp.patches)}"
         self.ctrlboard.Refresh()
         if warn: wx.MessageBox('\n'.join(warn), "Warning", wx.OK|wx.ICON_WARNING)
 
@@ -365,7 +366,7 @@ class MainWindow(wx.Frame):
         bank = wx.FileSelector("Load Bank", str(self.lastdir['bank']), "", "*.yaml", "Bank files (*.yaml)|*.yaml", wx.FD_OPEN)
         if bank == '': return
         self.lastdir['bank'] = Path(bank).parent
-        self.load_bankfile(str(Path(bank).relative_to(pxr.bankdir)))
+        self.load_bankfile(Path(bank).relative_to(fp.bankdir))
 
     def onSave(self, event):
         self.onSaveAs(bfile=self.currentfile)
@@ -377,13 +378,13 @@ class MainWindow(wx.Frame):
             bank = wx.FileSelector("Save Bank", str(self.lastdir['bank']), "", "*.yaml", "Bank files (*.yaml)|*.yaml", wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT)
             if bank == '': return
             self.lastdir['bank'] = Path(bank).parent
-            bfile = str(Path(bank).relative_to(pxr.bankdir))
+            bfile = str(Path(bank).relative_to(fp.bankdir))
         try:
-            pxr.save_bank(bfile, self.bedit.text.GetValue())
+            fp.save_bank(bfile, self.bedit.text.GetValue())
         except Exception as e:
             wx.MessageBox(str(e), "Error Saving Bank", wx.OK|wx.ICON_ERROR)
             return
-        pxr.write_config()
+        fp.write_config()
         display[0] = bfile
         self.bedit.caption.SetLabel(bfile)
         self.currentfile = bfile
@@ -418,16 +419,15 @@ class MainWindow(wx.Frame):
     def onChoosePreset(self, event):
         sf = wx.FileSelector("Open Soundfont", str(self.lastdir['sf2']), "", "*.sf2", "Soundfont (*.sf2)|*.sf2", wx.FD_OPEN)
         if sf == '': return
-        sfrel = Path(sf).relative_to(pxr.sfdir)
-        if not pxr.load_soundfont(sf):
-            wx.MessageBox(f"Unable to load {str(sfrel)}", "Error", wx.OK|wx.ICON_ERROR)
-            return
         self.lastdir['sf2'] = Path(sf).parent
-        sfbrowser = SoundfontBrowser(self, sfrel)
+        if not fp.solo_soundfont(sf):
+            wx.MessageBox(f"Unable to load {str(sf)}", "Error", wx.OK|wx.ICON_ERROR)
+            return
+        sfbrowser = SoundfontBrowser(self, sf, presets)
         if sfbrowser.ShowModal() == wx.ID_OK and self.bedit.IsShown():
             self.bedit.text.WriteText(sfbrowser.copypreset)
         sfbrowser.Destroy()
-        pxr.load_bank()
+        fp.load_bank()
         self.select_patch(pno=self.pno, force=True)
 
     def onMidiMon(self, event):
@@ -436,12 +436,12 @@ class MainWindow(wx.Frame):
         self.midimon.Raise()
 
     def onSettings(self, event):
-        rawcfg = pxr.read_config()
+        rawcfg = fp.read_config()
         tmsg = TextCtrlDialog(self, rawcfg, "Settings", cfgfile, wx.OK|wx.CANCEL, edit=True, size=(500, 450))
         if tmsg.ShowModal() == wx.ID_OK:
             newcfg = tmsg.text.GetValue()
             try:
-                pxr.write_config(newcfg)
+                fp.write_config(newcfg)
             except Exception as e:
                 wx.MessageBox(str(e), "Error Saving Settings", wx.OK|wx.ICON_ERROR)
                 return
@@ -450,7 +450,7 @@ class MainWindow(wx.Frame):
 
     def onAbout(self, event):
         msg = f"""
-FluidPatcher v{patcher.VERSION}
+FluidPatcher v{__version__}
 github.com/albedozero/fluidpatcher
 
 by Bill Peterson
@@ -470,9 +470,9 @@ WxPython version {wx.__version__}
             event.Skip()
         else:
             if event.GetKeyCode() == wx.WXK_F3:
-                self.select_patch(pno=(self.pno - 1) % len(pxr.patches))
+                self.select_patch(pno=(self.pno - 1) % len(fp.patches))
             elif event.GetKeyCode() == wx.WXK_F4:
-                self.select_patch(pno=(self.pno + 1) % len(pxr.patches))
+                self.select_patch(pno=(self.pno + 1) % len(fp.patches))
             elif event.GetKeyCode() == wx.WXK_F6: self.next_bankfile()
             elif event.GetKeyCode() == wx.WXK_F11: self.onFillScreen()
             else: event.Skip()
@@ -507,8 +507,8 @@ if __name__ == "__main__":
     midimsgs = []
     display = ["", "", ""]
     cfgfile = sys.argv[1] if len(sys.argv) > 1 else 'fluidpatcherconf.yaml'
-    pxr = patcher.Patcher(cfgfile)
+    fp = FluidPatcher(cfgfile)
     main = MainWindow()
-    pxr.set_midimessage_callback(main.listener)
+    fp.set_midi_callback(main.listener)
     main.Show()
     app.MainLoop()

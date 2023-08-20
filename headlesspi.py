@@ -5,8 +5,14 @@ Description: an implementation of patcher.py for a headless Raspberry Pi
     patches/banks are changed using pads/buttons/knobs on the controller
     should work on other platforms as well
 """
-import time, re, sys, os, traceback, subprocess
-import patcher
+from pathlib import Path
+import re
+import subprocess
+import sys
+import time
+import traceback
+
+from fluidpatcher import FluidPatcher
 
 # change these values to correspond to buttons/pads on your MIDI keyboard/controller
 # or reprogram your controller to send the corresponding messages
@@ -29,44 +35,44 @@ SHUTDOWN_BTN = None
 DISABLE_LED = False
 
 
-POLL_TIME = 0.025
-ACT_LED = 0
-PWR_LED = 1
-
 def connect_controls():
-    pxr.add_router_rule(type=TYPE, chan=CHAN, par1=DEC_PATCH, par2='1-127', patch='1-')
-    pxr.add_router_rule(type=TYPE, chan=CHAN, par1=INC_PATCH, par2='1-127', patch='1+')
-    pxr.add_router_rule(type=TYPE, chan=CHAN, par1=BANK_INC, par2='1-127', bank=1)
+    fp.add_router_rule(type=TYPE, chan=CHAN, par1=DEC_PATCH, par2='1-127', patch='1-')
+    fp.add_router_rule(type=TYPE, chan=CHAN, par1=INC_PATCH, par2='1-127', patch='1+')
+    fp.add_router_rule(type=TYPE, chan=CHAN, par1=BANK_INC, par2='1-127', bank=1)
     if SELECT_PATCH != None:
-        selectspec =  f"0-127=0-{min(len(pxr.patches) - 1, 127)}" # transform CC values into patch numbers
-        pxr.add_router_rule(type='cc', chan=CHAN, par1=SELECT_PATCH, par2=selectspec, patch='select')
+        selectspec =  f"0-127=0-{min(len(fp.patches) - 1, 127)}" # transform CC values into patch numbers
+        fp.add_router_rule(type='cc', chan=CHAN, par1=SELECT_PATCH, par2=selectspec, patch='select')
     if SHUTDOWN_BTN != None:
-        pxr.add_router_rule(type=TYPE, chan=CHAN, par1=SHUTDOWN_BTN, shutdown=1)
+        fp.add_router_rule(type=TYPE, chan=CHAN, par1=SHUTDOWN_BTN, shutdown=1)
     else:
-        pxr.add_router_rule(type=TYPE, chan=CHAN, par1=DEC_PATCH, shutdown=1)
-        pxr.add_router_rule(type=TYPE, chan=CHAN, par1=INC_PATCH, shutdown=1)
+        fp.add_router_rule(type=TYPE, chan=CHAN, par1=DEC_PATCH, shutdown=1)
+        fp.add_router_rule(type=TYPE, chan=CHAN, par1=INC_PATCH, shutdown=1)
 
-if not os.path.exists('/sys/class/leds/led1/brightness'):
-    PWR_LED = 0 # Pi Zero only has ACT led
-if not os.path.exists('/sys/class/leds/led0/brightness') or DISABLE_LED:
-    # leds don't exist or control disabled
-    def onboardled_set(led, state=None, trigger=None):
-        pass
-        
-    def onboardled_blink(led, n=0):
-        pass
-        
-    def error_blink(n):
-        sys.exit()
-        
+POLL_TIME = 0.025
+ACT_LED = ''
+for path in [Path('/sys/class/leds/led0'), Path('/sys/class/leds/ACT')]:
+    if path.exists():
+        ACT_LED = path
+for path in [Path('/sys/class/leds/led1'), Path('/sys/class/leds/PWR')]:
+    if path.exists():
+        PWR_LED = path
+        break
+else:
+    PWR_LED = ACT_LED # Pi Zero only has ACT led
+
+if not ACT_LED or DISABLE_LED:
+    # no led hooks or user disabled
+    def onboardled_set(led, state=None, trigger=None): pass
+    def onboardled_blink(led, n=0): pass
+    def error_blink(n): sys.exit()        
 else:
     def onboardled_set(led, state=None, trigger=None):
         if trigger:
             e = subprocess.Popen(('echo', trigger), stdout=subprocess.PIPE)
-            subprocess.run(('sudo', 'tee', f'/sys/class/leds/led{led}/trigger'), stdin=e.stdout, stdout=subprocess.DEVNULL)
+            subprocess.run(('sudo', 'tee', led / 'trigger'), stdin=e.stdout, stdout=subprocess.DEVNULL)
         if state != None:
             e = subprocess.Popen(('echo', str(state)), stdout=subprocess.PIPE)
-            subprocess.run(('sudo', 'tee', f'/sys/class/leds/led{led}/brightness'), stdin=e.stdout, stdout=subprocess.DEVNULL)
+            subprocess.run(('sudo', 'tee', led / 'brightness'), stdin=e.stdout, stdout=subprocess.DEVNULL)
 
     def onboardled_blink(led, n=1):
         while n:
@@ -101,8 +107,8 @@ class HeadlessSynth:
     def __init__(self):
         self.shutdowntimer = 0
         self.pno = 0
-        pxr.set_midimessage_callback(self.listener)
-        self.load_bank(pxr.currentbank)
+        fp.midi_callback = self.listener
+        self.load_bank(fp.currentbank)
         onboardled_blink(ACT_LED, 5) # ready to play
         while True:
             time.sleep(POLL_TIME)
@@ -122,56 +128,61 @@ class HeadlessSynth:
         print(f"Loading bank '{bfile}' .. ")
         onboardled_set(ACT_LED, 1)
         try:
-            pxr.load_bank(bfile)
+            fp.load_bank(bfile)
         except Exception as e:
             print(f"Error loading {bfile}\n{str(e)}")
             error_blink(3)
         print("Bank loaded.")
         onboardled_set(ACT_LED, 0)
-        if pxr.patches:
+        if fp.patches:
             self.select_patch(0, force=True)
         else:
-            pxr.apply_patch(None)
+            fp.apply_patch('')
             connect_controls()
             print("No patches")
 
     def select_patch(self, n, force=False):
         if n == self.pno and not force: return
         self.pno = n
-        pxr.apply_patch(self.pno)
+        fp.apply_patch(self.pno)
         connect_controls()
-        print(f"Selected patch {n + 1}/{len(pxr.patches)}: {pxr.patches[n]}")
+        print(f"Selected patch {n + 1}/{len(fp.patches)}: {fp.patches[n]}")
         onboardled_blink(ACT_LED)
 
-    def listener(self, msg):
-    # catches custom midi :msg to change patch/bank
-        if hasattr(msg, 'patch'):
-            pnew = pxr.parse_patchmsg(msg, self.pno)
-            if pnew > -1: self.select_patch(pnew)
-        if hasattr(msg, 'bank') and msg.val > 0:
-            if pxr.currentbank in pxr.banks:
-                bno = (pxr.banks.index(pxr.currentbank) + 1 ) % len(pxr.banks)
+    def listener(self, sig):
+    # catches custom midi :sig to change patch/bank
+        if hasattr(sig, 'patch'):
+            if sig.patch < 0:
+                self.select_patch(self.pno + sig.val)
             else:
-                bno = 0
-            self.load_bank(pxr.banks[bno])
-            pxr.write_config()
-        if hasattr(msg, 'shutdown'):
+                self.select_patch(sig.patch)
+        if hasattr(sig, 'bank') and sig.val > 0:
+            banks = sorted([b.relative_to(fp.bankdir) for b in fp.bankdir.rglob('*.yaml')])
+            bno = (banks.index(fp.currentbank) + 1 ) % len(banks) if fp.currentbank in banks else 0
+            self.load_bank(banks[bno])
+            fp.write_config()
+        if hasattr(sig, 'shutdown'):
             if self.shutdowntimer:
                 self.shutdowntimer = 0
-            elif msg.val > 0:
+            elif sig.val > 0:
                 self.shutdowntimer = time.time()
 
 
 cfgfile = sys.argv[1] if len(sys.argv) > 1 else 'SquishBox/squishboxconf.yaml'
 try:
-    pxr = patcher.Patcher(cfgfile)
+    fp = FluidPatcher(cfgfile)
 except Exception as e:
     print(f"Error loading config file {cfgfile}\n{str(e)}")
     error_blink(2)
 
-# hack to connect MIDI devices to old versions of fluidsynth
-fport = re.search("client (\d+): 'FLUID Synth", subprocess.check_output(['aconnect', '-o']).decode())[1]
-for port, client in re.findall(" (\d+): '([^\n]*)'", subprocess.check_output(['aconnect', '-i']).decode()):
-    subprocess.run(['aconnect', port, fport])
+devs = {client: port for port, client in re.findall(" (\d+): '([^\n]*)'", subprocess.check_output(['aconnect', '-io']).decode())}
+for link in fp.cfg['midiconnections']:
+    mfrom, mto = list(link.items())[0]
+    for client in devs:
+        if re.search(mfrom.split(':')[0], client):
+            mfrom = re.sub(mfrom.split(':')[0], devs[client], mfrom, count=1)
+        if re.search(mto.split(':')[0], client):
+            mto = re.sub(mto.split(':')[0], devs[client], mto, count=1)
+    subprocess.run(['aconnect', mfrom, mto])
 
 mainapp = HeadlessSynth()

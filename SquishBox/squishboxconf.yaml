@@ -1,11 +1,14 @@
-# config file used by squishbox.py and headlesspi.py
+description: config file used by squishbox.py and headlesspi.py
+  view the wiki at https://github.com/albedozero/fluidpatcher/wiki for detailed info
+  see http://www.fluidsynth.org/api/fluidsettings.xml for explanation of fluidsettings
+
 soundfontdir: SquishBox/sf2
 bankdir: SquishBox/banks
 mfilesdir: SquishBox/midi
 plugindir: /usr/lib/ladspa
 currentbank: bank1.yaml
 
-fluidsettings: # http://www.fluidsynth.org/api/fluidsettings.xml  
+fluidsettings:
   audio.driver: alsa
   audio.period-size: 64
   audio.periods: 3

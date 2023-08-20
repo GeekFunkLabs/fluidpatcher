@@ -234,7 +234,6 @@ if [[ $install_synth ]]; then
     apt_pkg_install "tap-plugins" optional
     apt_pkg_install "wah-plugins" optional
     pip_install "oyaml"
-    pip_install "mido" optional
     if [[ $installtype == 1 ]]; then
         pip_install "RPi.GPIO"
         pip_install "RPLCD"
@@ -249,9 +248,8 @@ if [[ $install_synth ]]; then
         fptemp=`ls -dt albedozero-fluidpatcher-* | head -n1`
         cd $fptemp
         find . -type d -exec mkdir -p ../{} \;
-        # copy files, but don't overwrite banks, config, hw_overlay.py
+        # copy files, but don't overwrite banks, config (i.e. yaml files)
         find . -type f ! -name "*.yaml" ! -name "hw_overlay.py" -exec cp -f {} ../{} \;
-        find . -type f -name "hw_overlay.py" -exec cp -n {} ../{} \;
         find . -type f -name "*.yaml" -exec cp -n {} ../{} \;
         cd ..
         rm -rf $fptemp
