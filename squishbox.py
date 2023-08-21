@@ -709,7 +709,8 @@ class FluidBox:
             if self.pno != pno:
                 if fp.patches:
                     pno = self.pno
-                    self.buffer = [fp.patches[pno], f"patch: {pno + 1}/{len(fp.patches)}".rjust(COLS)]
+                    self.buffer = [fp.patches[pno],
+                                   f"patch: {pno + 1}/{len(fp.patches)}".rjust(COLS)]
                     warn = fp.apply_patch(pno)
                 else:
                     pno, self.pno = 0, 0
@@ -768,7 +769,6 @@ class FluidBox:
                         self.effects_menu()
                     elif k == 6:
                         self.system_menu()
-                        pno = -1
                     break
 
     def sfmode(self, sfont):
@@ -902,21 +902,20 @@ class FluidBox:
         """Menu for connecting MIDI devices and monitoring"""
         sb.lcd_write("MIDI Devices:", 0)
         readable = re.findall(" (\d+): '([^\n]*)'", sb.shell_cmd("aconnect -i"))
-        rports, names = list(zip(*readable))
-        p = sb.choose_opt([*names, "MIDI monitor.."], row=1, scroll=True, timeout=0)
+        rports, rnames = list(zip(*readable))
+        p = sb.choose_opt([*rnames, "MIDI monitor.."], row=1, scroll=True, timeout=0)
         if p < 0: return
         if 0 <= p < len(rports):
             sb.lcd_write("Connect to:", 0)
             writable = re.findall(" (\d+): '([^\n]*)'", sb.shell_cmd("aconnect -o"))
-            wports, names = list(zip(*writable))
-            op = sb.choose_opt(names, row=1, scroll=True, timeout=0)
+            wports, wnames = list(zip(*writable))
+            op = sb.choose_opt(wnames, row=1, scroll=True, timeout=0)
             if op < 0: return
-            if 'midiconnections' in fp.cfg:
-                fp.cfg['midiconnections'].append({rports[p]: wports[op]})
-            else:
-                fp.cfg['midiconnections'] = {rports[p]: wports[op]}
+            if 'midiconnections' not in fp.cfg: fp.cfg['midiconnections'] = []
+            fp.cfg['midiconnections'].append({rnames[p]: re.sub('(FLUID Synth) \(.*', '\\1', wnames[op])})
             fp.write_config()
-            sb.shell_cmd(f"aconnect {rports[p]} {wports[op]}")
+            try: sb.shell_cmd(f"aconnect {rports[p]} {wports[op]}")
+            except subprocess.CalledProcessError: pass
         elif p == len(rports):
             sb.lcd_clear()
             sb.lcd_write("MIDI monitor:", 0)
@@ -943,10 +942,8 @@ class FluidBox:
                     mfrom = re.sub(mfrom.split(':')[0], devs[client], mfrom, count=1)
                 if re.search(mto.split(':')[0], client):
                     mto = re.sub(mto.split(':')[0], devs[client], mto, count=1)
-            try:
-                sb.shell_cmd(f"aconnect {mfrom} {mto}", stderr=subprocess.STDOUT)
-            except subprocess.CalledProcessError:
-                pass 
+            try: sb.shell_cmd(f"aconnect {mfrom} {mto}")
+            except subprocess.CalledProcessError: pass 
 
     @staticmethod
     def usb_filecopy():
