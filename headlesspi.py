@@ -153,7 +153,7 @@ class HeadlessSynth:
     # catches custom midi :sig to change patch/bank
         if hasattr(sig, 'patch'):
             if sig.patch < 0:
-                self.select_patch(self.pno + sig.val)
+                self.select_patch((self.pno + sig.val) % len(fp.patches))
             else:
                 self.select_patch(sig.patch)
         if hasattr(sig, 'bank') and sig.val > 0:

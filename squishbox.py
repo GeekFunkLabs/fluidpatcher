@@ -682,8 +682,10 @@ class FluidBox:
         if 'val' in sig:
             if 'patch' in sig:
                 # sig is modified by FluidPatcher._midisignal_handler()
-                if sig.patch < 0: self.pno += sig.val
-                else: self.pno = sig.patch
+                if sig.patch < 0:
+                    self.pno = (self.pno + sig.val) % len(fp.patches)
+                else:
+                    self.pno = sig.patch
             elif 'lcdwrite' in sig:
                 if 'format' in sig:
                     val = format(sig.val, sig.format)
