@@ -55,7 +55,7 @@ The unit is controlled with a momentary buttons and a pushbutton rotary encoder.
 Holding down the rotary encoder for one second opens the menu. In menus the stompbutton does not send MIDI messages. Instead, rotating the encoder scrolls through options, or tapping the encoder advances to the next option and tapping the stompbutton goes back. This makes it easier to use the SquishBox with feet if it’s placed on the floor. Holding the encoder for one second selects options, and holding the stompbutton for one second cancels or exits. Most menus will time out after a few seconds with no input.
 
 Some menus have specific interaction modes:
--  When asked to confirm a choice, it will be shown with a check mark or X next to it. Selecting the check mark confirms, X cancels. 
+- When asked to confirm a choice, it will be shown with a check mark or X next to it. Selecting the check mark confirms, X cancels. 
 - Some menus allow changing a numerical setting. Rotating the encoder adjusts the value, and holding the encoder confirms it.
 - Some menus allow entering text character-by-character. The cursor appears as an underline for changing position and a blinking square for changing the current character. Holding the encoder switches between cursor modes. Holding the stompbutton exits editing, after which you will be asked to confirm or cancel your entry.
 
@@ -63,16 +63,12 @@ Some menus have specific interaction modes:
 
 - **Load Bank** – Load a bank file from the list of available banks. The current bank is displayed first.
 - **Save Bank** – Save the current bank. Changing the name saves as a new bank.
-- **Save Patch** – Saves the current state of the synthesizer (instrument settings, control change values) to the current patch. Modify the name to create a new patch.
+- **Save Patch** – Saves the current state of the synthesizer (instrument settings, control change values) to the current patch. Modify the name to create a new patch. Save the bank to make new patches permanent.
 - **Delete Patch** – Erases the current patch from the bank, after asking for confirmation.
-- **Open Soundfont** – Opens a single soundfont and switches to playing sounds from the soundfont's presets instead of the patches in the current bank. In soundfont mode, the available menu options are:
-  - **Add as Patch** - Creates a new patch in the current bank that uses the selected preset on MIDI channel 1. This allows you to create new patches directly from the SquishBox.
-  - **Open Soundfont** - Opens a different soundfont.
-  - **Back** - Go back to playing patches from the current bank.
+- **Open Soundfont** – Opens a single soundfont and switches to playing sounds from the soundfont's presets instead of the patches in the current bank. Presets can be copied to the current bank as new patches.
 - **Effects..** – Opens a menu that allows you to modify the settings of the chorus and reverb effects units, and the gain (maximum output volume) of the SquishBox. Changes affect all patches in the bank – save the bank to make them permanent.
 - **System Menu..** - Opens a menu with more system-related tasks:
   - **Power Down** – To protect the memory card of the SquishBox, this option should be used before unplugging. Allow 30 seconds for complete shutdown.
   - **MIDI Devices** – This menu can be used to view the list of available MIDI devices, and to interconnect MIDI inputs and outputs. By default, the SquishBox automatically connects to all available MIDI devices, but this could be used to send MIDI messages to an additional external device. It also includes a _MIDI Monitor_ option that displays incoming MIDI messages on the screen. Pressing any button exits the MIDI monitor.
-  - **WIFI Settings** – Displays the current IP Address of the SquishBox, and provides a menu to scan for and connect to available WIFI networks.
-  - **File Transfer** – Allows you to copy your banks, soundfonts, and config files back and forth between the SquishBox and a USB storage device. Files are copied to/from a _SquishBox/_ folder on the USB. The **Sync with USB** option will update the files to the newest available version on either device.
-  - **Update Device** - Connects to the internet to check for updates to the SquishBox software, and gives the user the option to update if available. Can also update the Raspberry Pi operating system. The SquishBox will reboot after performing any updates.
+  - **Wifi Settings** – Displays the current IP Address of the SquishBox, and provides a menu to scan for and connect to available WIFI networks.
+  - **USB File Copy** – Allows you to copy your banks, soundfonts, and config files back and forth between the SquishBox and a USB storage device. Files are copied to/from a _SquishBox/_ folder on the USB. The **Sync with USB** option will update the files to the newest available version on either device.
