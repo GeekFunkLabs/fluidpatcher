@@ -38,6 +38,7 @@ STOMP_TOGGLE_CC = 31
 HW_VERSION = 'v6'
 
 # RPi GPIO pin numbers (BCM numbering) for different hardware versions
+ACTIVE = GPIO.LOW
 if HW_VERSION == 'v6':
     LCD_RS = 2; LCD_EN = 3; LCD_DATA = 11, 5, 6, 13  # LCD pins
     ROT_L = 22; ROT_R = 10; BTN_R = 9                # rotary encoder R/L pins + button
@@ -54,6 +55,7 @@ elif HW_VERSION == 'v2':
     LCD_RS = 15; LCD_EN = 23; LCD_DATA = 24, 25, 8, 7
     ROT_L = 0; ROT_R = 0; BTN_R = 22
     BTN_SW = 27; PIN_LED = 0
+    ACTIVE = GPIO.HIGH
 PIN_OUT = PIN_LED, 12, 16, 26 # additional free pins - see SquishBox.gpio_set()
 
 # adjust timings/values below as needed/desired
@@ -69,7 +71,6 @@ COLS, ROWS = 16, 2
 try: from hw_overlay import *
 except ModuleNotFoundError: pass
 
-ACTIVE = GPIO.LOW
 # custom lcd characters https://omerk.github.io/lcdchargen/
 CUSTOMCHARS_BITS = (
 0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b01110, 0b01010, 0b00100, 
@@ -123,10 +124,11 @@ class SquishBox():
 
         GPIO.setwarnings(False)
         GPIO.setmode(GPIO.BCM)
-        for channel in (ROT_R, ROT_L, BTN_R, BTN_SW):
-            if channel: GPIO.setup(channel, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        for pin in PIN_OUT:
-            if pin: GPIO.setup(pin, GPIO.OUT)
+        for channel in [c for c in (ROT_R, ROT_L, BTN_R, BTN_SW) if c]:
+            GPIO.setup(channel, GPIO.IN,
+                       pull_up_down=GPIO.PUD_UP if ACTIVE == GPIO.LOW else GPIO.PUD_DOWN)
+        for channel in PIN_OUT:
+            if channel: GPIO.setup(channel, GPIO.OUT)
         if BTN_R: GPIO.add_event_detect(BTN_R, GPIO.BOTH, callback=self._button_event)
         if BTN_SW: GPIO.add_event_detect(BTN_SW, GPIO.BOTH, callback=self._button_event)
         if ROT_L: GPIO.add_event_detect(ROT_L, GPIO.BOTH, callback=self._encoder_event)

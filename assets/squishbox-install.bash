@@ -157,6 +157,12 @@ if [[ $installtype == 1 ]]; then
             sync; sudo reboot
         fi
     fi
+	echo "What version of SquishBox hardware are you using?"
+	echo "  v6 - Green PCB with SMT components"
+	echo "  v4 - Purple PCB, has 2 resistors and LED"
+	echo "  v3 - Purple PCB, has 1 resistor"
+	echo "  v2 - Hackaday/perfboard build"
+	query "Choose" "v6"; hw_version=$response
 elif [[ $installtype == 2 ]]; then
     echo "Set up controls for Headless Pi Synth:"
     query "    MIDI channel for controls" "1"; ctrls_channel=$response
@@ -324,6 +330,7 @@ Restart=on-failure
 WantedBy=multi-user.target
 EOF
     sudo systemctl enable squishbox.service
+	sed -i "/^HW_VERSION/s|[v0-9]\+|$hw_version|" $installdir/squishbox.py
     ASK_TO_REBOOT=true
 elif [[ $installtype == 2 ]]; then
     inform "Enabling Headless Pi Synth startup service..."
