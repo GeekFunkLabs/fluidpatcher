@@ -176,13 +176,16 @@ except Exception as e:
     error_blink(2)
 
 devs = {client: port for port, client in re.findall(" (\d+): '([^\n]*)'", subprocess.check_output(['aconnect', '-io']).decode())}
-for link in fp.cfg['midiconnections']:
+for link in fp.cfg.get('midiconnections', []):
     mfrom, mto = list(link.items())[0]
     for client in devs:
         if re.search(mfrom.split(':')[0], client):
             mfrom = re.sub(mfrom.split(':')[0], devs[client], mfrom, count=1)
         if re.search(mto.split(':')[0], client):
             mto = re.sub(mto.split(':')[0], devs[client], mto, count=1)
-    subprocess.run(['aconnect', mfrom, mto])
+    try:
+        subprocess.run(['aconnect', mfrom, mto])
+    except subprocess.calledProcessError:
+        pass
 
 mainapp = HeadlessSynth()
