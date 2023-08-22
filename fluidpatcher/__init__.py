@@ -67,7 +67,7 @@ class FluidPatcher:
         self.cfgfile = Path(cfgfile) if cfgfile else None
         self.cfg = {}
         self.read_config()
-        self.bank = {'patches': {}}
+        self.bank = {}
         self.soundfonts = set()
         self.fsynth = Synth(**{**self.cfg.get('fluidsettings', {}), **fluidsettings})
         self.fsynth.midi_callback = self._midisignal_handler
@@ -103,7 +103,7 @@ class FluidPatcher:
     @property
     def patches(self):
         """List of patch names in the current bank"""
-        return list(self.bank['patches'])
+        return list(self.bank.get('patches', {})) if self.bank else []
 
     def read_config(self):
         """Read configuration from `cfgfile` set on creation
@@ -111,6 +111,7 @@ class FluidPatcher:
         Returns: the raw contents of the config file
         """
         if self.cfgfile == None:
+            # If no cfgfile was provided return a representation of self.cfg
             return renderyaml(self.cfg)
         raw = self.cfgfile.read_text()
         self.cfg = parseyaml(raw)
@@ -148,7 +149,7 @@ class FluidPatcher:
         restores the current bank from memory.
 
         Args:
-          bankfile: bank file to load
+          bankfile: bank file to load, absolute or relative to `bankdir`
           raw: string to parse directly
 
         Returns: yaml stream that was loaded
@@ -157,7 +158,6 @@ class FluidPatcher:
             try:
                 raw = (self.bankdir / bankfile).read_text()
                 bank = parseyaml(raw)
-                bank['patches'].values()
             except:
                 if Path(bankfile).as_posix() == self.cfg['currentbank']:
                     self.cfg.pop('currentbank', None)
@@ -167,11 +167,10 @@ class FluidPatcher:
                 self.cfg['currentbank'] = Path(bankfile).as_posix()
         elif raw:
             bank = parseyaml(raw)
-            bank['patches'].values() # raise error if no patches
             self.bank = bank
         self._reset_synth()
         self._refresh_bankfonts()
-        for zone in self.bank, *self.bank['patches'].values():
+        for zone in self.bank, *self.bank.get('patches', {}).values():
             for midi in zone.get('midiplayers', {}).values():
                 midi['file'] = self.mfilesdir / midi['file']
             for fx in zone.get('ladspafx', {}).values():
@@ -188,16 +187,15 @@ class FluidPatcher:
         """Save a bank file
         
         Saves the current bank in memory to `bankfile` after rendering it as
-        a yaml stream. If `raw` is provided and parses as yaml without raising
-        an error, its exact contents are written to the file.
+        a yaml stream. If `raw` is provided, it is parsed as the new bank and
+        its exact contents are written to the file.
 
         Args:
-          bankfile: filename to save
+          bankfile: file to save, absolute or relative to `bankdir`
           raw: exact text to save
         """
         if raw:
             bank = parseyaml(raw)
-            bank['patches'].values()
             self.bank = bank
         else:
             raw = renderyaml(self.bank)
@@ -208,9 +206,11 @@ class FluidPatcher:
         """Select a patch and apply its settings
 
         Read the settings for the patch specified by index or name and combine
-        them with bank-level settings. Select presets on specified channels,
-        apply router rules, activate players and effects, send messages, etc.
-        Patch settings are applied after bank settings.
+        them with bank-level settings. Select presets on specified channels and
+        unsets others, clears router rules and applies new ones, activates 
+        players and effects and deactivates unused ones, send messages, and
+        applies fluidsettings. Patch settings are applied after bank settings.
+        If the specified patch isn't found, only bank settings are applied.
 
         Args:
           patch: patch index or name
@@ -272,6 +272,7 @@ class FluidPatcher:
 
         Returns: the index of the new patch
         """
+        if 'patches' not in self.bank: self.bank['patches'] = {}
         self.bank['patches'][name] = {}
         if addlike:
             addlike = self._resolve_patch(addlike)
@@ -405,7 +406,7 @@ class FluidPatcher:
         arguments to restore the current bank.
 
         Args:
-          soundfont: soundfont file to load
+          soundfont: soundfont file to load, absolute or relative to `sfdir`
         
         Returns: a list of (bank, prog, name) tuples for each preset
         """
@@ -432,17 +433,18 @@ class FluidPatcher:
         tuples returned by solo_soundfont().
 
         Args:
-          sfont: the soundfont loaded by solo_soundfont()
+          sfont: the soundfont file loaded by solo_soundfont(),
+            absolute or relative to `sfdir`
           bank: the bank to select
           prog: the program to select from bank
 
         Returns: a list of warnings, empty if none
         """
         if sfont not in self.soundfonts:
-            return [f"{sfont} is not loaded"]
+            return [f"{str(sfont)} is not loaded"]
         if self.fsynth.program_select(1, self.sfdir / sfont, bank, prog):
             return []
-        else: return [f"Unable to select preset {p}"]
+        else: return [f"Unable to select preset {str(sfont)}:{bank:03d}:{prog:03d}"]
 
     def _midisignal_handler(self, sig):
         if 'patch' in sig:
@@ -460,7 +462,7 @@ class FluidPatcher:
 
     def _refresh_bankfonts(self):
         sfneeded = set()
-        for zone in self.bank, *self.bank['patches'].values():
+        for zone in self.bank, *self.bank.get('patches', {}).values():
             for sfont in [zone[ch].sfont for ch in zone if isinstance(ch, int)]:
                 sfneeded.add(sfont)
         missing = set()
@@ -477,7 +479,7 @@ class FluidPatcher:
                 patch = self.patches[patch]
             else: patch = {}
         if isinstance(patch, str):
-            patch = self.bank['patches'].get(patch, {})
+            patch = self.bank.get('patches', {}).get(patch, {})
         return patch
 
     def _reset_synth(self):

@@ -85,9 +85,9 @@ class ControlBoard(wx.Panel):
         event.Skip()
         if event.LeftDown() and event.GetY() > self.h2:
             if event.GetX() < self.w / 3 * 1:
-                main.select_patch(pno=(main.pno - 1) % len(fp.patches))
+                if fp.patches: main.select_patch(pno=(main.pno - 1) % len(fp.patches))
             elif event.GetX() < self.w / 3 * 2:
-                main.select_patch(pno=(main.pno + 1) % len(fp.patches))
+                if fp.patches: main.select_patch(pno=(main.pno + 1) % len(fp.patches))
             elif event.GetX() < self.w / 3 * 3:
                 main.next_bankfile()
 
@@ -152,11 +152,10 @@ class MidiMonitor(wx.Dialog):
     
 class SoundfontBrowser(wx.Dialog):
 
-    def __init__(self, parent, sf, presets):
-        self.sf = sf
+    def __init__(self, parent, sfrel, presets):
+        self.sfrel = sfrel
         self.presets = presets
         self.copypreset = ''
-        sfrel = str(Path(sf).relative_to(fp.sfdir))
         super(SoundfontBrowser, self).__init__(parent, title=sfrel, size=(400, 650),
             style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
 
@@ -183,10 +182,10 @@ class SoundfontBrowser(wx.Dialog):
         if (i := event.GetIndex()) < 0:
             return
         bank, prog, name = self.presets[i]
-        warn = fp.select_sfpreset(self.sf, bank, prog)
+        warn = fp.select_sfpreset(self.sfrel, bank, prog)
         if warn:
             wx.MessageBox('\n'.join(warn), "Warning", wx.OK|wx.ICON_WARNING)
-        self.copypreset = f"{self.sf.as_posix()}:{bank:03d}:{prog:03d}"
+        self.copypreset = f"{self.sfrel}:{bank:03d}:{prog:03d}"
 
     def onActivate(self, event):
         self.EndModal(wx.ID_OK)
@@ -256,9 +255,9 @@ class MainWindow(wx.Frame):
 
     def listener(self, sig):
         if hasattr(sig, 'val'):
-            if hasattr(sig, 'patch'):
+            if hasattr(sig, 'patch') and fp.patches:
                 if sig.patch < 0:
-                    self.select_patch(pno=self.pno + sig.val)
+                    self.select_patch(pno=(self.pno + sig.val) % len(fp.patches))
                 else:
                     self.select_patch(pno=self.patch)
             elif hasattr(sig, 'lcdwrite'):
@@ -357,7 +356,7 @@ class MainWindow(wx.Frame):
         self.bedit.text.Clear()
         self.bedit.text.AppendText(" ")
         self.bedit.text.SetInsertionPoint(0)
-        self.parse_bank('patches: {}')
+        self.parse_bank('{}')
         display[0] = "(Untitled)"
         self.bedit.caption.SetLabel("(Untitled)")
         self.ctrlboard.Refresh()
@@ -420,10 +419,11 @@ class MainWindow(wx.Frame):
         sf = wx.FileSelector("Open Soundfont", str(self.lastdir['sf2']), "", "*.sf2", "Soundfont (*.sf2)|*.sf2", wx.FD_OPEN)
         if sf == '': return
         self.lastdir['sf2'] = Path(sf).parent
-        if not fp.solo_soundfont(sf):
-            wx.MessageBox(f"Unable to load {str(sf)}", "Error", wx.OK|wx.ICON_ERROR)
+        sfrel = Path(sf).relative_to(fp.sfdir).as_posix()
+        if not (presets := fp.solo_soundfont(sfrel)):
+            wx.MessageBox(f"Unable to load {sf}", "Error", wx.OK|wx.ICON_ERROR)
             return
-        sfbrowser = SoundfontBrowser(self, sf, presets)
+        sfbrowser = SoundfontBrowser(self, sfrel, presets)
         if sfbrowser.ShowModal() == wx.ID_OK and self.bedit.IsShown():
             self.bedit.text.WriteText(sfbrowser.copypreset)
         sfbrowser.Destroy()
@@ -450,7 +450,7 @@ class MainWindow(wx.Frame):
 
     def onAbout(self, event):
         msg = f"""
-FluidPatcher v{__version__}
+FluidPatcher {__version__}
 github.com/albedozero/fluidpatcher
 
 by Bill Peterson
@@ -470,9 +470,9 @@ WxPython version {wx.__version__}
             event.Skip()
         else:
             if event.GetKeyCode() == wx.WXK_F3:
-                self.select_patch(pno=(self.pno - 1) % len(fp.patches))
+                if fp.patches: self.select_patch(pno=(self.pno - 1) % len(fp.patches))
             elif event.GetKeyCode() == wx.WXK_F4:
-                self.select_patch(pno=(self.pno + 1) % len(fp.patches))
+                if fp.patches: self.select_patch(pno=(self.pno + 1) % len(fp.patches))
             elif event.GetKeyCode() == wx.WXK_F6: self.next_bankfile()
             elif event.GetKeyCode() == wx.WXK_F11: self.onFillScreen()
             else: event.Skip()
@@ -509,6 +509,6 @@ if __name__ == "__main__":
     cfgfile = sys.argv[1] if len(sys.argv) > 1 else 'fluidpatcherconf.yaml'
     fp = FluidPatcher(cfgfile)
     main = MainWindow()
-    fp.set_midi_callback(main.listener)
+    fp.midi_callback = main.listener
     main.Show()
     app.MainLoop()
