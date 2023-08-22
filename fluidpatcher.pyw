@@ -141,10 +141,10 @@ class MidiMonitor(wx.Dialog):
             self.msglist.DeleteAllItems()
             
     def onTimer(self, event):
-        if midimsgs:
-            for msg in midimsgs:
+        if midisignals:
+            for msg in midisignals:
                 self.msglist.Append(msg)
-            midimsgs.clear()
+            midisignals.clear()
             n = self.msglist.GetItemCount()
             pos = self.msglist.GetItemPosition(n - 1)
             self.msglist.ScrollList(0, pos.y)
@@ -272,11 +272,11 @@ class MainWindow(wx.Frame):
             if t < 3:
                 octave = int(sig.par1 / 12) - 1
                 note = ('C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B')[sig.par1 % 12]
-                midisigs.append((MSG_NAMES[t], str(sig.chan + 1), f"{sig.par1} ({note}{octave})={sig.par2}"))
+                midisignals.append((MSG_NAMES[t], str(sig.chan), f"{sig.par1} ({note}{octave})={sig.par2}"))
             elif t < 4:
-                midisigs.append((MSG_NAMES[t], str(sig.chan + 1), f"{sig.par1}={sig.par2}"))
+                midisignals.append((MSG_NAMES[t], str(sig.chan), f"{sig.par1}={sig.par2}"))
             elif t < 7:
-                midisigs.append((MSG_NAMES[t], str(sig.chan + 1), str(sig.par1)))
+                midisignals.append((MSG_NAMES[t], str(sig.chan), str(sig.par1)))
 
     def load_bankfile(self, bfile=''):
         display[:] = [str(bfile), "", "loading patches"]
@@ -504,7 +504,7 @@ WxPython version {wx.__version__}
 if __name__ == "__main__":
     app = wx.App()
     sys.excepthook = gui_excepthook
-    midimsgs = []
+    midisignals = []
     display = ["", "", ""]
     cfgfile = sys.argv[1] if len(sys.argv) > 1 else 'fluidpatcherconf.yaml'
     fp = FluidPatcher(cfgfile)
