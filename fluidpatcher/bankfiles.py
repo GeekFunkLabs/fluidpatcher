@@ -41,8 +41,8 @@ def sift(s):
     except (ValueError, TypeError): return s
     return int(s) if s.is_integer() else s
 
-def parseyaml(text='', data=[]):
-    data = data or oyaml.safe_load(text)
+def parseyaml(text='', data={}):
+    data = oyaml.safe_load(text) if text else data
     if isinstance(data, (list, dict)):
         for item in data if isinstance(data, list) else data.values():
             if item is None: return None
