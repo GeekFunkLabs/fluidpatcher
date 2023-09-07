@@ -32,13 +32,6 @@ def specfunc(func, restype, *argtypes):
     func.argtypes = argtypes
     return func
 
-# logging
-fl_logfunction = CFUNCTYPE(c_void_p, c_int, c_char_p, c_void_p)
-specfunc(FS.fluid_set_log_function, c_void_p, c_int, fl_logfunction, c_void_p)
-nolog = fl_logfunction(lambda level, message, data: None)
-for lvl in range(1,5):
-    FS.fluid_set_log_function(lvl, nolog, None)
-
 # settings
 specfunc(FS.new_fluid_settings, c_void_p)
 specfunc(FS.fluid_settings_get_type, c_int, c_void_p, c_char_p)
