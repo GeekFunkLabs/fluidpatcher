@@ -265,8 +265,11 @@ if [[ $install_synth ]]; then
     fi
 
     # compile/install fluidsynth
-    FS_VER=`fluidsynth --version 2> /dev/null | sed -n '/runtime version/s|[^0-9\.]*||gp'`
-    BUILD_FS_VER=`curl -s https://api.github.com/repos/FluidSynth/fluidsynth/releases/latest | sed -n '/tag_name/s|[^0-9\.]*||gp'`
+#    FS_VER=`fluidsynth --version 2> /dev/null | sed -n '/runtime version/s|[^0-9\.]*||gp'`
+#    BUILD_FS_VER=`curl -s https://api.github.com/repos/FluidSynth/fluidsynth/releases/latest | sed -n '/tag_name/s|[^0-9\.]*||gp'`
+    # prefer FluidSynth version 2.3.2 until https://github.com/FluidSynth/fluidsynth/issues/1272 is remedied
+    FS_VER='0'
+	BUILD_FS_VER='2.3.2'
     if [[ ! $FS_VER == $BUILD_FS_VER ]]; then
         inform "Compiling latest FluidSynth from source..."
         echo "Getting build dependencies..."
@@ -279,8 +282,10 @@ if [[ $install_synth ]]; then
             || echo E: install failed; } | grep '^[WE]:'; then
             warning "Couldn't get all dependencies!"
         fi
-        wget -qO - https://github.com/FluidSynth/fluidsynth/tarball/master | tar -xzm
-        fstemp=`ls -dt FluidSynth-fluidsynth-* | head -n1`
+#        wget -qO - https://github.com/FluidSynth/fluidsynth/tarball/master | tar -xzm
+        wget -qO - https://github.com/FluidSynth/fluidsynth/archive/refs/tags/v2.3.2.tar.gz | tar -xzm
+#        fstemp=`ls -dt FluidSynth-fluidsynth-* | head -n1`
+        fstemp='fluidsynth-2.3.2'
         mkdir $fstemp/build
         cd $fstemp/build
         echo "Configuring..."
