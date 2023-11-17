@@ -82,17 +82,6 @@ apt_pkg_install() {
     fi
 }
 
-pip_install() {
-    echo "Installing Python module $1..."
-    if ! { sudo -H pip3 install "$1" &> /dev/null; } then
-        if [[ ! $2 == "optional" ]]; then
-            failout "Failed to install $1!"
-        else
-            warning "Failed to install $1!"
-        fi
-    fi
-}
-
 
 sleep 1 # give curl time to print info
 
@@ -122,7 +111,7 @@ https://github.com/GeekFunkLabs/fluidpatcher
 Report issues with this script at
 https://github.com/GeekFunkLabs/fluidpatcher/issues
 
-Choose your install options. Empty responses will use the [default options].
+Choose your install options. An empty response will use the [default option].
 Setup will begin after all questions are answered.
 "
 
@@ -131,12 +120,13 @@ if test -f /etc/os-release; then
     if ! { grep -q ^Raspberry /proc/device-tree/model; } then
         ENVCHECK=false
     fi
-    if ! { grep -q bullseye /etc/os-release; } then
+    if ! { grep -q "bullseye\|bookworm" /etc/os-release; } then
         ENVCHECK=false
     fi
 fi
 if ! ($ENVCHECK); then
-    warning "This software is designed for the latest Raspberry Pi OS (Bullseye),"
+    warning "This software is designed for a Raspberry Pi computer"
+    warning "running Raspberry Pi OS bullseye or bookworm,"
     warning "which does not appear to be the situation here. YMMV!"
     if noyes "Proceed anyway?"; then
         exit 1
@@ -153,8 +143,13 @@ if [[ $installtype == 1 ]]; then
         inform "This script must reboot your computer to activate your sound card."
         inform "Once this is complete, run this script again to continue setup."
         if yesno "Reboot?"; then
-            sudo sed -i '$ a\dtoverlay=hifiberry-dac' /boot/config.txt
+			if test -d /boot/firmware; then
+				sudo sed -i '$ a\dtoverlay=hifiberry-dac' /boot/firmware/config.txt
+			else
+				sudo sed -i '$ a\dtoverlay=hifiberry-dac' /boot/config.txt
+			fi
             sync; sudo reboot
+			exit 0
         fi
     fi
 	echo "What version of SquishBox hardware are you using?"
@@ -162,7 +157,7 @@ if [[ $installtype == 1 ]]; then
 	echo "  v4 - Purple PCB, has 2 resistors and LED"
 	echo "  v3 - Purple PCB, has 1 resistor"
 	echo "  v2 - Hackaday/perfboard build"
-	query "Choose" "v6"; hw_version=$response
+	query "Enter version code" "v6"; hw_version=$response
 elif [[ $installtype == 2 ]]; then
     echo "Set up controls for Headless Pi Synth:"
     query "    MIDI channel for controls" "1"; ctrls_channel=$response
@@ -233,22 +228,18 @@ if [[ $install_synth ]]; then
     # get dependencies
     inform "Installing/Updating supporting software..."
     sysupdate
-    apt_pkg_install "python3-pip"
+    apt_pkg_install "python3-yaml"
+	apt_pkg_install "python3-rpi.gpio"
     apt_pkg_install "fluid-soundfont-gm"
     apt_pkg_install "ladspa-sdk" optional
     apt_pkg_install "swh-plugins" optional
     apt_pkg_install "tap-plugins" optional
     apt_pkg_install "wah-plugins" optional
-    pip_install "oyaml"
-    if [[ $installtype == 1 ]]; then
-        pip_install "RPi.GPIO"
-        pip_install "RPLCD"
-    fi
 
     # install/update fluidpatcher
-    FP_VER=`sed -n '/^VERSION/s|[^0-9\.]*||gp' $installdir/patcher/__init__.py &> /dev/null`
-    NEW_FP_VER=`curl -s https://api.github.com/repos/GeekFunkLabs/fluidpatcher/releases/latest | sed -n '/tag_name/s|[^0-9\.]*||gp'`
-    if [[ ! $FP_VER == $NEW_FP_VER ]]; then
+    CUR_FP_VER=`sed -n '/^__version__/s|[^0-9\.]*||gp' $installdir/fluidpatcher/__init__.py &> /dev/null`
+    FP_VER=`curl -s https://api.github.com/repos/GeekFunkLabs/fluidpatcher/releases/latest | sed -n '/tag_name/s|[^0-9\.]*||gp'`
+    if [[ ! $CUR_FP_VER == $FP_VER ]]; then
         inform "Installing/Updating FluidPatcher version $NEW_FP_VER ..."
         wget -qO - https://github.com/GeekFunkLabs/fluidpatcher/tarball/master | tar -xzm
         fptemp=`ls -dt GeekFunkLabs-fluidpatcher-* | head -n1`
@@ -265,12 +256,9 @@ if [[ $install_synth ]]; then
     fi
 
     # compile/install fluidsynth
-#    FS_VER=`fluidsynth --version 2> /dev/null | sed -n '/runtime version/s|[^0-9\.]*||gp'`
-#    BUILD_FS_VER=`curl -s https://api.github.com/repos/FluidSynth/fluidsynth/releases/latest | sed -n '/tag_name/s|[^0-9\.]*||gp'`
-    # prefer FluidSynth version 2.3.2 until https://github.com/FluidSynth/fluidsynth/issues/1272 is remedied
-    FS_VER='0'
-	BUILD_FS_VER='2.3.2'
-    if [[ ! $FS_VER == $BUILD_FS_VER ]]; then
+    CUR_FS_VER=`fluidsynth --version 2> /dev/null | sed -n '/runtime version/s|[^0-9\.]*||gp'`
+	FS_VER='2.3.4'
+    if [[ ! $CUR_FS_VER == $FS_VER ]]; then
         inform "Compiling latest FluidSynth from source..."
         echo "Getting build dependencies..."
         if { grep -q ^#deb-src /etc/apt/sources.list; } then
@@ -282,10 +270,8 @@ if [[ $install_synth ]]; then
             || echo E: install failed; } | grep '^[WE]:'; then
             warning "Couldn't get all dependencies!"
         fi
-#        wget -qO - https://github.com/FluidSynth/fluidsynth/tarball/master | tar -xzm
-        wget -qO - https://github.com/FluidSynth/fluidsynth/archive/refs/tags/v2.3.2.tar.gz | tar -xzm
-#        fstemp=`ls -dt FluidSynth-fluidsynth-* | head -n1`
-        fstemp='fluidsynth-2.3.2'
+        wget -qO - https://github.com/FluidSynth/fluidsynth/archive/refs/tags/v$BUILD_FS_VER.tar.gz | tar -xzm
+        fstemp=`ls -dt fluidsynth-* | head -n1`
         mkdir $fstemp/build
         cd $fstemp/build
         echo "Configuring..."
@@ -295,7 +281,7 @@ if [[ $install_synth ]]; then
         if { sudo make install; } then
             sudo ldconfig
         else
-            warning "Unable to compile FluidSynth $BUILD_VER"
+            warning "Unable to compile FluidSynth $BUILD_VER - installing from package repository"
             apt_pkg_install "fluidsynth"
         fi
         cd ../..
@@ -319,6 +305,12 @@ fi
 if [[ $installtype == 1 ]]; then
     inform "Enabling SquishBox startup service..."
     chmod a+x $installdir/squishbox.py
+    chmod a+x $installdir/lcdsplash.py
+    SB_VER=`sed -n '/^__version__/s|[^0-9\.]*||gp' $installdir/squishbox.py &> /dev/null`
+    sed -i "/^HW_VERSION/s|[v0-9]\+|$hw_version|" $installdir/squishbox.py
+    sed -i "/^HW_VERSION/s|[v0-9]\+|$hw_version|" $installdir/lcdsplash.py
+    sed -i "/^SB_VERSION/s|[0-9\.]\+|$SB_VER|" $installdir/lcdsplash.py
+    sed -i "/^FP_VERSION/s|[0-9\.]\+|$FP_VER|" $installdir/lcdsplash.py
     cat <<EOF | sudo tee /etc/systemd/system/squishbox.service
 [Unit]
 Description=SquishBox
@@ -334,12 +326,30 @@ Restart=on-failure
 [Install]
 WantedBy=multi-user.target
 EOF
+    cat <<EOF | sudo tee /etc/systemd/system/lcdsplash.service
+[Unit]
+Description=LCD Splashscreen
+DefaultDependencies=false
+
+[Service]
+Type=oneshot
+ExecStart=$installdir/lcdsplash.py
+Restart=no
+
+[Install]
+WantedBy=sysinit.target
+EOF
     sudo systemctl enable squishbox.service
-	sed -i "/^HW_VERSION/s|[v0-9]\+|$hw_version|" $installdir/squishbox.py
+    sudo systemctl enable lcdsplash.service
     ASK_TO_REBOOT=true
+
 elif [[ $installtype == 2 ]]; then
     inform "Enabling Headless Pi Synth startup service..."
     chmod a+x $installdir/headlesspi.py
+    sed -i "/^CHAN/s|[0-9]\+|$ctrls_channel|" $installdir/headlesspi.py
+    sed -i "/^DEC_PATCH/s|[0-9]\+|$decpatch|" $installdir/headlesspi.py
+    sed -i "/^INC_PATCH/s|[0-9]\+|$incpatch|" $installdir/headlesspi.py
+    sed -i "/^BANK_INC/s|[0-9]\+|$bankinc|" $installdir/headlesspi.py
     cat <<EOF | sudo tee /etc/systemd/system/squishbox.service
 [Unit]
 Description=Headless Pi Synth
@@ -356,10 +366,6 @@ Restart=on-failure
 WantedBy=multi-user.target
 EOF
     sudo systemctl enable squishbox.service
-    sed -i "/^CHAN/s|[0-9]\+|$ctrls_channel|" $installdir/headlesspi.py
-    sed -i "/^DEC_PATCH/s|[0-9]\+|$decpatch|" $installdir/headlesspi.py
-    sed -i "/^INC_PATCH/s|[0-9]\+|$incpatch|" $installdir/headlesspi.py
-    sed -i "/^BANK_INC/s|[0-9]\+|$bankinc|" $installdir/headlesspi.py
     ASK_TO_REBOOT=true
 fi
 
@@ -407,8 +413,7 @@ EOF
     sed -i "0,/root_path =/s|root_path = .*|root_path = '$installdir/SquishBox';|" tinyfilemanager.php
     sed -i "0,/favicon_path =/s|favicon_path = .*|favicon_path = 'gfl_logo.png';|" tinyfilemanager.php
     sudo mv -f tinyfilemanager.php /var/www/html/index.php
-    wget -q https://geekfunklabs.com/gfl_logo.png
-    sudo mv -f gfl_logo.png /var/www/html/
+	sudo cp -f assets/gfl_logo.png /var/www/html/
     ASK_TO_REBOOT=true
 fi
 
