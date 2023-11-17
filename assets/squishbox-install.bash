@@ -270,7 +270,7 @@ if [[ $install_synth ]]; then
             || echo E: install failed; } | grep '^[WE]:'; then
             warning "Couldn't get all dependencies!"
         fi
-        wget -qO - https://github.com/FluidSynth/fluidsynth/archive/refs/tags/v$BUILD_FS_VER.tar.gz | tar -xzm
+        wget -qO - https://github.com/FluidSynth/fluidsynth/archive/refs/tags/v$FS_VER.tar.gz | tar -xzm
         fstemp=`ls -dt fluidsynth-* | head -n1`
         mkdir $fstemp/build
         cd $fstemp/build
