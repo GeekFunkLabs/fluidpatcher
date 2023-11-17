@@ -19,6 +19,8 @@ display, standard menu and input functions, and a few utilities such as
 shell command access and wifi control.
 """
 
+__version__ = '0.8'
+
 import re
 import subprocess
 import sys
