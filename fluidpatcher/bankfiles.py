@@ -2,8 +2,7 @@
 """
 
 import re
-
-import oyaml
+import yaml
 
 sfp = re.compile('^(.+\.sf2):(\d+):(\d+)$', flags=re.I)
 nn = '[A-G]?[b#]?\d*[.]?\d+' # scientific note name or number
@@ -12,13 +11,13 @@ rspec = re.compile(f'^({nn})-({nn})\*(-?[\d\.]+)([+-]{nn})$')
 ftspec = re.compile(f'^({nn})?-?({nn})?=?(-?{nn})?-?(-?{nn})?$')
 scinote = re.compile('([+-]?)([A-G])([b#]?)(-?[0-9])') # scientific note name parts
 
-handlers = dict(Loader=oyaml.SafeLoader, Dumper=oyaml.SafeDumper)
-oyaml.add_implicit_resolver('!sfpreset', sfp, **handlers)
-oyaml.add_implicit_resolver('!midimsg', msg, **handlers)
+handlers = dict(Loader=yaml.SafeLoader, Dumper=yaml.SafeDumper)
+yaml.add_implicit_resolver('!sfpreset', sfp, **handlers)
+yaml.add_implicit_resolver('!midimsg', msg, **handlers)
 
 def add_bankobj_resolver(tag, path, kind):
-    oyaml.add_path_resolver(tag, path, kind, **handlers)
-    oyaml.add_path_resolver(tag, ['patches', (dict, None), *path], kind, **handlers)
+    yaml.add_path_resolver(tag, path, kind, **handlers)
+    yaml.add_path_resolver(tag, ['patches', (dict, None), *path], kind, **handlers)
 
 add_bankobj_resolver('!rrule', ['router_rules', (list, None)], dict)
 add_bankobj_resolver('!midiplayer', ['midiplayers', (dict, None)], dict)
@@ -27,6 +26,8 @@ add_bankobj_resolver('!arpeggiator', ['arpeggiators', (dict, None)], dict)
 add_bankobj_resolver('!ladspafx', ['ladspafx', (dict, None)], dict)
 
 def scinote_to_val(n):
+    """convert scientific note name to MIDI note number
+    """
     if not isinstance(n, str):
         return n
     sci = scinote.findall(n)[0]
@@ -37,12 +38,15 @@ def scinote_to_val(n):
     return sign * ((octave + 1) * 12 + note + acc)
 
 def sift(s):
+    """attempt to convert strings into floats or ints
+    """
     try: s = float(s)
     except (ValueError, TypeError): return s
     return int(s) if s.is_integer() else s
 
 def parseyaml(text='', data={}):
-    data = oyaml.safe_load(text) if text else data
+    """prune branches that contain None instances"""
+    data = yaml.safe_load(text) if text else data
     if isinstance(data, (list, dict)):
         for item in data if isinstance(data, list) else data.values():
             if item is None: return None
@@ -51,14 +55,15 @@ def parseyaml(text='', data={}):
     return data
 
 def renderyaml(data):
-    return oyaml.safe_dump(data)
+    """sort_keys=False preserves dict order"""
+    return yaml.safe_dump(data, sort_keys=False)
 
 
-class SFPreset(oyaml.YAMLObject):
+class SFPreset(yaml.YAMLObject):
 
     yaml_tag = '!sfpreset'
-    yaml_loader = oyaml.SafeLoader
-    yaml_dumper = oyaml.SafeDumper
+    yaml_loader = yaml.SafeLoader
+    yaml_dumper = yaml.SafeDumper
 
     def __init__(self, sfont, bank, prog):
         self.sfont = sfont
@@ -80,11 +85,11 @@ class SFPreset(oyaml.YAMLObject):
         return dumper.represent_scalar('!sfpreset', str(data))
 
 
-class MidiMessage(oyaml.YAMLObject):
+class MidiMessage(yaml.YAMLObject):
 
     yaml_tag = '!midimsg'
-    yaml_loader = oyaml.SafeLoader
-    yaml_dumper = oyaml.SafeDumper
+    yaml_loader = yaml.SafeLoader
+    yaml_dumper = yaml.SafeDumper
 
     def __init__(self, type, chan, par1, par2=None, yaml=''):
         self.type = type
@@ -110,7 +115,7 @@ class MidiMessage(oyaml.YAMLObject):
         return dumper.represent_scalar('!midimsg', str(data))
 
 
-class BankObject(oyaml.YAMLObject):
+class BankObject(yaml.YAMLObject):
     """Translation layer between YAML representation and bank data
     
     Attributes:
@@ -118,8 +123,8 @@ class BankObject(oyaml.YAMLObject):
       pars: copy of opars with elements modified as needed
     """
 
-    yaml_loader = oyaml.SafeLoader
-    yaml_dumper = oyaml.SafeDumper
+    yaml_loader = yaml.SafeLoader
+    yaml_dumper = yaml.SafeDumper
 
     def __init__(self, **pars):
         self.opars = {**pars}
@@ -196,7 +201,7 @@ class Sequencer(Arpeggiator):
         super().__init__(**pars)
         if 'notes' in pars:
             if isinstance(pars['notes'], str):
-                self.pars['notes'] = [MidiMessage.from_yaml(oyaml.SafeLoader, n.strip())
+                self.pars['notes'] = [MidiMessage.from_yaml(yaml.SafeLoader, n.strip())
                                       for n in pars['notes'].split(',')]
 
     @staticmethod
