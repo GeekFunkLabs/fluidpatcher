@@ -121,7 +121,7 @@ class SquishBox():
                 GPIO.add_event_detect(btn, GPIO.BOTH, callback=self._button_event)
         for enc in (ROT_L, ROT_R):
             if enc:
-                GPIO.add_event_detect(enc, GPIO.BOTH, callback=self._button_event)
+                GPIO.add_event_detect(enc, GPIO.BOTH, callback=self._encoder_event)
         self.state = {BTN_R: UP, BTN_SW: UP}
         self.timer = {BTN_R: 0, BTN_SW: 0}
         self.encstate = 0b000000
