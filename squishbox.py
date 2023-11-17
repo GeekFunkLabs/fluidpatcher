@@ -27,7 +27,6 @@ import time
 import traceback
 
 import RPi.GPIO as GPIO
-from RPLCD.gpio import CharLCD
 
 # squishbox stompswitch
 STOMP_MIDICHANNEL = 16
@@ -63,6 +62,7 @@ HOLD_TIME = 1.0
 MENU_TIMEOUT = 5.0
 BLINK_TIME = 0.1
 SCROLL_TIME = 0.4
+SCROLL_PAUSE = 4
 POLL_TIME = 0.01
 BOUNCE_TIME = 0.02
 COLS, ROWS = 16, 2
@@ -71,19 +71,21 @@ COLS, ROWS = 16, 2
 try: from hw_overlay import *
 except ModuleNotFoundError: pass
 
-# custom lcd characters https://omerk.github.io/lcdchargen/
-CUSTOMCHARS_BITS = (
-0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b01110, 0b01010, 0b00100, 
-0b00001, 0b11011, 0b00000, 0b10000, 0b00000, 0b10001, 0b00100, 0b00110, 
-0b00011, 0b01110, 0b11000, 0b01000, 0b00000, 0b00100, 0b01010, 0b00101, 
-0b10110, 0b00100, 0b10111, 0b00100, 0b01101, 0b01010, 0b00000, 0b00101, 
-0b11100, 0b01110, 0b10001, 0b00010, 0b10010, 0b00000, 0b00100, 0b00100, 
-0b01000, 0b11011, 0b10001, 0b00001, 0b00000, 0b00100, 0b00100, 0b11100, 
-0b00000, 0b00000, 0b11111, 0b00000, 0b00000, 0b00000, 0b00100, 0b11100, 
-0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000)
-CHECK, XMARK, SUBDIR, BACKSLASH, TILDE, WIFIUP, WIFIDOWN, MIDIACT, PADLEFT, PADRIGHT = tuple(chr(i) for i in range(10))
-INPCHARS = " abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_./" + BACKSLASH
-PRNCHARS = ''' abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'()*+,-.:;<=>?@[\]^_`{|}''' + BACKSLASH + TILDE
+# custom characters
+c = """\
+     |     |     |     |     | ### | # # |  #  \
+#    |     |    #|## ##|     |#   #|  #  |  ## \
+ #   |     |   ##| ### |##   |  #  | # # |  # #\
+  #  | ## #|# ## |  #  |# ###| # # |     |  # #\
+   # |#  # |###  | ### |#   #|     |  #  |  #  \
+    #|     | #   |## ##|#   #|  #  |     |###  \
+     |     |     |     |#####|     |  #  |###  \
+     |     |     |     |     |     |     |     \
+""".replace('|', '').replace('#', '1').replace(' ', '0')
+charbits = [[int(c[i:i + 5], 2) for i in range(j, 320, 40)] for j in range(0, 40, 5)]
+BACKSLASH, TILDE, CHECK, XMARK, SUBDIR, WIFIUP, WIFIDOWN, MIDIACT = [chr(i) for i in range(8)]
+FNCHARS = " abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_./" + BACKSLASH
+USCHARS = ''' abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*|/_?.,;:'"`-+=<>()[]{}''' + BACKSLASH + TILDE
 # button states
 UP = 0; DOWN = 1; HELD = 2
 # events
@@ -97,47 +99,40 @@ class SquishBox():
         """Initializes the LCD and GPIO
         
         Attributes:
-          buttoncallback:  When the state of a button connected to BTN_SW
+          buttoncallback: When the state of a button connected to BTN_SW
             changes, this function is called with 1 if the button was
             pressed, 0 if it was released.
-          blink: If the user sets this to 1, update() will set it back to 0
-            after BLINK_TIME has passed, allowing implementations to
-            blink something without needing a separate timer.
           wificon: contains either the WIFIUP or WIFIDOWN character
-            depending on the status of the wifi adapter
+            depending on the last-known status of the wifi adapter
         """
-
-        self.LCD = CharLCD(pin_rs=LCD_RS,
-                            pin_e=LCD_EN,
-                            pin_rw=None,
-                            pins_data=LCD_DATA,
-                            numbering_mode=GPIO.BCM,
-                            cols=COLS, rows=ROWS,
-                            compat_mode=True,
-                            charmap='A00')
-        for i in range(8):
-            self.LCD.create_char(i, CUSTOMCHARS_BITS[i::8])
-        self.lcd_clear()
-        self.lastscroll = time.time()
-        self.blink_timer = 0
-        self.blink = 0
-
         GPIO.setwarnings(False)
         GPIO.setmode(GPIO.BCM)
-        for channel in [c for c in (ROT_R, ROT_L, BTN_R, BTN_SW) if c]:
-            GPIO.setup(channel, GPIO.IN,
-                       pull_up_down=GPIO.PUD_UP if ACTIVE == GPIO.LOW else GPIO.PUD_DOWN)
-        for channel in PIN_OUT:
-            if channel: GPIO.setup(channel, GPIO.OUT)
-        if BTN_R: GPIO.add_event_detect(BTN_R, GPIO.BOTH, callback=self._button_event)
-        if BTN_SW: GPIO.add_event_detect(BTN_SW, GPIO.BOTH, callback=self._button_event)
-        if ROT_L: GPIO.add_event_detect(ROT_L, GPIO.BOTH, callback=self._encoder_event)
-        if ROT_R: GPIO.add_event_detect(ROT_R, GPIO.BOTH, callback=self._encoder_event)
+        for chan in (ROT_R, ROT_L, BTN_R, BTN_SW):
+            if chan:
+                pud = GPIO.PUD_UP if ACTIVE == GPIO.LOW else GPIO.PUD_DOWN
+                GPIO.setup(chan, GPIO.IN, pull_up_down=pud)
+        for chan in (LCD_RS, LCD_EN, *LCD_DATA, *PIN_OUT):
+            if chan:
+                GPIO.setup(chan, GPIO.OUT)
+        for btn in (BTN_R, BTN_SW):
+            if btn:
+                GPIO.add_event_detect(btn, GPIO.BOTH, callback=self._button_event)
+        for enc in (ROT_L, ROT_R):
+            if enc:
+                GPIO.add_event_detect(enc, GPIO.BOTH, callback=self._button_event)
         self.state = {BTN_R: UP, BTN_SW: UP}
         self.timer = {BTN_R: 0, BTN_SW: 0}
         self.encstate = 0b000000
         self.encvalue = 0
         self.buttoncallback = None
+
+        for val in (0x33, 0x32, 0x28, 0x0c, 0x06):
+            self._lcd_send(val)
+        self.lcd_clear()
+        for loc, bits in enumerate(charbits):
+            self._lcd_send(0x40 | loc << 3)
+            for row in bits:
+                self._lcd_send(row, 1)
 
         self.wificon = WIFIDOWN
         self.wifi_state()
@@ -146,10 +141,9 @@ class SquishBox():
     def update(self, idle=POLL_TIME, callback=True):
         """Polls buttons and updates LCD
         
-        Call in the main loop of a program to poll the buttons and rotary encoder,
-        and update the LCD. Stores characters in a buffer and only writes characters
-        that have changed, to save time and make the display smoother. Also sleeps
-        for a small amount of time before returning so other processes can run.
+        Call in the main loop of a program to poll the buttons and rotary
+        encoder, and update the LCD if necessary. Sleeps for a small amount
+        of time before returning so other processes can run.
         Returns an event code based on the state of the buttons. If
         buttoncallback is set and callback=True, the stompswitch calls
         that function instead of sending an event.
@@ -168,30 +162,26 @@ class SquishBox():
         """
         callback = self.buttoncallback if callback else None
         t = time.time()
-        for r, text in enumerate(self.lines):
-            if text == "": continue
-            towrite = text.strip(PADLEFT)[:COLS]
-            for c, newchar, oldchar in zip(range(COLS), towrite, self.written[r]):
-                if newchar != oldchar:
-                    self.LCD.cursor_pos = r, c
-                    self.LCD.write_string(newchar)
-            self.written[r] = towrite
+        for r in range(ROWS):
+            text = list(self.buffer[r])
             if len(text) > COLS:
-                if t - self.lastscroll < SCROLL_TIME: continue
-                self.lastscroll = t
-                if text[COLS] == PADRIGHT: # end of text, pause a bit
-                    self.lines[r] = text[:COLS] + text[COLS + 1:]
-                elif text[COLS] == PADLEFT: # wrap back to beginning
-                    self.lines[r] = text[COLS:] + text[:COLS] + PADRIGHT * 4
-                else: # shift one character
-                    self.lines[r] = text[1:] + text[0]
-            else:
-                self.lines[r] = ""
-        if self.blink_timer == 0 and self.blink:
-            self.blink_timer = t
-        elif t - self.blink_timer > BLINK_TIME:
-            self.blink = 0
-            self.blink_timer = 0
+                if t > self.scrolltimer:
+                    self.scrollpos[r] += 1
+                    if self.scrollpos[r] > len(text) - COLS + SCROLL_PAUSE:
+                        self.scrollpos[r] = -SCROLL_PAUSE
+                i = max(0, self.scrollpos[r])
+                i = min(i, len(text) - COLS)
+                text = text[i : i+COLS]
+            if self.blinktimer > 0:
+                for i, c in enumerate(self.blinked[r]):
+                    if c:
+                        text[i] = c
+            self._lcd_putchars(text, r, 0)
+        if t > self.scrolltimer:
+            self.scrolltimer = time.time() + SCROLL_TIME
+        if t > self.blinktimer:
+            self.blinked = [[""] * COLS for _ in range(ROWS)]
+            self.blinktimer = 0
         event = NULL
         for b in BTN_R, BTN_SW:
             if t - self.timer[b] > BOUNCE_TIME:
@@ -219,31 +209,71 @@ class SquishBox():
         
     def lcd_clear(self):
         """Clear the LCD"""
-        self.LCD.clear()
-        self.lines = [""] * ROWS
-        self.written = [" " * COLS] * ROWS
+        self._lcd_send(0x01)
+        self._lcd_setcursorpos(0, 0)
+        self.buffer = [" " * COLS for _ in range(ROWS)]
+        self.written = [[""] * COLS for _ in range(ROWS)]
+        self.blinked = [[""] * COLS for _ in range(ROWS)]
+        self.scrollpos = [0] * ROWS
+        self.scrolltimer = 0
+        self.blinktimer = 0
+        time.sleep(2e-3)
 
-    def lcd_write(self, text, row=0, scroll=False, rjust=False, now=False):
-        """Writes a row of text to the LCD
+    def lcd_write(self, text, row, col=0, mode='', now=False):
+        """Writes text to the LCD
         
-        Overwrites a line of text on the LCD with the provided text.
-        Characters are stored in a buffer until the user calls update(),
-        to reduce unnecessary writes to the LCD.
+        Writes text to the LCD starting at row, col. Characters are
+        stored in a buffer until the user calls update(). Can be
+        called with now=True if the LCD needs to be updated now,
+        usually because another process would delay updates.
 
         Args:
           text: string to write
-          row: the row to write
-          scroll: scroll text to the right if it is wide enough
-          rjust: justify right if True, left otherwise
-          now: if True update now so user doesn't have to
+          row: the row at which to start writing
+          col: the column at which to start writing
+          mode: if 'ljust' or 'rjust' pad with spaces, 'scroll' scrolls
+            text to the right if it is long enough, otherwise place text
+            starting at row, col
+          now: if True update LCD now
         """
-        if scroll and len(text) > COLS:
-            self.lines[row] = PADLEFT * 4 + text + PADRIGHT * 4
-        elif rjust:
-            self.lines[row] = text[:COLS].rjust(COLS)
-        else:
-            self.lines[row] = text[:COLS].ljust(COLS)
-        if now: self.update()
+        if mode == 'scroll':
+            if len(text) > COLS:
+                self.buffer[row] = text
+                self.scrollpos[row] = -SCROLL_PAUSE
+            else:
+                mode = 'ljust'
+        if mode == 'ljust':
+            self.buffer[row] = text[:COLS].ljust(COLS)
+        elif mode == 'rjust':
+            self.buffer[row] = text[:COLS].rjust(COLS)
+        elif mode != 'scroll':
+            self.buffer[row] = (self.buffer[row][:col]
+                                + text[: COLS-col]
+                                + self.buffer[row][col+len(text) :])[:COLS]
+        if now: self.update(idle=0)
+
+    def lcd_blink(self, text, row=0, col=0, delay=BLINK_TIME):
+        """Blink a character/message on the LCD
+        
+        Write text on the LCD that disappears after a delay. Text
+        written by lcd_write() will reappear. Calling this with
+        an empty string removes any current blinks. If a blink
+        is already in progress when this is called, the new one
+        is ignored.
+        
+        Args:
+          text: string to write, '' to clear blinks
+          row: the row at which to place text
+          col: the column at which to place text
+          delay: time to wait before removing text
+        """
+        if text == '':
+            self.blinked = [[""] * COLS for _ in range(ROWS)]
+            self.blinktimer = 0
+        elif self.blinktimer == 0:
+            for i, c in enumerate(text[: COLS-col]):
+                self.blinked[row][col + i] = c
+            self.blinktimer = time.time() + delay
 
     def progresswheel_start(self):
         """Shows an animation while another process runs
@@ -260,8 +290,6 @@ class SquishBox():
         """Removes the spinning character"""
         self.spinning = False
         self.spin.join()
-        self.LCD.cursor_pos = ROWS - 1, COLS - 1
-        self.LCD.write_string(' ')
 
     def waitfortap(self, t=0):
         """Waits until a button is pressed or some time has passed
@@ -278,7 +306,7 @@ class SquishBox():
             if self.update(callback=False) != NULL:
                 return True
 
-    def choose_opt(self, opts, i=0, row=0, scroll=False, timeout=MENU_TIMEOUT, rjust=False):
+    def choose_opt(self, opts, row, i=0, mode='rjust', timeout=MENU_TIMEOUT):
         """Lets the user choose an option from a list
         
         Displays options from a list of choices. User can scroll through
@@ -287,17 +315,17 @@ class SquishBox():
         
         Args:
           opts: list of strings to display as the choices
+          row: the row on which to show the choices
           i: index of the choice to display first
-          scroll: if True, scroll choices that don't fit on a line
-          timeout: seconds to wait, if 0 wait forever
-          rjust: justify right if True, left otherwise
+          mode: 'rjust' by default - see lcd_write()
+          timeout: seconds to wait, if -1 wait forever
 
-        Returns: index of option chosen, or -1 if time expired or ESCAPE
+        Returns: index of option chosen, or -1 if canceled
         """
         while True:
-            self.lcd_write(opts[i], row=row, scroll=scroll, rjust=rjust)
-            tstop = time.time() + timeout
-            while timeout == 0 or time.time() < tstop:
+            self.lcd_write(opts[i], row, mode=mode)
+            t = time.time()
+            while timeout == -1 or time.time() - t < timeout:
                 event = self.update(callback=False)
                 if event == INC:
                     i = (i + 1) % len(opts)
@@ -306,16 +334,15 @@ class SquishBox():
                     i = (i - 1) % len(opts)
                     break
                 elif event == SELECT:
-                    self._lcd_blink(opts[i], row, rjust=rjust)
+                    self._lcd_flash(opts[i], row, mode)
                     return i
                 elif event == ESCAPE:
-                    self.lcd_write('', row)
-                    return -1
+                    timeout = 0
             else:
-                self.lcd_write('', row)
+                # self.lcd_write(" " * COLS, row)
                 return -1
 
-    def choose_val(self, val, inc, minval, maxval, fmt=f'>{COLS}', timeout=MENU_TIMEOUT, func=None):
+    def choose_val(self, val, minval, maxval, inc, fmt=f'>{COLS}', timeout=MENU_TIMEOUT, func=None):
         """Lets the user modify a numeric parameter
 
         Displays a number on the bottom row of the LCD and allows the user to
@@ -326,19 +353,19 @@ class SquishBox():
         
         Args:
           val: the starting value
-          inc: the step size to change when incrementing/decrementing the value
           minval: the lower limit of the value
           maxval: the upper limit of the value
+          inc: the step size to change when incrementing/decrementing the value
           fmt: a format specifier for printing the value nicely
-          timeout: seconds to wait, if 0 forever
+          timeout: seconds to wait, if -1 forever
           func: a function to call with the value every time it changes
 
         Returns: selected value, or None if time expired or ESCAPE
         """
         while True:
-            self.lcd_write(format(val, fmt), ROWS - 1, rjust=True)
-            tstop = time.time() + timeout
-            while timeout == 0 or time.time() < tstop:
+            self.lcd_write(format(val, fmt), ROWS - 1, mode='rjust')
+            t = time.time()
+            while timeout == -1 or time.time() - t < timeout:
                 event = self.update(callback=False)
                 if event == INC:
                     val = min(val + inc, maxval)
@@ -349,14 +376,14 @@ class SquishBox():
                     if func: func(val)
                     break
                 elif event == SELECT:
-                    self._lcd_blink(format(val, fmt), ROWS - 1, rjust=True)
+                    self._lcd_flash(format(val, fmt), ROWS - 1, mode)
                     return val
                 elif event == ESCAPE:
-                    return None
+                    timeout = 0
             else:
                 return None
 
-    def confirm_choice(self, text='', row=ROWS - 1, timeout=MENU_TIMEOUT):
+    def confirm_choice(self, text='', row=ROWS-1, timeout=MENU_TIMEOUT):
         """Offers a yes/no choice
         
         Displays some text and lets the user toggle between a check mark
@@ -365,30 +392,30 @@ class SquishBox():
         Args:
           text: string to write
           row: the row to display the choice
-          timeout: seconds to wait, if 0 wait forever
+          timeout: seconds to wait, if -1 wait forever
 
         Returns: 1 if check is selected, 0 if time expires or ESCAPE
         """
-        self.lcd_write(text[:COLS - 1], row=row, now=True)
+        self.lcd_write(text[:COLS - 1], row)
         c = 1
         while True:
-            self.LCD.cursor_pos = row, COLS - 1
-            self.LCD.write_string([XMARK, CHECK][c])
-            tstop = time.time() + timeout
-            while timeout == 0 or time.time() < tstop:
+            self.lcd_write([XMARK, CHECK][c], row, COLS - 1)
+            t = time.time()
+            while timeout == -1 or time.time() - t < timeout:
                 event = self.update(callback=False)
                 if event in (DEC, INC):
                     c ^= 1
                     break
                 elif event == SELECT:
-                    if c: self._lcd_blink(text[:COLS], row=row)
+                    if c: self._lcd_flash(text[:COLS], row, mode)
                     return c
                 elif event == ESCAPE:
-                    return 0
+                    timeout = 0
             else:
                 return 0
 
-    def char_input(self, text=' ', i=-1, row=ROWS - 1, timeout=MENU_TIMEOUT, charset=INPCHARS):
+    def char_input(self, text=' ', row=ROWS-1, i=-1,
+                   timeout=MENU_TIMEOUT, charset=FNCHARS):
         """Allows user to enter text with a rotary encoder and button
 
         There are two cursor modes, which are toggled using SELECT. The
@@ -398,53 +425,56 @@ class SquishBox():
 
         Args:
           text: the initial text to be edited
-          i: initial cursor position, from end if negative
           row: the row in which to show the input
-          timeout: seconds to wait before canceling, forever if 0
+          i: initial cursor position, from end if negative
+          timeout: seconds to wait before canceling, forever if -1
+          charset: the set of allowed characters
 
         Returns: the edited string, or empty string if canceled
         """
         if i < 0: i = len(text) + i
-        c = charset.find(text[i]) # index in charset
-        self.LCD.cursor_mode = 'line'
+        c = charset.find(text[i])
+        mode = 'line'
+        self._lcd_setcursormode(mode)
         while True:
-            if self.LCD.cursor_mode == 'line':
-                self.lcd_write(text[max(0, i + 1 - COLS):max(COLS, i + 1)], row=row, now=True)
+            if mode == 'line':
+                self.lcd_write(text[max(0, i+1-COLS) : max(COLS, i+1)],
+                               row, mode='ljust', now=True)
             else:
-                self.LCD.write_string(charset[c])
-            self.LCD.cursor_pos = row, min(i, COLS - 1)
-            tstop = time.time() + timeout
-            while timeout == 0 or time.time() < tstop:
+                self.lcd_write(charset[c], row, min(i, COLS-1), now=True)
+            self._lcd_setcursorpos(row, min(i, COLS-1))
+            t = time.time()
+            while timeout == -1 or time.time() - t < timeout:
                 event = self.update(callback=False)
                 if event == NULL: continue
                 if event == INC:
-                    if self.LCD.cursor_mode == 'line':
-                        i = min(i + 1, len(text))
+                    if mode == 'line':
+                        i = min(i + 1, len(text)) 
                         if i == len(text): text += ' '
                         c = charset.find(text[i])
                     else:
                         c = (c + 1) % len(charset)
-                        text = text[0:i] + charset[c] + text[i + 1:]
+                        text = text[0:i] + charset[c] + text[i+1 :]
                 elif event == DEC:
-                    if self.LCD.cursor_mode == 'line':
+                    if mode == 'line':
                         i = max(i - 1, 0)
                         c = charset.find(text[i])
                     else:
                         c = (c - 1) % len(charset)
-                        text = text[0:i] + charset[c] + text[i + 1:]
+                        text = text[0:i] + charset[c] + text[i+1 :]
                 elif event == SELECT:
-                    self.LCD.cursor_mode = 'line' if self.LCD.cursor_mode == 'blink' else 'blink'
+                    mode = 'line' if mode == 'blink' else 'blink'
+                    self._lcd_setcursormode(mode)
                 elif event == ESCAPE:
-                    self.LCD.cursor_mode = 'hide'
+                    self._lcd_setcursormode('hide')
+                    if self.confirm_choice(text.strip()[1-COLS :], row=row):
+                        return text.strip().replace(BACKSLASH, '\\').replace(TILDE, '~')
+                    else:
+                        return ''
                 break
             else:
-                self.LCD.cursor_mode = 'hide'
+                self._lcd_setcursormode('hide')
                 return ''
-            if self.LCD.cursor_mode == 'hide':
-                if self.confirm_choice(text.strip()[1 - COLS:], row=row):
-                    return text.strip().replace(BACKSLASH, '\\').replace(TILDE, '~')
-                else:
-                    return ''
 
     def choose_file(self, topdir, last='', ext=None):
         """Lets user browse and select a file on the system
@@ -465,14 +495,14 @@ class SquishBox():
         """
         cdir = topdir if last == '' else (last.parent if last.parent > topdir else topdir)
         while True:
-            self.lcd_write(f"{str(cdir.relative_to(topdir.parent))}/:", ROWS - 2, scroll=True)
+            self.lcd_write(f"{str(cdir.relative_to(topdir.parent))}/:", ROWS - 2, mode='scroll')
             x = sorted([p for p in cdir.glob('*') if p.is_dir() or p.suffix == ext or ext == None])
             y = [f"{SUBDIR}{p.name}/" if p.is_dir() else p.name for p in x]
             i = x.index(last) if last in x else 0
             if cdir != topdir:
                 x.append(cdir.parent)
                 y.append("../")
-            j = self.choose_opt(y, i, row=ROWS - 1, scroll=True, timeout=0)
+            j = self.choose_opt(y, ROWS - 1, i, mode='scroll', timeout=-1)
             if j < 0: return ''
             if x[j].is_dir():
                 last = cdir
@@ -495,7 +525,7 @@ class SquishBox():
         if etype == KeyboardInterrupt:
             sys.exit()
         err_oneline = msg + re.sub(' {2,}', ' ', re.sub('\n|\^', ' ', str(err)))
-        self.lcd_write(err_oneline, ROWS - 1, scroll=True)
+        self.lcd_write(err_oneline, ROWS - 1, mode='scroll')
         if msg: print(msg)
         if tb:
             traceback.print_exception(etype, err, tb)
@@ -568,14 +598,14 @@ class SquishBox():
         """
         self.lcd_clear()
         if ip := sb.shell_cmd("hostname -I"):
-            self.lcd_write(f"Connected as {ip}", ROWS - 2, scroll=True)
+            self.lcd_write(f"Connected as {ip}", ROWS - 2, mode='scroll')
         else:
-            self.lcd_write("Not connected", ROWS - 2)
+            self.lcd_write("Not connected", ROWS - 2, mode='ljust')
         if self.wifi_state() == 'blocked':
             if self.choose_opt(["Enable WiFi"], row=ROWS - 1) == 0:
                 self.wifi_state('unblock')
         else:
-            self.lcd_write("scanning ", ROWS - 1, rjust=True, now=True)
+            self.lcd_write("scanning ", ROWS - 1, mode='rjust', now=True)
             x = sb.shell_cmd("iw dev wlan0 link")
             ssid = "".join(re.findall('SSID: ([^\n]+)', x))
             opts = [CHECK + ssid] if ssid else []
@@ -585,18 +615,18 @@ class SquishBox():
             self.progresswheel_stop()
             networks = set(re.findall('SSID: ([^\n]+)', x))
             opts += [*(networks - {ssid}), "Disable WiFi"]
-            j = self.choose_opt(opts, row=ROWS - 1, scroll=True, timeout=0)
+            j = self.choose_opt(opts, row=ROWS - 1, mode='scroll', timeout=-1)
             if j < 0: return
             elif opts[j] == "Disable WiFi":
                 self.wifi_state('block')
             elif j >= 0:
                 if CHECK in opts[j]: return
-                self.lcd_write("Password:", ROWS - 2)
+                self.lcd_write("Password:", ROWS - 2, mode='ljust')
                 psk = self.char_input(charset = PRNCHARS)
                 if psk == '': return
                 self.lcd_clear()
-                self.lcd_write(opts[j], ROWS - 2)
-                self.lcd_write("adding network ", ROWS - 1, rjust=True, now=True)
+                self.lcd_write(opts[j], ROWS - 2, mode='ljust')
+                self.lcd_write("adding network ", ROWS - 1, mode='rjust', now=True)
                 self.progresswheel_start()
                 network = f'\nnetwork={{\n  ssid=\"{opts[j]}\"\n  psk=\"{psk}\"\n}}'
                 sb.shell_cmd(f"echo {network} | sudo tee -a /etc/wpa_supplicant/wpa_supplicant.conf")
@@ -617,24 +647,55 @@ class SquishBox():
         elif self.encstate == 0b110100:
             self.encvalue -= 1
 
-    def _lcd_blink(self, text, row, n=3, rjust=False):
-        text = text[:COLS].rjust(COLS) if rjust else text[:COLS].ljust(COLS)
-        for _ in range(n):
-            self.LCD.cursor_pos = row, 0
-            self.LCD.write_string(' ' * COLS)
-            time.sleep(BLINK_TIME)
-            self.LCD.cursor_pos = row, 0
-            self.LCD.write_string(text)
-            time.sleep(BLINK_TIME)
-
     def _progresswheel_spin(self):
         while True:
             for x in BACKSLASH + '|/-':
                 if not self.spinning: return
-                self.LCD.cursor_pos = ROWS - 1, COLS - 1
-                self.LCD.write_string(x)
+                self._lcd_putchars(x, ROWS - 1, COLS - 1)
                 time.sleep(BLINK_TIME)
+                
+    def _lcd_flash(self, text, row, mode='', n=3):
+        text = text[:COLS].rjust(COLS) if mode == 'rjust' else text[:COLS].ljust(COLS)
+        for _ in range(n):
+            self._lcd_putchars(' ' * COLS, row, 0)
+            time.sleep(BLINK_TIME)
+            self._lcd_putchars(text, row, 0)
+            time.sleep(BLINK_TIME)
 
+    def _lcd_putchars(self, chars, row, col):
+        lastcol = -2
+        for c in chars:
+            if self.written[row][col] != c:
+                if lastcol != col - 1:
+                    self._lcd_setcursorpos(row, col)
+                self._lcd_send(ord(c), 1)
+                self.written[row][col] = c
+                lastcol = col
+            col += 1
+
+    def _lcd_setcursorpos(self, row, col):
+        if row < ROWS and col < COLS:
+            offset = [0x00, 0x40, COLS, 0x40 + COLS]
+            self._lcd_send(0x80 | offset[row] + col)
+
+    def _lcd_setcursormode(self, mode):
+        if mode == 'hide':
+            self._lcd_send(0x0c | 0x00)
+        elif mode == 'blink':
+            self._lcd_send(0x0d)
+        elif mode == 'line':
+            self._lcd_send(0x0e)
+
+    @staticmethod
+    def _lcd_send(val, reg=0):
+        GPIO.output(LCD_RS, reg)
+        GPIO.output(LCD_EN, GPIO.LOW)
+        for nib in (val >> 4, val):
+            for i in range(4):
+                GPIO.output(LCD_DATA[i], (nib >> i) & 0x01)
+            GPIO.output(LCD_EN, GPIO.HIGH)
+            time.sleep(50e-6)
+            GPIO.output(LCD_EN, GPIO.LOW)
 
 class FluidBox:
     """Manages a SquishBox interface to FluidPatcher"""
@@ -643,13 +704,14 @@ class FluidBox:
         """Creates the FluidBox"""
         self.pno = 0
         self.buttonstate = 0
-        self.buffer = [' ' * COLS] * ROWS
-        self.lastsig = None
         fp.midi_callback = self.listener
         sb.buttoncallback = self.handle_buttonevent
         self.midi_connect()
         self.load_bank(fp.currentbank)
-        while not fp.currentbank: self.load_bank()
+        while not fp.currentbank:
+            self.load_bank()
+        while True:
+            self.patchmode()
 
     def handle_buttonevent(self, val):
         """Handles callback events when the stompbutton state changes
@@ -681,7 +743,6 @@ class FluidBox:
         """
         if 'val' in sig:
             if 'patch' in sig:
-                # sig is modified by FluidPatcher._midisignal_handler()
                 if sig.patch < 0:
                     self.pno = (self.pno + sig.val) % len(fp.patches)
                 else:
@@ -689,63 +750,69 @@ class FluidBox:
             elif 'lcdwrite' in sig:
                 if 'format' in sig:
                     val = format(sig.val, sig.format)
-                    self.buffer[1] = f"{sig.lcdwrite} {val}".rjust(COLS)
+                    self.lcdwrite = f"{sig.lcdwrite} {val}"[:COLS].rjust(COLS)
                 else:
-                    self.buffer[1] = sig.lcdwrite.rjust(COLS)
+                    self.lcdwrite = sig.lcdwrite[-COLS:].rjust(COLS)
             elif 'setpin' in sig:
                 if PIN_OUT[sig.setpin] == PIN_LED:
                     self.buttonstate = 1 if sig.val else 0
                 sb.gpio_set(PIN_OUT[sig.setpin], sig.val)
         else:
             self.lastsig = sig
-            if self.buffer[1][1] == ' ':
-                sb.blink = 1
-                self.buffer[1] = self.buffer[1][0] + MIDIACT + self.buffer[1][2:]
 
     def patchmode(self):
-        """Displays the main screen of the FluidBox"""
-        pno = -1
+        """Selects a patch and displays the main screen"""
+        if fp.patches:
+            warn = fp.apply_patch(self.pno)
+        else:
+            warn = fp.apply_patch('')
+        pno = self.pno
         while True:
-            if self.pno != pno:
-                if fp.patches:
-                    pno = self.pno
-                    self.buffer = [fp.patches[pno],
-                                   f"patch: {pno + 1}/{len(fp.patches)}".rjust(COLS)]
-                    warn = fp.apply_patch(pno)
-                else:
-                    pno, self.pno = 0, 0
-                    self.buffer = ["No patches", "patch 0/0".rjust(COLS)]
-                    warn = fp.apply_patch('')
+            if fp.patches:
+                sb.lcd_write(fp.patches[self.pno], 0, mode='scroll')
                 if warn:
-                    sb.lcd_write(self.buffer[0], 0, scroll=True)
-                    sb.lcd_write('; '.join(warn), 1, scroll=True)
+                    sb.lcd_write('; '.join(warn), 1, mode='scroll')
                     sb.waitfortap()
-            if self.buffer[1][0] == ' ':
-                self.buffer[1] = sb.wificon + self.buffer[1][1:]
-            lines = self.buffer[:]
-            sb.lcd_write(lines[0], 0, scroll=True)
-            sb.lcd_write(lines[1], 1)
+                sb.lcd_write(f"patch: {self.pno + 1}/{len(fp.patches)}", 1, mode='rjust')
+            else:
+                sb.lcd_write("No patches", 0, mode='ljust')
+                if warn:
+                    sb.lcd_write('; '.join(warn), 1, mode='scroll')
+                    sb.waitfortap()
+                sb.lcd_write("patch 0/0", 1, mode='rjust')
+            sb.lcd_write(sb.wificon, 1, 0)
+            warn = []
+            self.lastsig = None
+            self.lcdwrite = None
             while True:
-                if self.pno != pno: break
-                if self.buffer[1][1] == MIDIACT and not sb.blink:
-                    self.buffer[1] = self.buffer[1][0] + ' ' + self.buffer[1][2:]
-                if self.buffer != lines: break
+                if pno != self.pno:
+                    return
+                if self.lastsig:
+                    sb.lcd_blink(MIDIACT, 1, 1)
+                    self.lastsig = None
+                if self.lcdwrite:
+                    sb.lcd_blink('')
+                    sb.lcd_blink(self.lcdwrite, 1, delay=MENU_TIMEOUT)
+                    self.lcdwrite = None
                 event = sb.update()
+                if event == NULL:
+                    continue
                 if event == INC and fp.patches:
                     self.pno = (self.pno + 1) % len(fp.patches)
-                    break
+                    return
                 elif event == DEC and fp.patches:
                     self.pno = (self.pno - 1) % len(fp.patches)
-                    break
+                    return
                 elif event == SELECT:
                     k = sb.choose_opt(['Load Bank', 'Save Bank', 'Save Patch', 'Delete Patch',
                                        'Open Soundfont', 'Effects..', 'System Menu..'], row=1)
                     if k == 0:
-                        if self.load_bank(): pno = -1
+                        if self.load_bank():
+                            return
                     elif k == 1:
                         self.save_bank()
                     elif k == 2:
-                        sb.lcd_write("Save patch:", 0)
+                        sb.lcd_write("Save patch:", 0, mode='ljust')
                         newname = sb.char_input(fp.patches[self.pno])
                         if newname != '':
                             if newname != fp.patches[self.pno]:
@@ -756,15 +823,15 @@ class FluidBox:
                         if sb.confirm_choice('Delete', row=1):
                             fp.delete_patch(self.pno)
                             self.pno = min(self.pno, len(fp.patches) - 1)
-                            pno = -1
+                            return
                     elif k == 4:
                         if sfont := sb.choose_file(fp.sfdir, ext='.sf2'):
                             self.sfmode(sfont)                            
-                            sb.lcd_write("loading patches ", 1, now=True)
+                            sb.lcd_write("loading patches ", 1, mode='ljust', now=True)
                             sb.progresswheel_start()
                             fp.load_bank()
                             sb.progresswheel_stop()
-                            pno = -1
+                            return
                     elif k == 5:
                         self.effects_menu()
                     elif k == 6:
@@ -773,12 +840,12 @@ class FluidBox:
 
     def sfmode(self, sfont):
         """Soundfont preset chooser"""
-        sb.lcd_write(sfont.name, 0, scroll=True, now=True)
-        sb.lcd_write("loading presets ", 1, now=True)
+        sb.lcd_write(sfont.name, 0, mode='scroll', now=True)
+        sb.lcd_write("loading presets ", 1, mode='rjust', now=True)
         sb.progresswheel_start()
         if not (presets := fp.solo_soundfont(sfont)):
             sb.progresswheel_stop()
-            sb.lcd_write(f"Unable to load presets from {str(sfont)}", 1, scroll=True)
+            sb.lcd_write(f"Unable to load presets from {str(sfont)}", 1, mode='scroll')
             sb.waitfortap()
             return
         sb.progresswheel_stop()
@@ -786,12 +853,12 @@ class FluidBox:
         warn = fp.select_sfpreset(sfont, *presets[i])
         while True:
             bank, prog, name = presets[i]
-            sb.lcd_write(name, 0, scroll=True)
+            sb.lcd_write(name, 0, mode='scroll')
             if warn:
-                sb.lcd_write('; '.join(warn), 1, scroll=True)
+                sb.lcd_write('; '.join(warn), 1, mode='scroll')
                 sb.waitfortap()
                 warn = []
-            sb.lcd_write(f"preset {bank:03}:{prog:03}", 1, rjust=True)
+            sb.lcd_write(f"preset {bank:03}:{prog:03}", 1, mode='rjust')
             while True:
                 event = sb.update(callback=False)
                 if event == INC:
@@ -803,7 +870,7 @@ class FluidBox:
                     warn = fp.select_sfpreset(sfont, *presets[i])
                     break
                 elif event == SELECT:
-                    sb.lcd_write("Add as Patch:", 0)
+                    sb.lcd_write("Add as Patch:", 0, mode='ljust')
                     newname = sb.char_input(name)
                     if newname:
                         self.pno = fp.add_patch(newname)
@@ -819,8 +886,8 @@ class FluidBox:
             last = fp.bankdir / fp.currentbank if fp.currentbank else ""
             bank = sb.choose_file(fp.bankdir, last, '.yaml')
             if bank == "": return False
-        sb.lcd_write(bank.name, 0, scroll=True, now=True)
-        sb.lcd_write("loading patches ", 1, now=True)
+        sb.lcd_write(bank.name, 0, mode='scroll', now=True)
+        sb.lcd_write("loading patches ", 1, mode='ljust', now=True)
         sb.progresswheel_start()
         try: fp.load_bank(bank)
         except Exception as e:
@@ -851,30 +918,31 @@ class FluidBox:
             sb.display_error(e, "bank save error: ")
         else:
             fp.write_config()
-            sb.lcd_write("bank saved", 1)
+            sb.lcd_write("bank saved", 1, mode='ljust')
             sb.waitfortap(2)
 
     def effects_menu(self):
         """FluidSynth effects setting menu"""
         i=0
-        fxmenu_info = (# Name             fluidsetting              inc    min     max   format
-                       ('Reverb Size',   'synth.reverb.room-size',  0.1,   0.0,    1.0, '4.1f'),
-                       ('Reverb Damp',   'synth.reverb.damp',       0.1,   0.0,    1.0, '4.1f'),
-                       ('Rev. Width',    'synth.reverb.width',      0.5,   0.0,  100.0, '5.1f'),
-                       ('Rev. Level',    'synth.reverb.level',     0.01,  0.00,   1.00, '5.2f'),
-                       ('Chorus Voices', 'synth.chorus.nr',           1,     0,     99, '2d'),
-                       ('Chor. Level',   'synth.chorus.level',      0.1,   0.0,   10.0, '4.1f'),
-                       ('Chor. Speed',   'synth.chorus.speed',      0.1,   0.1,   21.0, '4.1f'),
-                       ('Chorus Depth',  'synth.chorus.depth',      0.1,   0.3,    5.0, '3.1f'),
-                       ('Gain',          'synth.gain',              0.1,   0.0,    5.0, '11.1f'))
+        fxmenu_info = (
+            # Name             fluidsetting              min    max   inc   format
+            ('Reverb Size',   'synth.reverb.room-size',  0.0,   1.0,  0.1, '4.1f'),
+            ('Reverb Damp',   'synth.reverb.damp',       0.0,   1.0,  0.1, '4.1f'),
+            ('Rev. Width',    'synth.reverb.width',      0.0, 100.0,  0.5, '5.1f'),
+            ('Rev. Level',    'synth.reverb.level',     0.00,  1.00, 0.01, '5.2f'),
+            ('Chorus Voices', 'synth.chorus.nr',           0,    99,    1, '2d'),
+            ('Chor. Level',   'synth.chorus.level',      0.0,  10.0,  0.1, '4.1f'),
+            ('Chor. Speed',   'synth.chorus.speed',      0.1,  21.0,  0.1, '4.1f'),
+            ('Chorus Depth',  'synth.chorus.depth',      0.3,   5.0,  0.1, '3.1f'),
+            ('Gain',          'synth.gain',              0.0,   5.0,  0.1, '11.1f'))
         vals = [fp.fluidsetting_get(info[1]) for info in fxmenu_info]
         fxopts = [fxmenu_info[i][0] + ':' + format(vals[i], fxmenu_info[i][5]) for i in range(len(fxmenu_info))]
         while True:
-            sb.lcd_write("Effects:", 0)
-            i = sb.choose_opt(fxopts, i, row=1)
+            sb.lcd_write("Effects:", 0, mode='ljust')
+            i = sb.choose_opt(fxopts, 1, i)
             if i < 0:
                 break
-            sb.lcd_write(fxopts[i], 0)
+            sb.lcd_write(fxopts[i], 0, mode='ljust')
             newval = sb.choose_val(vals[i], *fxmenu_info[i][2:], func=lambda x: fp.fluidsetting_set(fxmenu_info[i][1], x))
             if newval != None:
                 fp.fluidsetting_set(fxmenu_info[i][1], newval, patch=self.pno)
@@ -885,11 +953,11 @@ class FluidBox:
 
     def system_menu(self):
         """System functions and settings menu"""
-        sb.lcd_write("System Menu:", 0)
+        sb.lcd_write("System Menu:", 0, mode='ljust')
         k = sb.choose_opt(['Power Down', 'MIDI Devices', 'Wifi Settings', 'USB File Copy'], row=1)
         if k == 0:
-            sb.lcd_write("Shutting down..", 0)
-            sb.lcd_write("Wait 30s, unplug", 1, now=True)
+            sb.lcd_write("Shutting down..", 0, mode='ljust')
+            sb.lcd_write("Wait 30s, unplug", 1, mode='ljust', now=True)
             sb.shell_cmd("sudo poweroff")
         elif k == 1:
             self.midi_devices()
@@ -900,16 +968,16 @@ class FluidBox:
 
     def midi_devices(self):
         """Menu for connecting MIDI devices and monitoring"""
-        sb.lcd_write("MIDI Devices:", 0)
+        sb.lcd_write("MIDI Devices:", 0, mode='ljust')
         readable = re.findall(" (\d+): '([^\n]*)'", sb.shell_cmd("aconnect -i"))
         rports, rnames = list(zip(*readable))
-        p = sb.choose_opt([*rnames, "MIDI monitor.."], row=1, scroll=True, timeout=0)
+        p = sb.choose_opt([*rnames, "MIDI monitor.."], row=1, mode='scroll', timeout=-1)
         if p < 0: return
         if 0 <= p < len(rports):
-            sb.lcd_write("Connect to:", 0)
+            sb.lcd_write("Connect to:", 0, mode='ljust')
             writable = re.findall(" (\d+): '([^\n]*)'", sb.shell_cmd("aconnect -o"))
             wports, wnames = list(zip(*writable))
-            op = sb.choose_opt(wnames, row=1, scroll=True, timeout=0)
+            op = sb.choose_opt(wnames, row=1, mode='scroll', timeout=-1)
             if op < 0: return
             if 'midiconnections' not in fp.cfg: fp.cfg['midiconnections'] = []
             fp.cfg['midiconnections'].append({rnames[p]: re.sub('(FLUID Synth) \(.*', '\\1', wnames[op])})
@@ -918,10 +986,10 @@ class FluidBox:
             except subprocess.CalledProcessError: pass
         elif p == len(rports):
             sb.lcd_clear()
-            sb.lcd_write("MIDI monitor:", 0)
+            sb.lcd_write("MIDI monitor:", 0, mode='ljust')
             msg = self.lastsig
             while not sb.waitfortap(0.1):
-                if self.lastsig and self.lastsig == msg: continue
+                if self.lastsig == msg or self.lastsig == None: continue
                 msg = self.lastsig
                 if msg.type not in ('note', 'noteoff', 'cc', 'kpress', 'prog', 'pbend', 'cpress'): continue
                 t = ('note', 'noteoff', 'cc', 'kpress', 'prog', 'pbend', 'cpress').index(msg.type)
@@ -949,17 +1017,17 @@ class FluidBox:
     def usb_filecopy():
         """Menu for bulk copying files to/from USB drive"""
         sb.lcd_clear()
-        sb.lcd_write("USB File Copy:", 0)
+        sb.lcd_write("USB File Copy:", 0, mode='ljust')
         usb = re.search('/dev/sd[a-z]\d*', sb.shell_cmd("sudo blkid"))
         if not usb:
-            sb.lcd_write("USB not found", 1)
+            sb.lcd_write("USB not found", 1, mode='ljust')
             sb.waitfortap(2)
             return
         opts = ['USB -> SquishBox', 'SquishBox -> USB', 'Sync with USB']
         j = sb.choose_opt(opts, row=1)
         if j < 0: return
-        sb.lcd_write(opts[j], row=0)
-        sb.lcd_write("copying files ", 1, rjust=True, now=True)
+        sb.lcd_write(opts[j], row=0, mode='ljust')
+        sb.lcd_write("copying files ", 1, mode='rjust', now=True)
         sb.progresswheel_start()
         try:
             sb.shell_cmd("sudo mkdir -p /mnt/usbdrv")
@@ -983,13 +1051,11 @@ if __name__ == "__main__":
 
     import os
 
-    from fluidpatcher import FluidPatcher, __version__
+    from fluidpatcher import FluidPatcher
     
     os.umask(0o002)
     sb = SquishBox()
     sb.lcd_clear()
-    sb.lcd_write(f"version {__version__}", 0, now=True)
-    sb.waitfortap(3)
     try: fp = FluidPatcher("SquishBox/squishboxconf.yaml")
     except Exception as e:
         sb.display_error(e, "bad config file: ")
