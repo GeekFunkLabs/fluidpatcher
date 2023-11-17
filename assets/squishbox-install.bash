@@ -237,7 +237,7 @@ if [[ $install_synth ]]; then
     apt_pkg_install "wah-plugins" optional
 
     # install/update fluidpatcher
-    CUR_FP_VER=`sed -n '/^__version__/s|[^0-9\.]*||gp' $installdir/fluidpatcher/__init__.py &> /dev/null`
+    CUR_FP_VER=`sed -n '/^__version__/s|[^0-9\.]*||gp' $installdir/fluidpatcher/__init__.py`
     FP_VER=`curl -s https://api.github.com/repos/GeekFunkLabs/fluidpatcher/releases/latest | sed -n '/tag_name/s|[^0-9\.]*||gp'`
     if [[ ! $CUR_FP_VER == $FP_VER ]]; then
         inform "Installing/Updating FluidPatcher version $NEW_FP_VER ..."
@@ -306,11 +306,10 @@ if [[ $installtype == 1 ]]; then
     inform "Enabling SquishBox startup service..."
     chmod a+x $installdir/squishbox.py
     chmod a+x $installdir/lcdsplash.py
-    SB_VER=`sed -n '/^__version__/s|[^0-9\.]*||gp' $installdir/squishbox.py &> /dev/null`
-    sed -i "/^HW_VERSION/s|[v0-9]\+|$hw_version|" $installdir/squishbox.py
-    sed -i "/^HW_VERSION/s|[v0-9]\+|$hw_version|" $installdir/lcdsplash.py
-    sed -i "/^SB_VERSION/s|[0-9\.]\+|$SB_VER|" $installdir/lcdsplash.py
-    sed -i "/^FP_VERSION/s|[0-9\.]\+|$FP_VER|" $installdir/lcdsplash.py
+    SB_VER=`sed -n '/^__version__/s|[^0-9\.]*||gp' $installdir/squishbox.py`
+    sed -i "/^HW_VERSION/cHW_VERSION = '$hw_version'" $installdir/squishbox.py
+    sed -i "/^HW_VERSION/cHW_VERSION = '$hw_version'" $installdir/lcdsplash.py
+    sed -i "/^SB_VERSION/cSB_VERSION = '$SB_VER'"
     cat <<EOF | sudo tee /etc/systemd/system/squishbox.service
 [Unit]
 Description=SquishBox
