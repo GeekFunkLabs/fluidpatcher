@@ -8,8 +8,7 @@ import RPi.GPIO as GPIO
 
 # versions
 HW_VERSION = 'v6'
-SB_VERSION = '0.8'
-FP_VERSION = '0.8'
+SB_VERSION = '0.8.2'
 
 LCD_RS = 2; LCD_EN = 3; LCD_DATA = 11, 5, 6, 13
 if HW_VERSION == 'v4':
@@ -50,7 +49,7 @@ for loc, bits in enumerate(logobits):
 
 lcd_send(0x01) # clear LCD
 time.sleep(2e-3)
-version_str = f"{HW_VERSION}/{SB_VERSION}/{FP_VERSION}".rjust(11)
+version_str = f"{HW_VERSION}/{SB_VERSION}".rjust(11)
 lcd_send(0x80) # cursor to row 0, column 0
 for c in " \x00\x01\x02\x03  SquishBox":
     lcd_send(ord(c), 1)
