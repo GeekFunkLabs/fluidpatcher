@@ -237,23 +237,20 @@ if [[ $install_synth ]]; then
     apt_pkg_install "wah-plugins" optional
 
     # install/update fluidpatcher
-    CUR_FP_VER=`sed -n '/^__version__/s|[^0-9\.]*||gp' $installdir/fluidpatcher/__init__.py`
     FP_VER=`curl -s https://api.github.com/repos/GeekFunkLabs/fluidpatcher/releases/latest | sed -n '/tag_name/s|[^0-9\.]*||gp'`
-    if [[ ! $CUR_FP_VER == $FP_VER ]]; then
-        inform "Installing/Updating FluidPatcher version $NEW_FP_VER ..."
-        wget -qO - https://github.com/GeekFunkLabs/fluidpatcher/tarball/master | tar -xzm
-        fptemp=`ls -dt GeekFunkLabs-fluidpatcher-* | head -n1`
-        cd $fptemp
-        find . -type d -exec mkdir -p ../{} \;
-        # copy files, but don't overwrite banks, config (i.e. yaml files)
-        find . -type f ! -name "*.yaml" ! -name "hw_overlay.py" -exec cp -f {} ../{} \;
-        find . -type f -name "*.yaml" -exec cp -n {} ../{} \;
-        cd ..
-        rm -rf $fptemp
-        ln -s /usr/share/sounds/sf2/FluidR3_GM.sf2 SquishBox/sf2/ > /dev/null
-        gcc -shared assets/patchcord.c -o patchcord.so
-        sudo mv -f patchcord.so /usr/lib/ladspa
-    fi
+    inform "Installing/Updating FluidPatcher version $FP_VER ..."
+    wget -qO - https://github.com/GeekFunkLabs/fluidpatcher/tarball/master | tar -xzm
+    fptemp=`ls -dt GeekFunkLabs-fluidpatcher-* | head -n1`
+    cd $fptemp
+    find . -type d -exec mkdir -p ../{} \;
+    # copy files, but don't overwrite banks, config (i.e. yaml files)
+    find . -type f ! -name "*.yaml" ! -name "hw_overlay.py" -exec cp -f {} ../{} \;
+    find . -type f -name "*.yaml" -exec cp -n {} ../{} \;
+    cd ..
+    rm -rf $fptemp
+    ln -s /usr/share/sounds/sf2/FluidR3_GM.sf2 SquishBox/sf2/ > /dev/null
+    gcc -shared assets/patchcord.c -o patchcord.so
+    sudo mv -f patchcord.so /usr/lib/ladspa
 
     # compile/install fluidsynth
     CUR_FS_VER=`fluidsynth --version 2> /dev/null | sed -n '/runtime version/s|[^0-9\.]*||gp'`
