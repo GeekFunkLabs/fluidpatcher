@@ -378,7 +378,7 @@ class SquishBox():
                     if func: func(val)
                     break
                 elif event == SELECT:
-                    self._lcd_flash(format(val, fmt), ROWS - 1, mode)
+                    self._lcd_flash(format(val, fmt), ROWS - 1, mode='rjust')
                     return val
                 elif event == ESCAPE:
                     timeout = 0
