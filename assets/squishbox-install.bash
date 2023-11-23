@@ -306,7 +306,7 @@ if [[ $installtype == 1 ]]; then
     SB_VER=`sed -n '/^__version__/s|[^0-9\.]*||gp' $installdir/squishbox.py`
     sed -i "/^HW_VERSION/cHW_VERSION = '$hw_version'" $installdir/squishbox.py
     sed -i "/^HW_VERSION/cHW_VERSION = '$hw_version'" $installdir/lcdsplash.py
-    sed -i "/^SB_VERSION/cSB_VERSION = '$SB_VER'"
+    sed -i "/^SB_VERSION/cSB_VERSION = '$SB_VER'" $installdir/lcdsplash.py
     cat <<EOF | sudo tee /etc/systemd/system/squishbox.service
 [Unit]
 Description=SquishBox
