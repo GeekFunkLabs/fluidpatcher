@@ -168,7 +168,7 @@ class RouterRule(BankObject):
 
     def add(self, addfunc):
         for type in self.type:
-            for chan in self.chan:
+            for chan in self.chan or [None]:
                 addfunc(type, chan, **self.pars)
 
     @staticmethod
