@@ -256,10 +256,10 @@ class MainWindow(wx.Frame):
     def listener(self, sig):
         if hasattr(sig, 'val'):
             if hasattr(sig, 'patch') and fp.patches:
-                if sig.patch < 0:
+                if sig.patch == -1:
                     self.select_patch(pno=(self.pno + sig.val) % len(fp.patches))
                 else:
-                    self.select_patch(pno=self.patch)
+                    self.select_patch(pno=sig.patch)
             elif hasattr(sig, 'lcdwrite'):
                 if hasattr(sig, 'format'):
                     val = format(sig.val, sig.format)

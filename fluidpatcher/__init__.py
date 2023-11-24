@@ -16,7 +16,7 @@ Requires:
 - libfluidsynth
 """
 
-__version__ = '0.8.3'
+__version__ = '0.8.4'
 
 from pathlib import Path
 from copy import deepcopy
@@ -451,10 +451,12 @@ class FluidPatcher:
             if sig.patch in self.patches:
                 sig.patch = self.patches.index(sig.patch)
             elif sig.patch == 'select':
-                sig.patch = int(sig.val) % len(self.patches)
-            elif sig.patch[-1] in '+-':
+                sig.patch = int(sig.val - 1) % len(self.patches)
+            elif str(sig.patch)[-1] in '+-':
                 sig.val = int(sig.patch[-1] + sig.patch[:-1])
                 sig.patch = -1
+            elif isinstance(sig.patch, int):
+                sig.patch -= 1
             else:
                 sig.patch = -1
                 sig.val = 0

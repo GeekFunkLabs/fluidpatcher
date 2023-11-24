@@ -40,7 +40,7 @@ def connect_controls():
     fp.add_router_rule(type=TYPE, chan=CHAN, par1=INC_PATCH, par2='1-127', patch='1+')
     fp.add_router_rule(type=TYPE, chan=CHAN, par1=BANK_INC, par2='1-127', bank=1)
     if SELECT_PATCH != None:
-        selectspec =  f"0-127=0-{min(len(fp.patches) - 1, 127)}" # transform CC values into patch numbers
+        selectspec =  f"0-127=1-{min(len(fp.patches), 128)}" # transform CC values into patch numbers
         fp.add_router_rule(type='cc', chan=CHAN, par1=SELECT_PATCH, par2=selectspec, patch='select')
     if SHUTDOWN_BTN != None:
         fp.add_router_rule(type=TYPE, chan=CHAN, par1=SHUTDOWN_BTN, shutdown=1)
@@ -152,7 +152,7 @@ class HeadlessSynth:
     def listener(self, sig):
     # catches custom midi :sig to change patch/bank
         if hasattr(sig, 'patch'):
-            if sig.patch < 0:
+            if sig.patch == -1:
                 self.select_patch((self.pno + sig.val) % len(fp.patches))
             else:
                 self.select_patch(sig.patch)

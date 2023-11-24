@@ -19,7 +19,7 @@ display, standard menu and input functions, and a few utilities such as
 shell command access and wifi control.
 """
 
-__version__ = '0.8.3'
+__version__ = '0.8.4'
 
 import re
 import subprocess
@@ -736,7 +736,7 @@ class FluidBox:
         routing, and additional parameters corresponding to the rule
         parameters. The following custom rules are handled:
 
-        - `patch`: a patch index to be selected. If `patch` has a '+' or '-'
+        - `patch`: a patch name or index to be selected. If `patch` has a '+' or '-'
             suffix, increment the current patch index instead.
         - `lcdwrite`: a string to be written to the LCD, right-justified. If `format`
             is provided, the formatted `val` parameter is appended
@@ -745,7 +745,7 @@ class FluidBox:
         """
         if 'val' in sig:
             if 'patch' in sig:
-                if sig.patch < 0:
+                if sig.patch == -1:
                     self.pno = (self.pno + sig.val) % len(fp.patches)
                 else:
                     self.pno = sig.patch
@@ -764,6 +764,7 @@ class FluidBox:
 
     def patchmode(self):
         """Selects a patch and displays the main screen"""
+        sb.lcd_clear()
         if fp.patches:
             warn = fp.apply_patch(self.pno)
         else:
@@ -961,6 +962,7 @@ class FluidBox:
             sb.lcd_write("Shutting down..", 0, mode='ljust')
             sb.lcd_write("Wait 30s, unplug", 1, mode='ljust', now=True)
             sb.shell_cmd("sudo poweroff")
+            sys.exit()
         elif k == 1:
             self.midi_devices()
         elif k == 2:
