@@ -210,17 +210,26 @@ class SquishBox():
         time.sleep(idle)
         return event
         
-    def lcd_clear(self):
-        """Clear the LCD"""
-        self._lcd_send(0x01)
-        self._lcd_setcursorpos(0, 0)
+    def lcd_clear(self, now=True):
+        """Clear the LCD
+        
+        Sends a clear command to the LCD and clears the
+        text and blink buffers. 
+        
+        Args:
+          now: if False just clear buffers to reduce flickering,
+            but requires an update to take effect
+        """
+        if now:
+            self._lcd_send(0x01)
+            self._lcd_setcursorpos(0, 0)
+            time.sleep(2e-3)
         self.buffer = [" " * COLS for _ in range(ROWS)]
         self.written = [[""] * COLS for _ in range(ROWS)]
         self.blinked = [[""] * COLS for _ in range(ROWS)]
         self.scrollpos = [0] * ROWS
         self.scrolltimer = 0
         self.blinktimer = 0
-        time.sleep(2e-3)
 
     def lcd_write(self, text, row, col=0, mode='', now=False):
         """Writes text to the LCD
