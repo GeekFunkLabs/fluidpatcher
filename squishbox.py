@@ -68,6 +68,7 @@ SCROLL_PAUSE = 4
 POLL_TIME = 0.01
 BOUNCE_TIME = 0.02
 COLS, ROWS = 16, 2
+EXEC_TIME = 50e-6 # increase if LCD displays garbage
 
 # optional file to customize any of the above settings (and preserve through updates)
 try: from hw_overlay import *
@@ -209,17 +210,26 @@ class SquishBox():
         time.sleep(idle)
         return event
         
-    def lcd_clear(self):
-        """Clear the LCD"""
-        self._lcd_send(0x01)
-        self._lcd_setcursorpos(0, 0)
+    def lcd_clear(self, now=True):
+        """Clear the LCD
+        
+        Sends a clear command to the LCD and clears the
+        text and blink buffers. 
+        
+        Args:
+          now: if False just clear buffers to reduce flickering,
+            but requires an update to take effect
+        """
+        if now:
+            self._lcd_send(0x01)
+            self._lcd_setcursorpos(0, 0)
+            time.sleep(2e-3)
         self.buffer = [" " * COLS for _ in range(ROWS)]
         self.written = [[""] * COLS for _ in range(ROWS)]
         self.blinked = [[""] * COLS for _ in range(ROWS)]
         self.scrollpos = [0] * ROWS
         self.scrolltimer = 0
         self.blinktimer = 0
-        time.sleep(2e-3)
 
     def lcd_write(self, text, row, col=0, mode='', now=False):
         """Writes text to the LCD
@@ -247,14 +257,14 @@ class SquishBox():
         if mode == 'ljust':
             self.buffer[row] = text[:COLS].ljust(COLS)
         elif mode == 'rjust':
-            self.buffer[row] = text[:COLS].rjust(COLS)
+            self.buffer[row] = text[-COLS:].rjust(COLS)
         elif mode != 'scroll':
             self.buffer[row] = (self.buffer[row][:col]
                                 + text[: COLS-col]
                                 + self.buffer[row][col+len(text) :])[:COLS]
         if now: self.update(idle=0)
 
-    def lcd_blink(self, text, row=0, col=0, delay=BLINK_TIME):
+    def lcd_blink(self, text, row=0, col=0, mode='', delay=BLINK_TIME):
         """Blink a character/message on the LCD
         
         Write text on the LCD that disappears after a delay. Text
@@ -267,12 +277,18 @@ class SquishBox():
           text: string to write, '' to clear blinks
           row: the row at which to place text
           col: the column at which to place text
+          mode: if 'ljust' or 'rjust' pad with spaces,
+            otherwise place text starting at row, col
           delay: time to wait before removing text
         """
         if text == '':
             self.blinked = [[""] * COLS for _ in range(ROWS)]
             self.blinktimer = 0
         elif self.blinktimer == 0:
+            if mode == 'ljust':
+                text = text[: COLS-col].ljust(COLS-col)
+            elif mode == 'rjust':
+                text = text[col-COLS :].rjust(COLS-col)
             for i, c in enumerate(text[: COLS-col]):
                 self.blinked[row][col + i] = c
             self.blinktimer = time.time() + delay
@@ -409,7 +425,7 @@ class SquishBox():
                     c ^= 1
                     break
                 elif event == SELECT:
-                    if c: self._lcd_flash(text[:COLS], row, mode)
+                    if c: self._lcd_flash(text[:COLS], row, mode='ljust')
                     return c
                 elif event == ESCAPE:
                     timeout = 0
@@ -696,7 +712,7 @@ class SquishBox():
             for i in range(4):
                 GPIO.output(LCD_DATA[i], (nib >> i) & 0x01)
             GPIO.output(LCD_EN, GPIO.HIGH)
-            time.sleep(50e-6)
+            time.sleep(EXEC_TIME)
             GPIO.output(LCD_EN, GPIO.LOW)
 
 class FluidBox:
@@ -708,12 +724,6 @@ class FluidBox:
         self.buttonstate = 0
         fp.midi_callback = self.listener
         sb.buttoncallback = self.handle_buttonevent
-        self.midi_connect()
-        self.load_bank(fp.currentbank)
-        while not fp.currentbank:
-            self.load_bank()
-        while True:
-            self.patchmode()
 
     def handle_buttonevent(self, val):
         """Handles callback events when the stompbutton state changes
@@ -752,9 +762,9 @@ class FluidBox:
             elif 'lcdwrite' in sig:
                 if 'format' in sig:
                     val = format(sig.val, sig.format)
-                    self.lcdwrite = f"{sig.lcdwrite} {val}"[:COLS].rjust(COLS)
+                    self.lcdwrite = f"{sig.lcdwrite} {val}"
                 else:
-                    self.lcdwrite = sig.lcdwrite[-COLS:].rjust(COLS)
+                    self.lcdwrite = sig.lcdwrite
             elif 'setpin' in sig:
                 if PIN_OUT[sig.setpin] == PIN_LED:
                     self.buttonstate = 1 if sig.val else 0
@@ -764,12 +774,12 @@ class FluidBox:
 
     def patchmode(self):
         """Selects a patch and displays the main screen"""
-        sb.lcd_clear()
         if fp.patches:
             warn = fp.apply_patch(self.pno)
         else:
             warn = fp.apply_patch('')
         pno = self.pno
+        sb.lcd_clear(now=False)
         while True:
             if fp.patches:
                 sb.lcd_write(fp.patches[self.pno], 0, mode='scroll')
@@ -795,7 +805,7 @@ class FluidBox:
                     self.lastsig = None
                 if self.lcdwrite:
                     sb.lcd_blink('')
-                    sb.lcd_blink(self.lcdwrite, 1, delay=MENU_TIMEOUT)
+                    sb.lcd_blink(self.lcdwrite, 1, mode='rjust', delay=MENU_TIMEOUT)
                     self.lcdwrite = None
                 event = sb.update()
                 if event == NULL:
@@ -1065,4 +1075,9 @@ if __name__ == "__main__":
         sb.display_error(e, "bad config file: ")
     else:
         mainapp = FluidBox()
-        mainapp.patchmode()
+        mainapp.midi_connect()
+        mainapp.load_bank(fp.currentbank)
+        while not fp.currentbank:
+            mainapp.load_bank()
+        while True:
+            mainapp.patchmode()
