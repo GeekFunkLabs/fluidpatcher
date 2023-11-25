@@ -68,6 +68,7 @@ SCROLL_PAUSE = 4
 POLL_TIME = 0.01
 BOUNCE_TIME = 0.02
 COLS, ROWS = 16, 2
+EXEC_TIME = 50e-6 # increase if LCD displays garbage
 
 # optional file to customize any of the above settings (and preserve through updates)
 try: from hw_overlay import *
@@ -696,7 +697,7 @@ class SquishBox():
             for i in range(4):
                 GPIO.output(LCD_DATA[i], (nib >> i) & 0x01)
             GPIO.output(LCD_EN, GPIO.HIGH)
-            time.sleep(50e-6)
+            time.sleep(EXEC_TIME)
             GPIO.output(LCD_EN, GPIO.LOW)
 
 class FluidBox:
