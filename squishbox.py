@@ -19,7 +19,7 @@ display, standard menu and input functions, and a few utilities such as
 shell command access and wifi control.
 """
 
-__version__ = '0.8.4'
+__version__ = '0.8.5'
 
 import re
 import subprocess
