@@ -774,12 +774,12 @@ class FluidBox:
 
     def patchmode(self):
         """Selects a patch and displays the main screen"""
-        sb.lcd_clear()
         if fp.patches:
             warn = fp.apply_patch(self.pno)
         else:
             warn = fp.apply_patch('')
         pno = self.pno
+        sb.lcd_clear(now=False)
         while True:
             if fp.patches:
                 sb.lcd_write(fp.patches[self.pno], 0, mode='scroll')
@@ -1075,4 +1075,9 @@ if __name__ == "__main__":
         sb.display_error(e, "bad config file: ")
     else:
         mainapp = FluidBox()
-        mainapp.patchmode()
+        mainapp.midi_connect()
+        mainapp.load_bank(fp.currentbank)
+        while not fp.currentbank:
+            mainapp.load_bank()
+        while True:
+            mainapp.patchmode()
