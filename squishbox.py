@@ -718,12 +718,6 @@ class FluidBox:
         self.buttonstate = 0
         fp.midi_callback = self.listener
         sb.buttoncallback = self.handle_buttonevent
-        self.midi_connect()
-        self.load_bank(fp.currentbank)
-        while not fp.currentbank:
-            self.load_bank()
-        while True:
-            self.patchmode()
 
     def handle_buttonevent(self, val):
         """Handles callback events when the stompbutton state changes
