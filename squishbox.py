@@ -409,7 +409,7 @@ class SquishBox():
                     c ^= 1
                     break
                 elif event == SELECT:
-                    if c: self._lcd_flash(text[:COLS], row, mode)
+                    if c: self._lcd_flash(text[:COLS], row, mode='ljust')
                     return c
                 elif event == ESCAPE:
                     timeout = 0
