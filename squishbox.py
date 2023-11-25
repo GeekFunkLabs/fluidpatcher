@@ -257,14 +257,14 @@ class SquishBox():
         if mode == 'ljust':
             self.buffer[row] = text[:COLS].ljust(COLS)
         elif mode == 'rjust':
-            self.buffer[row] = text[:COLS].rjust(COLS)
+            self.buffer[row] = text[-COLS:].rjust(COLS)
         elif mode != 'scroll':
             self.buffer[row] = (self.buffer[row][:col]
                                 + text[: COLS-col]
                                 + self.buffer[row][col+len(text) :])[:COLS]
         if now: self.update(idle=0)
 
-    def lcd_blink(self, text, row=0, col=0, delay=BLINK_TIME):
+    def lcd_blink(self, text, row=0, col=0, mode='', delay=BLINK_TIME):
         """Blink a character/message on the LCD
         
         Write text on the LCD that disappears after a delay. Text
@@ -277,12 +277,18 @@ class SquishBox():
           text: string to write, '' to clear blinks
           row: the row at which to place text
           col: the column at which to place text
+          mode: if 'ljust' or 'rjust' pad with spaces,
+            otherwise place text starting at row, col
           delay: time to wait before removing text
         """
         if text == '':
             self.blinked = [[""] * COLS for _ in range(ROWS)]
             self.blinktimer = 0
         elif self.blinktimer == 0:
+            if mode == 'ljust':
+                text = text[: COLS-col].ljust(COLS-col)
+            elif mode == 'rjust':
+                text = text[col-COLS :].rjust(COLS-col)
             for i, c in enumerate(text[: COLS-col]):
                 self.blinked[row][col + i] = c
             self.blinktimer = time.time() + delay
@@ -756,9 +762,9 @@ class FluidBox:
             elif 'lcdwrite' in sig:
                 if 'format' in sig:
                     val = format(sig.val, sig.format)
-                    self.lcdwrite = f"{sig.lcdwrite} {val}"[:COLS].rjust(COLS)
+                    self.lcdwrite = f"{sig.lcdwrite} {val}"
                 else:
-                    self.lcdwrite = sig.lcdwrite[-COLS:].rjust(COLS)
+                    self.lcdwrite = sig.lcdwrite
             elif 'setpin' in sig:
                 if PIN_OUT[sig.setpin] == PIN_LED:
                     self.buttonstate = 1 if sig.val else 0
@@ -799,7 +805,7 @@ class FluidBox:
                     self.lastsig = None
                 if self.lcdwrite:
                     sb.lcd_blink('')
-                    sb.lcd_blink(self.lcdwrite, 1, delay=MENU_TIMEOUT)
+                    sb.lcd_blink(self.lcdwrite, 1, mode='rjust', delay=MENU_TIMEOUT)
                     self.lcdwrite = None
                 event = sb.update()
                 if event == NULL:
