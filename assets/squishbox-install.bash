@@ -397,9 +397,9 @@ EOF
     sudo sed -i "/post_max_size/cpost_max_size = 999M" /etc/php/$phpver/fpm/php.ini
     # set permissions and umask to avoid permissions problems
     sudo usermod -a -G $USER www-data
-    sudo chmod -R g+rw $installdir/SquishBox
+    sudo chmod -R g+rwx $installdir/SquishBox
     f=$installdir/SquishBox
-    while [[ $f != / ]]; do chmod g+rw "$f"; f=$(dirname "$f"); done;
+    while [[ $f != / ]]; do chmod g+rwx "$f"; f=$(dirname "$f"); done;
     sudo sed -i "/UMask/d" /lib/systemd/system/php$phpver-fpm.service
     sudo sed -i "/\[Service\]/aUMask=0002" /lib/systemd/system/php$phpver-fpm.service
     # install and configure tinyfilemanager (https://tinyfilemanager.github.io)
