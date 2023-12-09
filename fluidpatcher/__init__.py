@@ -297,6 +297,11 @@ class FluidPatcher:
         patch = self._resolve_patch(patch)
         messages = set(patch.get('messages', []))
         for channel in range(1, self.max_channels + 1):
+            for cc, default in enumerate(_CC_DEFAULTS):
+                if default < 0: continue
+                val = self.fsynth.get_cc(channel, cc)
+                if val != default:
+                    messages.add(MidiMessage('cc', channel, cc, val))
             info = self.fsynth.program_info(channel)
             if not info:
                 patch.pop(channel, None)
@@ -304,11 +309,6 @@ class FluidPatcher:
             sfont, bank, prog = info
             sfrel = Path(sfont).relative_to(self.sfdir).as_posix()
             patch[channel] = SFPreset(sfrel, bank, prog)
-            for cc, default in enumerate(_CC_DEFAULTS):
-                if default < 0: continue
-                val = self.fsynth.get_cc(channel, cc)
-                if val != default:
-                    messages.add(MidiMessage('cc', channel, cc, val))
         if messages:
             patch['messages'] = list(messages)
 
