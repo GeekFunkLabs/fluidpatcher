@@ -12,7 +12,7 @@ Includes:
 - bankfiles.py: extensions to YAML and functions for parsing bank files
 
 Requires:
-- oyaml
+- yaml
 - libfluidsynth
 """
 
