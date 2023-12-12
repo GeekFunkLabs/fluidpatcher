@@ -626,9 +626,9 @@ class Synth:
             elif LADSPA_SUPPORT and 'ladspafx' in rule:
                 if res.ladspafx in self.ladspafx:
                     self.ladspafx[res.ladspafx].setcontrol(res.port, res.val)
-            else:
-                # not handled here, pass it to the callback
-                if self.midi_callback: self.midi_callback(res)
+            elif self.midi_callback:
+                # not handled here, pass result to the callback
+                if self.midi_callback(res): return
         if dt > 0: self.clocks = t, self.clocks[0]
         if self.midi_callback:
             # send the original event to the callback
