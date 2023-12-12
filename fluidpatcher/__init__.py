@@ -460,8 +460,9 @@ class FluidPatcher:
             else:
                 sig.patch = -1
                 sig.val = 0
-            return True
         if self.midi_callback: self.midi_callback(sig)
+        if 'patch' in sig:
+            return True
 
     def _refresh_bankfonts(self):
         sfneeded = set()
