@@ -1,0 +1,10 @@
+soundfontdir: SquishBox/sf2
+bankdir: SquishBox/banks
+mfilesdir: SquishBox/midi
+plugindir: /usr/lib/ladspa
+currentbank: bank1.yaml
+
+fluidsettings:
+  midi.autoconnect: 1
+  player.reset-synth: 0
+  synth.ladspa.active: 1
