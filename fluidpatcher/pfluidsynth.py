@@ -353,6 +353,11 @@ class Sequencer:
         self.ticksperbeat = 500 # default 120bpm at 1000 ticks/sec
         self.beat = 0
 
+    def step(self, event, n):
+        if n < 1:
+            n = self.beat % len(self.notes)
+        self.notes[n - 1] = SequencerNote(chan, key, vel)
+
     def scheduler(self, time=None, event=None, fseq=None, data=None):
         if event and FS.fluid_event_get_type(event) == FLUID_SEQ_UNREGISTERING:
             return
@@ -602,30 +607,38 @@ class Synth:
                 FS.fluid_synth_handle_midi_event(self.fsynth, res.event)
                 continue
             if 'fluidsetting' in rule:
-                self.setting(res.fluidsetting, res.val)
+                self.setting(rule.fluidsetting, res.val)
             elif 'sequencer' in rule:
-                if res.sequencer in self.players:
-                    self.players[res.sequencer].play(res.val)
+                if rule.sequencer in self.players:
+                    if 'step' in rule:
+                        self.players[rule.sequencer].step(res.event, res.step) # should be rule.event? new event?
+                    self.players[rule.sequencer].play(res.val)
             elif 'arpeggiator' in rule:
-                if res.arpeggiator in self.players:
-                    self.players[res.arpeggiator].note(res.chan, res.par1, res.val)
+                if rule.arpeggiator in self.players:
+                    self.players[rule.arpeggiator].note(res.chan, res.par1, res.val)
             elif 'midiplayer' in rule:
-                if res.midiplayer in self.players:
+                if rule.midiplayer in self.players:
                     if 'tick' in rule:
-                        self.players[res.midiplayer].transport(res.val, res.tick)
+                        self.players[rule.midiplayer].transport(res.val, rule.tick)
                     else:
-                        self.players[res.midiplayer].transport(res.val)
+                        self.players[rule.midiplayer].transport(res.val)
             elif 'tempo' in rule:
-                if res.tempo in self.players:
-                    self.players[res.tempo].set_tempo(res.val)
+                if rule.tempo in self.players:
+                    self.players[rule.tempo].set_tempo(res.val)
+            elif 'swing' in rule:
+                if rule.swing in self.players:
+                    self.players[rule.swing].swing = res.val if 0.5 <= res.val < 1 else 0.5
+            elif 'groove' in rule:
+                if rule.groove in self.players:
+                    self.players[rule.groove].groove = [res.val]
             elif 'sync' in rule:
-                if res.sync in self.players:
+                if rule.sync in self.players:
                     dt, dt2 = t - self.clocks[0], self.clocks[0] - self.clocks[1]
                     bpm = 1000 * 60 * res.val / dt
-                    if dt2/dt > 0.5: self.players[res.sync].set_tempo(bpm)
+                    if dt2/dt > 0.5: self.players[rule.sync].set_tempo(bpm)
             elif LADSPA_SUPPORT and 'ladspafx' in rule:
-                if res.ladspafx in self.ladspafx:
-                    self.ladspafx[res.ladspafx].setcontrol(res.port, res.val)
+                if rule.ladspafx in self.ladspafx:
+                    self.ladspafx[rule.ladspafx].setcontrol(rule.port, res.val)
             else:
                 # not handled here, pass it to the callback
                 if self.midi_callback: self.midi_callback(res)
