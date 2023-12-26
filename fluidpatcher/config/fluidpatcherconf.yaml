@@ -1,6 +1,6 @@
-soundfontdir: SquishBox/sf2
-bankdir: SquishBox/banks
-mfilesdir: SquishBox/midi
+soundfontdir: fluidpatcher/config/sf2
+bankdir: fluidpatcher/config/banks
+mfilesdir: fluidpatcher/config/midi
 plugindir: /usr/lib/ladspa
 currentbank: bank1.yaml
 
