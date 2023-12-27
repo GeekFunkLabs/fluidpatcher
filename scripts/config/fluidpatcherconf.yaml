@@ -1,6 +1,6 @@
-soundfontdir: fluidpatcher/config/sf2
-bankdir: fluidpatcher/config/banks
-mfilesdir: fluidpatcher/config/midi
+soundfontdir: config/sf2
+bankdir: config/banks
+mfilesdir: config/midi
 plugindir: /usr/lib/ladspa
 currentbank: bank1.yaml
 
