@@ -7,16 +7,16 @@ note: >
 # e.g. this comment will disappear
 
 patches:
-  Just EP:
+  Basic Piano:
     info: basic patch - assigns a voice (soundfont:bank:program) to a MIDI channel
-    1: FM Piano.sf2:000:000
-    
+    1: defaultGM.sf2:000:000
+
   Two Hands:
     info: This patch has `router_rules` that clear the default rules and send each
       half of the keyboard to a different voice.
-    1: FM Piano.sf2:000:000
+    1: defaultGM.sf2:000:005
     note: extra zeros in bank and program numbers are optional
-    2: ModSynth_R1.sf2:0:1
+    2: defaultGM.sf2:0:38
     router_rules:
     - clear
     - {type: note, chan: 1, par1: F3-G9}
@@ -28,7 +28,7 @@ patches:
     - cc:2:74:0
 
   Playable:
-    3: VintageDreamsWaves-v2.sf2:000:014
+    3: defaultGM.sf2:000:084
     router_rules:
     - {type: cc, chan: 1=3}
     - {type: note, chan: 1=3, par1: Ab3-G9}
@@ -64,19 +64,19 @@ patches:
     - {type: cc, chan: 1, par1: 14, par2: 0-127=0-1, ladspafx: delayline3, port: Delay}
     comment: The first rule uses par2 routing to make all notes maximum volume like a retro synth,
       The `ladspafx` rules connects a cc to the Delay value for each of the delay effects, and the
-      `pbend=cc` rule triggers control change messages from pitch bends.
+      `pbend=cc` rule triggers a CC74 message from pitch bends.
 
   Elevator Jam:
     description: This patch demonstrates sequencers, arpeggiators, midifile players
-    3: VintageDreamsWaves-v2.sf2:000:005
+    3: defaultGM.sf2:000:016
     sequencers:
       fluteloop:
         swing: 0.7
         notes: [note:4:A5:70, note:4:G5:70, note:4:A5:70, note:4:C6:70]
-    4: VintageDreamsWaves-v2.sf2:000:017
+    4: defaultGM.sf2:000:096
     arpeggiators:
       ep_arp: {tdiv: 8, style: both, octaves: 2}
-    5: VintageDreamsWaves-v2.sf2:000:069
+    5: defaultGM.sf2:000:108
     midiplayers:
       groove:
         file: elevatorgroove.mid
@@ -85,9 +85,9 @@ patches:
         info: barlength and loops are given in MIDI ticks
         chan: 1-10*1+5
         mask: prog, kpress
-    6: VintageDreamsWaves-v2.sf2:000:035
-    7: VintageDreamsWaves-v2.sf2:000:020
-    15: VintageDreamsWaves-v2.sf2:128:004
+    6: defaultGM.sf2:000:100
+    7: defaultGM.sf2:008:038
+    15: defaultGM.sf2:128:000
     router_rules:
     - {type: note, chan: 1=3, par1: C4-C9}
     - {type: note, chan: 1=5, par1: C3-B3, arpeggiator: ep_arp}

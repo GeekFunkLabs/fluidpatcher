@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""
-Description: an implementation of patcher.py for a headless Raspberry Pi
-    creates a synthesizer that can be controlled with a USB MIDI controller
-    patches/banks are changed using pads/buttons/knobs on the controller
-    should work on other platforms as well
+"""A headless Raspberry Pi FluidPatcher synth
+
+Creates a synthesizer that can be controlled with a USB midi controller without
+the need for a screen/keyboard or any additional hardware. This can be a way
+to try out the idea of the SquishBox as an embedded synth/audio device, or just
+a way to create an inexpensive but versatile musical instrument.
 """
 from pathlib import Path
 import re
@@ -168,24 +169,12 @@ class HeadlessSynth:
                 self.shutdowntimer = time.time()
 
 
-cfgfile = sys.argv[1] if len(sys.argv) > 1 else 'SquishBox/squishboxconf.yaml'
+cfgfile = sys.argv[1] if len(sys.argv) > 1 else '' or
+          'fluidpatcherconf.yaml'
 try:
     fp = FluidPatcher(cfgfile)
 except Exception as e:
     print(f"Error loading config file {cfgfile}\n{str(e)}")
     error_blink(2)
-
-devs = {client: port for port, client in re.findall(" (\d+): '([^\n]*)'", subprocess.check_output(['aconnect', '-io']).decode())}
-for link in fp.cfg.get('midiconnections', []):
-    mfrom, mto = list(link.items())[0]
-    for client in devs:
-        if re.search(mfrom.split(':')[0], client):
-            mfrom = re.sub(mfrom.split(':')[0], devs[client], mfrom, count=1)
-        if re.search(mto.split(':')[0], client):
-            mto = re.sub(mto.split(':')[0], devs[client], mto, count=1)
-    try:
-        subprocess.run(['aconnect', mfrom, mto])
-    except subprocess.calledProcessError:
-        pass
 
 mainapp = HeadlessSynth()
