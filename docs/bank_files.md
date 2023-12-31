@@ -9,7 +9,7 @@ This video series teaches about creating bank files and the many features of Flu
 
 [![FluidPatcher Lesson Video Series](img/fplessons.png)](https://youtube.com/playlist?list=PL4a8Oe3qfS_-CefZFNYssT1kHdzEOdAlD)
 
-### Example Bank Files
+## Example Bank Files
 
 These are the example bank files included in this repository. The **parsed** links can be used to show how the bank contents are interpreted as data structures.
 
@@ -17,18 +17,18 @@ These are the example bank files included in this repository. The **parsed** lin
 
 [bank1.yaml](../scripts/config/banks/bank1.yaml) ([parsed data](https://codebeautify.org/yaml-parser-online?url=https://raw.githubusercontent.com/albedozero/fluidpatcher/master/SquishBox/banks/bank1.yaml)) - the default bank file, designed with the goal of being useful in the largest range of performance situations
 
-### Structure
+## Structure
 
 Bank files contain a `patches` item that stores the settings of the individual patches, described using the keywords below. Keywords can also be used at the bank level, outside the patches item. When a patch is selected, the bank keywords will be applied first, followed by the keywords in the selected patch. If a bank contains an `init` item, the keywords in `init` will be applied once, when the bank is first loaded (although this only makes sense for `messages` and `fluidsettings` - other keywords are ignored).
 
 Unrecognized keywords in a bank file are ignored. Anything on a line after a hash symbol (`#`) is a comment. Because hash symbol comments are not read by YaML, they may be lost if a bank file is modified and saved. A way of preserving comments is to store them in unique keywords, e.g. `comment1`, `comment2` etc.
 
-### Keywords
+## Keywords
 
-#### soundfont preset
+### soundfont preset
 A soundfont preset is selected on a MIDI channel using an expression of the form `<MIDI channel>: <soundfont file>:<bank>:<preset>`. MIDI channel numbers are numbered starting with channel 1, the way they are on virtually all synthesizers, controllers, DAWs, etc. This is in contrast to FluidSynth, which numbers channels beginning with 0. Patcher handles all of the translation between channel numbering schemes.
 
-#### router_rules
+### router_rules
 Contains a list of rules describing how to route incoming MIDI messages to synthesizer events. An incoming message is compared to all rules and for each rule that matches, an event is created that is modified according to the rule and sent on to the synth. By default, FluidSynth creates one-to-one routing rules for all channels, message types, and parameters. If an item in `router_rules` is the string `clear` it will clear all previous router rules, including the default rules. Each rule is a mapping that can have any of the parameters specified below.
 
 - `type`(required) - the type of MIDI message to match. This can be one of the channel message types `note`, `cc`, `prog`, `pbend`, `kpress`, `cpress`, or `noteoff`, or system realtime message types `clock`, `start`, `stop`, or `continue`. System messages have none of the parameters below.
@@ -48,13 +48,13 @@ Additional parameters can be used to make rules that trigger actions or control 
   
 Arbitrary parameters can be added to create custom rules. These rules pass information about the rule type and the triggering MIDI message to a callback function that an implementation can use to trigger its own events. An example is the `patch` parameter, which tells the _squishbox.py_, _headlesspi.py_, and _fluidpatcher.pyw_ implementations to change patches. The value of `patch` can be the patch number or name, in which case the specified patch is selected. It can also be a number followed by + or -, which increments the patch number by that amount. `patch: select` chooses the patch number corresponding to the routed value of the MIDI message, making it possible to scroll through patches with a knob or slider.
 
-#### messages
+### messages
 A list of MIDI messages to send. Individual messages are formatted as `<type>:<channel>:<par1>:<par2>`, where the _type_ is `note`, `noteoff`, `cc`, `pbend`, `cpress`, `kpress`, or `prog`. One-parameter messages can omit `par2`.
 
-#### fluidsettings
+### fluidsettings
 A mapping of FluidSynth [settings](http://www.fluidsynth.org/api/fluidsettings.xml) and the values to set. Some settings, such as those for the audio driver, can only be applied when the synth is created and will have no effect in bank files.
 
-#### sequencers
+### sequencers
 A mapping that creates one or more sequencers that can play a series of looped notes. The name of each item is used to connect router rules to it. A sequencer can have the following attributes:
 
 - `notes`(required) - a list of note messages the sequencer will play. There must be a soundfont preset assigned to the MIDI channel of the notes in order to hear them.
@@ -65,7 +65,7 @@ A mapping that creates one or more sequencers that can play a series of looped n
   
 A router rule can control a sequencer if it has a `sequencer` parameter with the sequencer's name as the value. The value of the routed MIDI message controls how many times the sequence will loop. A value of 0 stops the sequencer, and negative values will cause it to loop indefinitely.
   
-#### arpeggiators
+### arpeggiators
 A mapping of special sequencers that will capture any notes routed to them and repeat them in a pattern as long as the notes are held.
 
 - `tempo`, `tdiv`, `swing`, `groove` - same as for sequencers
@@ -74,7 +74,7 @@ A mapping of special sequencers that will capture any notes routed to them and r
   
 To make the arpeggiator work, create a `note` type router rule with an `arpeggiator` parameter that has the arpeggiator's name as its value. There must be a soundfont preset assigned on the MIDI channel to which the notes are routed in order to hear them.
   
-#### midiplayers
+### midiplayers
 A mapping of units that can play, loop, and seek within MIDI files.
 
 - `file`(required) - the MIDI file to play, can also be a list of files to play in sequence
@@ -88,7 +88,7 @@ A router rule with a `midiplayer` parameter will tell the named midiplayer to pl
 
 The tempo of sequencers, arpeggiators, and midiplayers can be set with a router rule that has a `tempo` parameter with the target's name as its value. For this reason the names of all these units within a bank file should be unique. A router rule with a `sync` parameter will set the tempo of the named unit by measuring the time between successive MIDI messages matching the rule, allowing a user to set the tempo by tapping a button or key. The value of the routed message sets the number of beats to sync to the time interval. These units can also be synchronized with an external device or program that sends a MIDI clock signal by adding a router rule of type `clock` with a `sync` parameter. Note that any tempo changes to a midiplayer will cause it to stop paying attention to any tempo change messages in the file. This behavior can be resumed using by setting a tempo of zero.
 
-#### ladspafx
+### ladspafx
 A mapping of external [LADSPA](https://github.com/FluidSynth/fluidsynth/blob/master/doc/ladspa.md) effects units to activate. These must be installed separately and are system-dependent. On Linux, the `listplugins` and `analyseplugin` commands are useful for determining the available plugins and their parameters.
 
 - `lib`(required) - the effect plugin file (_.dll, .so_, etc. depending on system)

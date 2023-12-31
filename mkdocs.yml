@@ -6,7 +6,7 @@ nav:
 - Bank Files: bank_files.md
 - API Reference: api_reference.md
 theme:
-  name: readthedocs
+  name: material
   favicon: img/gfl_logo.ico
 plugins:
   - mkdocstrings

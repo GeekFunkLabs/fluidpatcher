@@ -22,7 +22,19 @@ Patches are written in YAML format in human-readable and -editable bank files. B
 
 ## Installation
 
-Copy the *fluidpatcher/* directory from the github [repository](https://github.com/GeekFunkLabs/fluidpatcher) to a location in your system python's or virtual environment's module search path, or where it can be imported by any python programs that need it. To use the included scripts, copy the contents of the *scripts/* directory to a convenient location. In future, a setup.py or pypi package may be available.
+Copy the *fluidpatcher/* folder from the github [repository](https://github.com/GeekFunkLabs/fluidpatcher) to to the same directory as any python scripts that use it. For example, to use the included scripts, use the folder structure below:
+
+```
+scripts/
+│
+├──fluidpatcher/
+│
+├──fluidpatcher_gui
+├──fluidpatcher_cli
+└──config/
+```
+
+In future, a setup.py or pypi package may be available.
 
 ## Usage
 
@@ -30,7 +42,7 @@ Instructions for modifying configuration files for your system and using the inc
 
 To learn how to create your own patches and bank files, read the [Bank Files](bank_files.md) section.
 
-To understand how to create your own programs using FluidPatcher, study the code of the included scripts and check the [API Reference](api_reference.md).
+To create your own programs using FluidPatcher, study the [API Reference](api_reference.md) and the code of the included scripts.
 
 ## Support
 
