@@ -1,52 +1,21 @@
-# File Formats
+# Bank Files
 
 
-FluidPatcher uses [config files](#config-files) and [bank files](#bank-files) to store the user's preferences and settings. Bank files describe patches - the groups of sound settings a user can switch between while playing - plus rules that describe how MIDI messages are routed, effects settings, etc. Config files contain platform-specific settings, such as the location of bank files and soundfonts and what audio devices to use, allowing bank files to be portable to different systems by simply modifying the config file.
-
-Bank and config files use [YaML](https://yaml.org/) format. Very briefly, YaML is a plain text format that stores data, either as lists or as mappings (sets of `<key>: <value>` pairs). Lists and mappings can be nested within each other, and nesting level is indicated by indenting at least two spaces per level. List elements are placed on separate lines and preceded by a dash, or can be written in compact form as a comma-separated list enclosed in square brackets. Mappings can have their _key: value_ pairs on separate lines, or in a comma-separated list enclosed in curly braces.
-
-## Config Files
-
-Config files have the following structure:
-
-```yaml
-soundfontdir: <root path where soundfonts are stored {sf2}>
-bankdir: <root path where bank files are stored {banks}>
-mfilesdir: <location of MIDI and SYSEX files {''}>
-plugindir: <location of LADSPA effects {''}>
-currentbank: <last bank loaded {''}>
-fluidsettings:
-  <name1>: <value1>
-  <name2>: <value2>
-  ...
-```
-
-All settings are optional, and the order is flexible. The Patcher will use the default values shown in curly braces above if the settings aren't given or a config file isn't provided. The settings in `fluidsettings` are passed directly to fluidsynth. A full list of fluidsynth settings is at [fluidsynth.org/api/fluidsettings.xml](http://www.fluidsynth.org/api/fluidsettings.xml), any that aren't specified in the config file will be given the default value based on platform. Fluidsynth settings in the config file are applied when the synth is first activated and each time a bank file is loaded. Only the settings in the node with the exact name `fluidsettings` will be used - nodes with similar names may be included in the config file to store alternative setups.
-
-Here are a few (a bit technical) notes about some of the fluidsettings that can be useful in config files:
-- `audio.driver` - the audio driver to use. Varies by platform.
-- `audio.periods` and `audio.period-size` - controls the amount of buffer space available for the audio driver. Has no effect on `jack`, which uses the _/etc/jackdrc_ or _$HOME/.jackdrc_ file as explained on the [jackd manpage](https://linuxcommandlibrary.com/man/jackd#environment).
-- `midi.autoconnect` - set this to 1 to have fluidsynth automatically connect to MIDI controllers when they are plugged in.
-- `player.reset-synth` - if set to 1, when playing a MIDI file fluidsynth will reset completely when it reaches the end of the song, stopping all sound output and overriding fluidpatcher's settings. If you don't want this, set it to 0
-- `synth.polyphony` - if you play too many voices at once (usually by sustaining lots of notes) fluidsynth will have to stop audio while the processor catches up. This limits the number of active voices, cancelling the oldest notes.
-- `synth.audio.groups` - the number of internal stereo audio buffers to create. MIDI channels are routed sequentially to each audio group, wrapping around if there are fewer groups than channels. One use of this is to create separate mixer groups for routing LADSPA effect plugins.
-- `synth.gain` - scales the output volume of the synth. This can be in the range 0.0-10.0, but values above 1.0 will be clipped/distorted.
-
-## Bank Files
+Bank files use the [YAML](https://yaml.org/) format. Very briefly, YAML is a plain text format that stores data, either as lists or as mappings (sets of `<key>: <value>` pairs). Lists and mappings can be nested within each other, and nesting level is indicated by indenting at least two spaces per level. List elements are placed on separate lines and preceded by a dash, or can be written in compact form as a comma-separated list enclosed in square brackets. Mappings can have their _key: value_ pairs on separate lines, or in a comma-separated list enclosed in curly braces.
 
 A bank file contains one or more patches. A patch selects soundfont presets on one or more MIDI channels, and can also define MIDI routing rules, send MIDI messages, create sequencers, arpeggiators, and MIDI file players, and even activate and control external LADSPA effects. The linked example bank files and definitions below explain the structure and various keywords that are recognized.
 
 This video series teaches about creating bank files and the many features of FluidSynth, SoundFonts, and MIDI:
 
-[![FluidPatcher Lesson Video Series](/assets/fplessons.png)](https://youtube.com/playlist?list=PL4a8Oe3qfS_-CefZFNYssT1kHdzEOdAlD)
+[![FluidPatcher Lesson Video Series](img/fplessons.png)](https://youtube.com/playlist?list=PL4a8Oe3qfS_-CefZFNYssT1kHdzEOdAlD)
 
 ### Example Bank Files
 
 These are the example bank files included in this repository. The **parsed** links can be used to show how the bank contents are interpreted as data structures.
 
-[bank0.yaml](/SquishBox/banks/bank0.yaml) ([parsed data](https://codebeautify.org/yaml-parser-online?url=https://raw.githubusercontent.com/albedozero/fluidpatcher/master/SquishBox/banks/bank0.yaml)) - a demo bank that shows off all the bank file keywords/features
+[bank0.yaml](../scripts/config/banks/bank0.yaml) ([parsed data](https://codebeautify.org/yaml-parser-online?url=https://raw.githubusercontent.com/albedozero/fluidpatcher/master/SquishBox/banks/bank0.yaml)) - a demo bank that shows off all the bank file keywords/features 
 
-[bank1.yaml](/SquishBox/banks/bank1.yaml) ([parsed data](https://codebeautify.org/yaml-parser-online?url=https://raw.githubusercontent.com/albedozero/fluidpatcher/master/SquishBox/banks/bank1.yaml)) - the default bank file, designed with the goal of being useful in the largest range of performance situations
+[bank1.yaml](../scripts/config/banks/bank1.yaml) ([parsed data](https://codebeautify.org/yaml-parser-online?url=https://raw.githubusercontent.com/albedozero/fluidpatcher/master/SquishBox/banks/bank1.yaml)) - the default bank file, designed with the goal of being useful in the largest range of performance situations
 
 ### Structure
 
@@ -61,17 +30,19 @@ A soundfont preset is selected on a MIDI channel using an expression of the form
 
 #### router_rules
 Contains a list of rules describing how to route incoming MIDI messages to synthesizer events. An incoming message is compared to all rules and for each rule that matches, an event is created that is modified according to the rule and sent on to the synth. By default, FluidSynth creates one-to-one routing rules for all channels, message types, and parameters. If an item in `router_rules` is the string `clear` it will clear all previous router rules, including the default rules. Each rule is a mapping that can have any of the parameters specified below.
+
 - `type`(required) - the type of MIDI message to match. This can be one of the channel message types `note`, `cc`, `prog`, `pbend`, `kpress`, `cpress`, or `noteoff`, or system realtime message types `clock`, `start`, `stop`, or `continue`. System messages have none of the parameters below.
 - `chan` - the channel(s) from which to route messages and how to route them. This can be specified in any of the following ways:
-  - `<channel #>` - only messages on the specified channel will match
-  - `<from_min>-<from_max>` - a range of channels to match
-  - `<from_min>-<from_max>=<to_min>-<to_max>` - a message from any channel in the _from_ range is copied to every channel in the _to_ range. Either range can be a single integer
-  - `<from_min>-<from_max>*<mul>+<add>` - messages from channels in the specified range have their channel number multiplied by `mul`, then added to `add`. The multiplier can be a decimal, and `add` can be negative
+    - `<channel #>` - only messages on the specified channel will match
+    - `<from_min>-<from_max>` - a range of channels to match
+    - `<from_min>-<from_max>=<to_min>-<to_max>` - a message from any channel in the _from_ range is copied to every channel in the _to_ range. Either range can be a single integer
+    - `<from_min>-<from_max>*<mul>+<add>` - messages from channels in the specified range have their channel number multiplied by `mul`, then added to `add`. The multiplier can be a decimal, and `add` can be negative
 - `par1` - describes how the first parameter of the MIDI message is routed, using the same formats as for `chan`, except that if the form `<from_min>-<from_max>=<to_min>-<to_max>` is used, values in the _from_ range are **scaled** to values in the _to_ range
 - `par2` - routes the second parameter of the MIDI message for those that have one i.e. _note on, note off, control change, and key pressure_ messages
 - `type2` - changes the `type` of the MIDI message. If the message has two parameters and the new type has only one, the second parameter of the original message is routed to the single parameter of the new message according to `par2`. If routing a one-parameter message to a two-parameter type, the first parameter of the original message is routed to the second parameter of the new message according to `par1`, and the first parameter of the new message is given by `par2`.
 
 Additional parameters can be used to make rules that trigger actions or control things, as opposed to sending MIDI messages. The rule will pass a value that is the result of `par1` or `par2` routing, depending on whether the triggering MIDI message is a one- or two-parameter type.
+
 - `fluidsetting` - a FluidSynth setting to change when a matching MIDI message is received.
 - `sequencer|arpeggiator|midiplayer|tempo|sync|ladspafx` - these are used to control MIDI players and external LADSPA effects, described below
   
@@ -85,6 +56,7 @@ A mapping of FluidSynth [settings](http://www.fluidsynth.org/api/fluidsettings.x
 
 #### sequencers
 A mapping that creates one or more sequencers that can play a series of looped notes. The name of each item is used to connect router rules to it. A sequencer can have the following attributes:
+
 - `notes`(required) - a list of note messages the sequencer will play. There must be a soundfont preset assigned to the MIDI channel of the notes in order to hear them.
 - `tempo` - in beats per minute, defaults to 120
 - `tdiv` - the length of the notes in the pattern expressed as the number of notes in a measure of four beats. Defaults to 8
@@ -95,6 +67,7 @@ A router rule can control a sequencer if it has a `sequencer` parameter with the
   
 #### arpeggiators
 A mapping of special sequencers that will capture any notes routed to them and repeat them in a pattern as long as the notes are held.
+
 - `tempo`, `tdiv`, `swing`, `groove` - same as for sequencers
 - `octaves` - number of octaves over which to repeat the pattern. Defaults to 1
 - `style` - can be `up`, `down`, `both`, or `chord`. The first three options loop the held notes in ascending sequence, descending, or ascending followed by descending. The `chord` option plays all held notes at once repeatedly. If not given, the notes are looped in the order they were played.
@@ -103,6 +76,7 @@ To make the arpeggiator work, create a `note` type router rule with an `arpeggia
   
 #### midiplayers
 A mapping of units that can play, loop, and seek within MIDI files.
+
 - `file`(required) - the MIDI file to play, can also be a list of files to play in sequence
 - `tempo` - tempo at which to play the file, in bpm. If not given, the tempo messages in the file will be obeyed
 - `loops` - a list of pairs of _start, end_ ticks. When the song reaches an _end_ tick, it will seek back to the previous _start_ tick in the list. A negative _start_ value rewinds to the beginning of the song and stops playback.
@@ -116,6 +90,7 @@ The tempo of sequencers, arpeggiators, and midiplayers can be set with a router 
 
 #### ladspafx
 A mapping of external [LADSPA](https://github.com/FluidSynth/fluidsynth/blob/master/doc/ladspa.md) effects units to activate. These must be installed separately and are system-dependent. On Linux, the `listplugins` and `analyseplugin` commands are useful for determining the available plugins and their parameters.
+
 - `lib`(required) - the effect plugin file (_.dll, .so_, etc. depending on system)
 - `plugin` - the name of the plugin within the file, required if there's more than one
 - `chan` - the channel(s) from which audio should be routed to the effect, as a single value, a `<from_min>-<from_max>` range, or list. This will only have effect if a multichannel-capable audio driver such as _JACK_ is used, otherwise effects will be active on all channels.

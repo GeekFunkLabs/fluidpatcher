@@ -1,0 +1,13 @@
+site_name: FluidPatcher
+repo_url: https://github.com/GeekFunkLabs/fluidpatcher
+nav:
+- Home: README.md
+- Programs: programs.md
+- Bank Files: bank_files.md
+- API Reference: api_reference.md
+theme:
+  name: readthedocs
+  favicon: img/gfl_logo.ico
+plugins:
+  - mkdocstrings
+  
