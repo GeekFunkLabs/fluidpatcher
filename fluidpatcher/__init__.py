@@ -126,10 +126,11 @@ class FluidPatcher:
         Args:
           raw: exact text to write
         """
+        if self.cfgfile == None:
+        	return
         if raw:
-            c = parseyaml(raw)
-            self.cfg = c
-            if self.cfgfile: self.cfgfile.write_text(raw)
+            self.cfg = parseyaml(raw)
+            self.cfgfile.write_text(raw)
         else:
             self.cfgfile.write_text(renderyaml(self.cfg))
 
