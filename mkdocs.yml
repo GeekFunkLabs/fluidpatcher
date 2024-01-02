@@ -2,8 +2,10 @@ site_name: FluidPatcher
 repo_url: https://github.com/GeekFunkLabs/fluidpatcher
 nav:
 - Home: README.md
-- Programs: programs.md
-- Bank Files: bank_files.md
+- Basic Usage: basic_usage.md
+- Soundfonts: soundfonts.md
+- Creating Banks: bank_files.md
+- Plugins: ladspa_plugins.md
 - API Reference: api_reference.md
 theme:
   name: material

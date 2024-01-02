@@ -1,0 +1,3 @@
+- how soundfonts work
+- where to get more soundfonts
+- where to put them

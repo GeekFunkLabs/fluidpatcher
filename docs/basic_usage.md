@@ -1,9 +1,8 @@
-# Programs
-
-
-
+# Basic Usage
 
 ## Config Files
+
+Programs that use fluidpatcher can use a 
 
 Config files have the following structure:
 
