@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""A headless Raspberry Pi FluidPatcher synth
-
-Creates a synthesizer that can be controlled with a USB midi controller without
-the need for a screen/keyboard or any additional hardware. This can be a way
-to try out the idea of the SquishBox as an embedded synth/audio device, or just
-a way to create an inexpensive but versatile musical instrument.
+"""A command-line FluidPatcher synth
 """
 from pathlib import Path
 import subprocess
