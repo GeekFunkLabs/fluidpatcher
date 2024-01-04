@@ -100,7 +100,7 @@ while True:
             elif c == 'p':
                 s.pno = (s.pno - 1) % len(fp.patches)
             fp.apply_patch(s.pno)
-            print(f"Selected patch {s.pno + 1}/{len(fp.patches)}: {fp.patches[s.pno]}")            
+            print(f"Selected patch {s.pno + 1}/{len(fp.patches)}: {fp.patches[s.pno]}")
         elif c == 'l':
             banks = sorted([b.relative_to(fp.bankdir)
                            for b in fp.bankdir.rglob('*.yaml')])
