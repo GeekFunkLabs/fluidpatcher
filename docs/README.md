@@ -14,9 +14,9 @@ Patches are written in YAML format in human-readable and -editable bank files. B
 
 * [Python](https://python.org/downloads/) >= 3.9
 * [PyYAML](https://pypi.org/project/PyYAML/) python package
-* [WxPython](https://wxpython.org/pages/downloads/) python package (for `fluidpatcher_gui`)
+* [WxPython](https://wxpython.org/pages/downloads/) python package (for `fluidpatcher_gui.pyw`)
 * FluidSynth >= 2.2.0, can be obtained in various ways depending on platform:
-    * Windows: download latest [release](https://github.com/FluidSynth/fluidsynth/releases) from github
+    * Windows: download latest [release](https://github.com/FluidSynth/fluidsynth/releases) from github and add its location to your Windows `%PATH%`, or copy it to the same folder as your scripts
     * Linux, Mac OS: install using your system's [package manager](https://github.com/FluidSynth/fluidsynth/wiki/Download)
     * [build](https://github.com/FluidSynth/fluidsynth/wiki/BuildingWithCMake) the latest version from source
 
@@ -26,8 +26,8 @@ Copy the `fluidpatcher/` folder from the github [repository](https://github.com/
 
 ```shell
 scripts/
-├── fluidpatcher_gui
-├── fluidpatcher_cli
+├── fluidpatcher_gui.pyw
+├── fluidpatcher_cli.py
 ├── config/
 └── fluidpatcher/
 ```
@@ -38,7 +38,7 @@ In future, a `setup.py` file or [PyPI](https://pypi.org) package may be availabl
 
 To understand how to use the included scripts and adjust config files for your system, read [Basic Usage](basic_usage.md).
 
-To learn how to create your own patches and bank files, see [Creating Banks](bank_files.md), [Soundfonts](soundfonts.md), and [Plugins](ladspa_plugins.md).
+To learn how to add sounds and create your own patches and bank files, see [Soundfonts](soundfonts.md), [Creating Banks](bank_files.md), and [Plugins](ladspa_plugins.md).
 
 To write your own programs using FluidPatcher, study the [API Reference](api_reference.md) and the code of the included scripts.
 

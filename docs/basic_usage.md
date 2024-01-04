@@ -46,7 +46,7 @@ FluidSynth maintains a [full list of fluidsynth settings](https://www.fluidsynth
   [`audio.period-size`](https://www.fluidsynth.org/api/fluidsettings.xml#audio.period-size) -
   These set the number and size of the buffers used for sending digital audio. Lowering these values decreases audio latency (the time between playing a note and hearing the audio), but too low and the sound card won't be able to keep up, producing stuttering/crackling audio.
 
-## fluidpatcher_gui
+## fluidpatcher_gui.pyw
 
 This is a desktop (GUI) program that can be used to edit and test bank files, or as a live software synthesizer. The main UI consists of a display showing the current bank and patch, and buttons for switching patches or loading the next available bank. The menus provide options for loading/saving bank files, and selecting patches. The _Tools_ menu provides useful functions:
 
@@ -58,8 +58,14 @@ This is a desktop (GUI) program that can be used to edit and test bank files, or
 
 Some program settings, such as the initial height, width, and font size of the UI, can be adjusted by editing the script and changing the values of `WIDTH`, `HEIGHT`, `FONTSIZE`, `PAD`, and/or `FILLSCREEN` at the beginning of the file.
 
-## fluidpatcher_cli
+## fluidpatcher_cli.py
 
-This program lets you load banks, choose patches, and play the synth from the command line. The keyboard is used to control the interface and choose options. Here is the list of commands:
+This program works from the command line, even in a remote terminal. It lets you load banks, choose patches, and play the synthesizer. The keyboard is used to control the interface and choose options. Here is the list of commands:
 
-* 
+* `N` and `P` choose the next/previous patch
+* `L` loads the next bank, in alphabetical order
+* `M` toggles monitoring of MIDI messages
+* `E` opens the current bank in a text editor
+* `Q` exits the program
+
+Any other key will print out the list of keyboard commands.

@@ -4,7 +4,7 @@
 sudo apt-get install ladspa-sdk swh-plugins tap-plugins wah-plugins
 ```
 
-To compile and install the *patchcord* plugin, which is used for chaining plugins, go to the *bin/* folder and enter
+To compile and install `patchcord.so`, which is used for chaining plugins, go to the `src/` folder and enter
 
 ```bash
 sudo gcc -shared patchcord.c -o /usr/lib/ladspa/patchcord.so
