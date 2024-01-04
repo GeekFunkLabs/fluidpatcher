@@ -1,1 +1,3 @@
+# API Reference
+
 ::: fluidpatcher.FluidPatcher

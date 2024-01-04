@@ -1,6 +1,4 @@
-soundfontdir: config/sf2
 bankdir: config/banks
-mfilesdir: config/midi
 plugindir: /usr/lib/ladspa
 currentbank: bank1.yaml
 

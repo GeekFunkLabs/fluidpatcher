@@ -1,3 +1,4 @@
 - how soundfonts work
-- where to get more soundfonts
-- where to put them
+- where to put them, rename defaultGM.sf2
+- how to add presets to a simple bank file
+- where to get more soundfonts, how to edit

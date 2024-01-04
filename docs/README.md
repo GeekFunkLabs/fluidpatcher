@@ -1,42 +1,44 @@
 # FluidPatcher
 
-This package provides a python interface for controlling the versatile, cross-platform, and free [FluidSynth](fluidsynth.org) software synthesizer. Rather than simply wrapping all the C functions in the FluidSynth API, it provides a higher-level interface for loading and switching between *patches* - groups of settings including:
+This package provides a python interface for controlling the versatile, cross-platform, and free [FluidSynth](https://www.fluidsynth.org) software synthesizer. Rather than simply wrapping all the C functions in the FluidSynth API, it provides a higher-level interface for loading and switching between *patches* - groups of settings including:
 
-- soundfonts and presets per channel
-- effect settings
-- MIDI routing rules
-- sequencers, arpeggiators, MIDI file players
-- LADSPA effect plugins
+* soundfonts and presets per channel
+* effect settings
+* MIDI routing rules
+* sequencers, arpeggiators, MIDI file players
+* LADSPA effect plugins
 
-Patches are written in YAML format in human-readable and -editable bank files. Bank files can easily be copied and used in FluidPatcher programs written for different platforms and purposes. Two programs are included in the `scripts/` directory of this repository - a command-line synth and a graphical synth/editor. FluidPatcher is the default synth engine used by the [SquishBox](geekfunklabs.com/products/squishbox) Raspberry Pi-based sound module.
+Patches are written in YAML format in human-readable and -editable bank files. Bank files can easily be copied and used in FluidPatcher programs written for different platforms and purposes. Two programs are included in the `scripts/` directory of this repository - a command-line synth and a graphical synth/editor. FluidPatcher is the default synth engine used by the [SquishBox](https://geekfunklabs.com/products/squishbox) Raspberry Pi-based sound module.
 
 ## Requirements
 
-- [Python](python.org/downloads/) >= 3.9
-- [PyYAML](pypi.org/project/PyYAML/) python package
-- [WxPython](wxpython.org/pages/downloads/) python package (for `fluidpatcher_gui`)
-- FluidSynth >= 2.2.0, can be obtained in various ways depending on platform:
-    - Windows: download latest [release](github.com/FluidSynth/fluidsynth/releases) from github
-    - Linux, Mac OS: install using your system's [package manager](github.com/FluidSynth/fluidsynth/wiki/Download)
-    - [build](github.com/FluidSynth/fluidsynth/wiki/BuildingWithCMake) the latest version from source
+* [Python](https://python.org/downloads/) >= 3.9
+* [PyYAML](https://pypi.org/project/PyYAML/) python package
+* [WxPython](https://wxpython.org/pages/downloads/) python package (for `fluidpatcher_gui`)
+* FluidSynth >= 2.2.0, can be obtained in various ways depending on platform:
+    * Windows: download latest [release](https://github.com/FluidSynth/fluidsynth/releases) from github
+    * Linux, Mac OS: install using your system's [package manager](https://github.com/FluidSynth/fluidsynth/wiki/Download)
+    * [build](https://github.com/FluidSynth/fluidsynth/wiki/BuildingWithCMake) the latest version from source
 
 ## Installation
 
-Copy the `fluidpatcher/` folder from the github [repository](github.com/GeekFunkLabs/fluidpatcher) to to the same directory as any python scripts that use it. For example, to use the included scripts, use the folder structure below:
+Copy the `fluidpatcher/` folder from the github [repository](https://github.com/GeekFunkLabs/fluidpatcher) to to the same directory as any python scripts that use it. For example, to use the included scripts, use the folder structure below:
 
-	scripts/
-	├── fluidpatcher_gui
-	├── fluidpatcher_cli
-	├── config/
-	└── fluidpatcher/
+```shell
+scripts/
+├── fluidpatcher_gui
+├── fluidpatcher_cli
+├── config/
+└── fluidpatcher/
+```
 	
-In future, a `setup.py` file or [PyPI](pypi.org) package may be available.
+In future, a `setup.py` file or [PyPI](https://pypi.org) package may be available.
 
 ## Usage
 
 To understand how to use the included scripts and adjust config files for your system, read [Basic Usage](basic_usage.md).
 
-To learn how to create your own patches and bank files, see [Creating Banks](bank_files.md) and [Soundfonts](soundfonts.md).
+To learn how to create your own patches and bank files, see [Creating Banks](bank_files.md), [Soundfonts](soundfonts.md), and [Plugins](ladspa_plugins.md).
 
 To write your own programs using FluidPatcher, study the [API Reference](api_reference.md) and the code of the included scripts.
 
