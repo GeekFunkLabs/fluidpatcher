@@ -30,21 +30,11 @@ All settings are optional, unrecognized settings will be ignored, and the order 
 
 FluidSynth maintains a [full list of fluidsynth settings](https://www.fluidsynth.org/api/fluidsettings.xml) with explanations and defaults by platform. Here are some notes on a few important ones:
 
-* [`midi.autoconnect`](https://www.fluidsynth.org/api/fluidsettings.xml#midi.autoconnect) -
-  automatically connects MIDI keyboards/controllers. This does not work on all systems. In some cases (Windows), controllers may need to be connected before the program is started, or connected manually.
-
-* [`player.reset-synth`](https://www.fluidsynth.org/api/fluidsettings.xml#player.reset-synth) -
-  When playing a MIDI file and reaching the end of a song, all playing notes will be silenced and the synth reset, overriding settings in banks and patches. This is undesirable for FluidPatcher and should be set to 0.
-
-* [`synth.gain`](https://www.fluidsynth.org/api/fluidsettings.xml#synth.gain) -
-  scales the output volume of the synth. This can be in the range 0.0-10.0, but values above 1.0 will be clipped/distorted.
-
-* [`synth.polyphony`](https://www.fluidsynth.org/api/fluidsettings.xml#synth.polyphony) -
-  If too many voices are played at once (usually by sustaining lots of notes), the CPU may terminate audio while it catches up. This limits the number of active voices, canceling the oldest notes.
-
-* [`audio.periods`](https://www.fluidsynth.org/api/fluidsettings.xml#audio.periods),
-  [`audio.period-size`](https://www.fluidsynth.org/api/fluidsettings.xml#audio.period-size) -
-  These set the number and size of the buffers used for sending digital audio. Lowering these values decreases audio latency (the time between playing a note and hearing the audio), but too low and the sound card won't be able to keep up, producing stuttering/crackling audio.
+* `midi.autoconnect` - automatically connects MIDI keyboards/controllers. This does not work on all systems. In some cases (Windows), controllers may need to be connected before the program is started, or connected manually.
+* `player.reset-synth` - When playing a MIDI file and reaching the end of a song, all playing notes will be silenced and the synth reset, overriding settings in banks and patches. This is undesirable for FluidPatcher and should be set to 0.
+* `synth.gain` - scales the output volume of the synth. This can be in the range 0.0-10.0, but values above 1.0 will be clipped/distorted.
+* `synth.polyphony` - If too many voices are played at once (usually by sustaining lots of notes), the CPU may terminate audio while it catches up. This limits the number of active voices, canceling the oldest notes.
+* `audio.periods`, `audio.period-size` - These set the number and size of the buffers used for sending digital audio. Lowering these values decreases audio latency (the time between playing a note and hearing the audio), but too low and the sound card won't be able to keep up, producing stuttering/crackling audio.
 
 ## fluidpatcher_gui.pyw
 

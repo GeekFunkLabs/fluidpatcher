@@ -6,7 +6,7 @@ A bank file contains one or more patches. A patch selects soundfont presets on o
 
 This video series teaches about creating bank files and the many features of FluidSynth, SoundFonts, and MIDI:
 
-[![FluidPatcher Lesson Video Series](img/fplessons.png)](https://youtube.com/playlist?list=PL4a8Oe3qfS_-CefZFNYssT1kHdzEOdAlD)
+[FluidPatcher Lesson Video Series](https://youtube.com/playlist?list=PL4a8Oe3qfS_-CefZFNYssT1kHdzEOdAlD)
 
 ## Example Bank Files
 
