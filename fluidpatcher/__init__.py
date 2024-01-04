@@ -88,12 +88,12 @@ class FluidPatcher:
     @property
     def sfdir(self):
         """Path to soundfonts"""
-        return Path(self.cfg.get('soundfontdir', 'sf2')).resolve()
+        return Path(self.cfg.get('soundfontdir', self.bankdir / '../sf2')).resolve()
 
     @property
     def mfilesdir(self):
         """Path to MIDI files"""
-        return Path(self.cfg.get('mfilesdir', '')).resolve()
+        return Path(self.cfg.get('mfilesdir', self.bankdir / '../midi')).resolve()
 
     @property
     def plugindir(self):
