@@ -29,6 +29,10 @@ scripts/
 ├── fluidpatcher_gui.pyw
 ├── fluidpatcher_cli.py
 ├── config/
+│   ├── banks/
+│   ├── midi/
+│   ├── sf2/
+│   └── fluidpatcherconf.yaml
 └── fluidpatcher/
 ```
 	
