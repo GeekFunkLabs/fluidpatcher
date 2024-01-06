@@ -1,60 +1,74 @@
 # Bank Files
 
-Bank files use the [YAML](https://yaml.org/) format. Very briefly, YAML is a plain text format that stores data, either as lists or as mappings (sets of `<key>: <value>` pairs). Lists and mappings can be nested within each other, and nesting level is indicated by indenting at least two spaces per level. List elements are placed on separate lines and preceded by a dash, or can be written in compact form as a comma-separated list enclosed in square brackets. Mappings can have their _key: value_ pairs on separate lines, or in a comma-separated list enclosed in curly braces.
+Bank files are [YAML](https://yaml.org/)-formatted text files that control many FluidSynth settings, from the soundfont presets that are selected for each MIDI channel to the way that MIDI messages from a controller interact with those presets. They can also activate and control tools such as MIDI file players, sequencers, arpeggiators, and LADSPA effect plugins.
 
-A bank file contains one or more patches. A patch selects soundfont presets on one or more MIDI channels, and can also define MIDI routing rules, send MIDI messages, create sequencers, arpeggiators, and MIDI file players, and even activate and control external LADSPA effects. The linked example bank files and definitions below explain the structure and various keywords that are recognized.
+YAML is a plain text format that stores data, either as lists or as mappings (sets of `<key>: <value>` pairs). Lists and mappings can be nested within each other, and nesting level is indicated by indenting at least two spaces per level. List elements are placed on separate lines and preceded by a dash, or can be written on a single line as a comma-separated list enclosed in square brackets. Mapping items are listed on separate lines, or on a single line as a comma-separated list enclosed in curly braces.
 
-This video series teaches about creating bank files and the many features of FluidSynth, SoundFonts, and MIDI:
-
-[FluidPatcher Lesson Video Series](https://youtube.com/playlist?list=PL4a8Oe3qfS_-CefZFNYssT1kHdzEOdAlD)
-
-## Example Bank Files
-
-These are the example bank files included in this repository. The **parsed** links can be used to show how the bank contents are interpreted as data structures.
-
-[bank0.yaml](../scripts/config/banks/bank0.yaml) ([parsed data](https://codebeautify.org/yaml-parser-online?url=https://raw.githubusercontent.com/albedozero/fluidpatcher/master/SquishBox/banks/bank0.yaml)) - a demo bank that shows off all the bank file keywords/features 
-
-[bank1.yaml](../scripts/config/banks/bank1.yaml) ([parsed data](https://codebeautify.org/yaml-parser-online?url=https://raw.githubusercontent.com/albedozero/fluidpatcher/master/SquishBox/banks/bank1.yaml)) - the default bank file, designed with the goal of being useful in the largest range of performance situations
+Geek Funk Labs has produced a [series of lesson videos](https://youtube.com/playlist?list=PL4a8Oe3qfS_-CefZFNYssT1kHdzEOdAlD) that teach about creating bank files and the many features of FluidSynth, SoundFonts, and MIDI.
 
 ## Structure
 
-Bank files contain a `patches` item that stores the settings of the individual patches, described using the keywords below. Keywords can also be used at the bank level, outside the patches item. When a patch is selected, the bank keywords will be applied first, followed by the keywords in the selected patch. If a bank contains an `init` item, the keywords in `init` will be applied once, when the bank is first loaded (although this only makes sense for `messages` and `fluidsettings` - other keywords are ignored).
+Bank files have three main sections:
 
-Unrecognized keywords in a bank file are ignored. Anything on a line after a hash symbol (`#`) is a comment. Because hash symbol comments are not read by YaML, they may be lost if a bank file is modified and saved. A way of preserving comments is to store them in unique keywords, e.g. `comment1`, `comment2` etc.
+* A `patches` section that contains the individual patches
+* An `init` section that is read when the bank is loaded
+* The zero-indent or bank level - everything that is outside the other two sections
+
+When a patch is selected, bank settings are applied first, followed by the patch settings. The settings in `init` are read before bank and patch settings once, when the bank is loaded. Settings are applied in the order listed in each section. For example, when selecting the `Harpsichord` patch in the bank shown below, `synth.reverb.room-size` is first set to 0.6 by the bank-level `fluidsettings`, then set to 0.1 in the patch.
+
+```yaml
+init:
+  messages: [cc:1:91:100, cc:2:91:20]
+patches:
+  Harpsichord:
+    1: defaultGM:sf2:000:006
+	fluidsettings:
+	  synth.reverb.room-size: 0.1
+  Piano and Bass:
+    2: defaultGM.sf2:000:000
+	3: defaultGM.sf2:000:034
+router_rules:
+  - {type: note, chan: 1=2, par1: C1-B3}
+  - {type: note, chan: 1=3, par1: C4-B6}
+fluidsettings:
+  synth.reverb.room-size: 0.6
+```
+
+Each section can contain any of the keywords described below, although in the `init` section only `messages` and `fluidsettings` make sense - others will be ignored. The bank files included with the repository in `scripts/config/banks` provide additional examples.
 
 ## Keywords
 
-### soundfont preset
-A soundfont preset is selected on a MIDI channel using an expression of the form `<MIDI channel>: <soundfont file>:<bank>:<preset>`. MIDI channel numbers are numbered starting with channel 1, the way they are on virtually all synthesizers, controllers, DAWs, etc. This is in contrast to FluidSynth, which numbers channels beginning with 0. Patcher handles all of the translation between channel numbering schemes.
+### `<number>`
 
-### router_rules
-Contains a list of rules describing how to route incoming MIDI messages to synthesizer events. An incoming message is compared to all rules and for each rule that matches, an event is created that is modified according to the rule and sent on to the synth. By default, FluidSynth creates one-to-one routing rules for all channels, message types, and parameters. If an item in `router_rules` is the string `clear` it will clear all previous router rules, including the default rules. Each rule is a mapping that can have any of the parameters specified below.
+A number as a keyword indicates a MIDI channel on which a preset is to be selected. The preset is specified with the form `<soundfont file>:<bank>:<preset>`. MIDI channel numbers in bank files are numbered starting with channel 1.
 
-- `type`(required) - the type of MIDI message to match. This can be one of the channel message types `note`, `cc`, `prog`, `pbend`, `kpress`, `cpress`, or `noteoff`, or system realtime message types `clock`, `start`, `stop`, or `continue`. System messages have none of the parameters below.
-- `chan` - the channel(s) from which to route messages and how to route them. This can be specified in any of the following ways:
-    - `<channel #>` - only messages on the specified channel will match
-    - `<from_min>-<from_max>` - a range of channels to match
-    - `<from_min>-<from_max>=<to_min>-<to_max>` - a message from any channel in the _from_ range is copied to every channel in the _to_ range. Either range can be a single integer
-    - `<from_min>-<from_max>*<mul>+<add>` - messages from channels in the specified range have their channel number multiplied by `mul`, then added to `add`. The multiplier can be a decimal, and `add` can be negative
-- `par1` - describes how the first parameter of the MIDI message is routed, using the same formats as for `chan`, except that if the form `<from_min>-<from_max>=<to_min>-<to_max>` is used, values in the _from_ range are **scaled** to values in the _to_ range
-- `par2` - routes the second parameter of the MIDI message for those that have one i.e. _note on, note off, control change, and key pressure_ messages
-- `type2` - changes the `type` of the MIDI message. If the message has two parameters and the new type has only one, the second parameter of the original message is routed to the single parameter of the new message according to `par2`. If routing a one-parameter message to a two-parameter type, the first parameter of the original message is routed to the second parameter of the new message according to `par1`, and the first parameter of the new message is given by `par2`.
+### `messages`
+A list of MIDI messages to send. Individual messages are formatted as `<type>:<channel>:<par1>:<par2>`, where the type can be `note`, `noteoff`, `cc`, `kpress`, `pbend`, `cpress`, or `prog`. The last three types only have one parameter and should omit `par2`.
 
-Additional parameters can be used to make rules that trigger actions or control things, as opposed to sending MIDI messages. The rule will pass a value that is the result of `par1` or `par2` routing, depending on whether the triggering MIDI message is a one- or two-parameter type.
+### `fluidsettings`
+A mapping of FluidSynth [settings](http://www.fluidsynth.org/api/fluidsettings.xml) and the values to set. Only settings that begin with `synth` will have any effect while the synth is running - any others should be set in the config file.
 
-- `fluidsetting` - a FluidSynth setting to change when a matching MIDI message is received.
-- `sequencer|arpeggiator|midiplayer|tempo|sync|ladspafx` - these are used to control MIDI players and external LADSPA effects, described below
-  
-Arbitrary parameters can be added to create custom rules. These rules pass information about the rule type and the triggering MIDI message to a callback function that an implementation can use to trigger its own events. An example is the `patch` parameter, which tells the _squishbox.py_, _headlesspi.py_, and _fluidpatcher.pyw_ implementations to change patches. The value of `patch` can be the patch number or name, in which case the specified patch is selected. It can also be a number followed by + or -, which increments the patch number by that amount. `patch: select` chooses the patch number corresponding to the routed value of the MIDI message, making it possible to scroll through patches with a knob or slider.
+### `router_rules`
 
-### messages
-A list of MIDI messages to send. Individual messages are formatted as `<type>:<channel>:<par1>:<par2>`, where the _type_ is `note`, `noteoff`, `cc`, `pbend`, `cpress`, `kpress`, or `prog`. One-parameter messages can omit `par2`.
+A list of rules for routing incoming MIDI messages to synthesizer events. Each rule is a mapping with parameters that define what messages should trigger it, as well as how it should modify the events it sends to the synth. Every rule that matches a message is triggered, so a message can trigger multiple events, and rules can't override previous rules. When selecting a patch, default rules are created that pass on all messages unmodified to the synth. A rule that is just the string `clear` will clear all previous router rules, including the defaults.
 
-### fluidsettings
-A mapping of FluidSynth [settings](http://www.fluidsynth.org/api/fluidsettings.xml) and the values to set. Some settings, such as those for the audio driver, can only be applied when the synth is created and will have no effect in bank files.
+Like MIDI messages, a router rule must have a `type` parameter, and can also have `chan`, `par1`, and `par2` parameters. A parameter that is not present in a rule will match any value of that parameter.
+
+Valid rule types are `note`, `noteoff`, `cc`, `kpress`, `pbend`, `cpress`, or `prog`, and system realtime messages `clock`, `start`, `stop`, or `continue`. A rule can produce an event of a different type from the triggering event by specifying the type as `<type>=<newtype>`. If the triggering message has a different number of parameters than the new type, the parameters of the new event are determined in specific ways:
+
+* 2-parameter to 1-parameter: `par2` of rule determines `par1` of event
+* 1-parameter to 2-parameter: `par1` of rule determines `par2` of event, `par1` of event is *from_min* of `par2`
+* 
+
+
+If the message has two parameters and the new type has only one, the second parameter of the original message is routed to the single parameter of the new message according to `par2`. If routing a one-parameter message to a two-parameter type, the first parameter of the original message is routed to the second parameter of the new message according to `par1`, and the first parameter of the new message is given by `par2`.
+
+The other rule parameters can be specified as `<from_min>-<from_max>=<to_min>-<to_max>`. This scales values in the _from_ range to values in the _to_ range for par1 and par2, and for channels any message on a channel in the _from_ range generates an event on every channel in the _to_ range. The _from_ and _to_ ranges can each be a single number, and the _to_ range can be left out. These parameters can also be specified as `<from_min>-<from_max>*<factor>+<offset>`. Message values in the _from_ range are multiplied by _factor_, then _offset_ is added to them. 
+
+Additional parameters can be added to rules to make them trigger actions or control things, instead of sending events to the synth. A rule with a `fluidsetting` parameter will change the value of a FluidSynth setting to the result of `par1` or `par2` routing, depending on whether the triggering MIDI message is a one- or two-parameter type. Rules with a `patch` parameter can be used to select patches. The value can be a patch index or name, or a number followed by `+` or `-`, which increments the patch number by that amount. A value of `select` sets the patch index to the value of the routed message.
 
 ### sequencers
-A mapping that creates one or more sequencers that can play a series of looped notes. The name of each item is used to connect router rules to it. A sequencer can have the following attributes:
+Contains one or more named sequencers that can play a series of looped notes. The name of each item is used to connect router rules to it. A sequencer can have the following attributes:
 
 - `notes`(required) - a list of note messages the sequencer will play. There must be a soundfont preset assigned to the MIDI channel of the notes in order to hear them.
 - `tempo` - in beats per minute, defaults to 120
@@ -65,7 +79,7 @@ A mapping that creates one or more sequencers that can play a series of looped n
 A router rule can control a sequencer if it has a `sequencer` parameter with the sequencer's name as the value. The value of the routed MIDI message controls how many times the sequence will loop. A value of 0 stops the sequencer, and negative values will cause it to loop indefinitely.
   
 ### arpeggiators
-A mapping of special sequencers that will capture any notes routed to them and repeat them in a pattern as long as the notes are held.
+Contains one or more named arpeggiators that will capture any notes routed to them and repeat them in a pattern as long as the notes are held.
 
 - `tempo`, `tdiv`, `swing`, `groove` - same as for sequencers
 - `octaves` - number of octaves over which to repeat the pattern. Defaults to 1
@@ -74,7 +88,7 @@ A mapping of special sequencers that will capture any notes routed to them and r
 To make the arpeggiator work, create a `note` type router rule with an `arpeggiator` parameter that has the arpeggiator's name as its value. There must be a soundfont preset assigned on the MIDI channel to which the notes are routed in order to hear them.
   
 ### midiplayers
-A mapping of units that can play, loop, and seek within MIDI files.
+Contains one or more named midiplayers that can play, loop, and seek within MIDI files.
 
 - `file`(required) - the MIDI file to play, can also be a list of files to play in sequence
 - `tempo` - tempo at which to play the file, in bpm. If not given, the tempo messages in the file will be obeyed
@@ -85,10 +99,18 @@ A mapping of units that can play, loop, and seek within MIDI files.
   
 A router rule with a `midiplayer` parameter will tell the named midiplayer to play if the routed message value is positive or pause if the value is zero. If the rule also has a `tick` parameter, the midiplayer will seek to that tick position in the song. If the value of `tick` has a `+` or `-` suffix the midiplayer will seek forward or backward from the current position. If the routed message value is negative and the midiplayer is currently playing, seeking will be postponed until the song reaches the end of a measure as specified by `barlength`.
 
-The tempo of sequencers, arpeggiators, and midiplayers can be set with a router rule that has a `tempo` parameter with the target's name as its value. For this reason the names of all these units within a bank file should be unique. A router rule with a `sync` parameter will set the tempo of the named unit by measuring the time between successive MIDI messages matching the rule, allowing a user to set the tempo by tapping a button or key. The value of the routed message sets the number of beats to sync to the time interval. These units can also be synchronized with an external device or program that sends a MIDI clock signal by adding a router rule of type `clock` with a `sync` parameter. Note that any tempo changes to a midiplayer will cause it to stop paying attention to any tempo change messages in the file. This behavior can be resumed using by setting a tempo of zero.
+> The tempo of sequencers, arpeggiators, and midiplayers can be set with a router rule that has a `tempo` 
+> parameter with the target's name as its value. For this reason the names of all these units within a bank file 
+> should be unique. A router rule with a `sync` parameter will set the tempo of the named unit by measuring the 
+> time between successive MIDI messages matching the rule, allowing a user to set the tempo by tapping a button 
+> or key. The value of the routed message sets the number of beats to sync to the time interval. These units can 
+> also be synchronized with an external device or program that sends a MIDI clock signal by adding a router rule 
+> of type `clock` with a `sync` parameter. Note that any tempo changes to a midiplayer will cause it to stop 
+> paying attention to any tempo change messages in the file. This behavior can be resumed using by setting a 
+> tempo of zero.
 
 ### ladspafx
-A mapping of external [LADSPA](https://github.com/FluidSynth/fluidsynth/blob/master/doc/ladspa.md) effects units to activate. These must be installed separately and are system-dependent. On Linux, the `listplugins` and `analyseplugin` commands are useful for determining the available plugins and their parameters.
+Contains one or more named units that activate and control external LADSPA effect plugins. These must be installed separately and are system-dependent. On Linux, the `listplugins` and `analyseplugin` commands are useful for determining the available plugins and their parameters.
 
 - `lib`(required) - the effect plugin file (_.dll, .so_, etc. depending on system)
 - `plugin` - the name of the plugin within the file, required if there's more than one
