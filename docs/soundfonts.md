@@ -6,7 +6,7 @@ The individual sounds that can be selected from a soundfont are called _presets_
 
 ## Adding Soundfonts
 
-The soundfonts in the `bankdir` folder and its subfolders, defined in the [config](basic_usage/#config-files) file, are those that will be available to FluidPatcher. You can add soundfonts by copying them to this folder, but to actually play the presets you must add them to a bank file.
+The soundfonts in the `bankdir` folder and its subfolders, defined in the [config](basic_usage.md#config-files) file, are those that will be available to FluidPatcher. You can add soundfonts by copying them to this folder, but to actually play the presets you must add them to a bank file.
 
 Find the `patches` item in a bank file, such as the example below. Each patch begins with an indented name. For each preset you want to use, create a new patch and add the preset with the format `<MIDI channel>: <soundfont file>:<bank>:<program>`. Almost all keyboards will send notes on MIDI channel 1 by default. You can find the bank and program numbers of the presets in the soundfont by opening it with an editor such as the ones listed below. The `fluidpatcher_gui.py` script will list all the presets in a soundfont and let you hear what they sound like before adding them to a patch.
 
