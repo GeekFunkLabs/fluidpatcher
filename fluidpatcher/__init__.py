@@ -376,7 +376,7 @@ class FluidPatcher:
         """
         RouterRule(**pars).add(self.fsynth.router_addrule)
 
-    def send_event(self, msg=None, type='note', chan=0, par1=0, par2=None):
+    def send_event(self, msg=None, type='note', chan=1, par1=0, par2=0):
         """Send a MIDI event to the Synth
 
         Sends a MidiMessage, or constructs one from a bank file-styled string

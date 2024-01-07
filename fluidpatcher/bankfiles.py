@@ -6,7 +6,7 @@ import yaml
 
 sfp = re.compile('^(.+\.sf2):(\d+):(\d+)$', flags=re.I)
 nn = '[A-G]?[b#]?\d*[.]?\d+' # scientific note name or number
-msg = re.compile(f'^(note|cc|prog|pbend|cpress|kpress|noteoff):(\d+):({nn}):?(\d+)?$')
+msg = re.compile(f'^(note|cc|prog|pbend|cpress|kpress|noteoff|clock|start|continue|stop):(\d+)?:({nn})?:(\d+)?$')
 rspec = re.compile(f'^({nn})-({nn})\*(-?[\d\.]+)([+-]{nn})$')
 ftspec = re.compile(f'^({nn})?-?({nn})?=?(-?{nn})?-?(-?{nn})?$')
 scinote = re.compile('([+-]?)([A-G])([b#]?)(-?[0-9])') # scientific note name parts
@@ -91,12 +91,12 @@ class MidiMessage(yaml.YAMLObject):
     yaml_loader = yaml.SafeLoader
     yaml_dumper = yaml.SafeDumper
 
-    def __init__(self, type, chan, par1, par2=None, yaml=''):
+    def __init__(self, type, chan, par1, par2, yaml=''):
         self.type = type
         self.chan = chan
         self.par1 = scinote_to_val(par1)
         self.par2 = par2
-        self.yaml = yaml or f"{type}:{chan}:{par1}:{par2}"
+        self.yaml = yaml or f"{type}:{chan or ''}:{par1 or ''}:{par2 or ''}"
 
     def __str__(self):
         return self.yaml

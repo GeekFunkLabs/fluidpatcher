@@ -721,12 +721,12 @@ class Synth:
             presets.append((bank, prog, name))
         return presets
 
-    def send_event(self, type, chan, par1, par2=None):
+    def send_event(self, type, chan, par1, par2):
         newevent = MidiEvent(FS.new_fluid_midi_event())
         newevent.type = type
-        newevent.chan = chan
-        newevent.par1 = par1
-        newevent.par2 = par2
+        if chan: newevent.chan = chan
+        if par1: newevent.par1 = par1
+        if par2: newevent.par2 = par2
         self.custom_midi_router(newevent.event)
 
     def send_sysex(self, data):

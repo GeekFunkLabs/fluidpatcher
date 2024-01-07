@@ -64,6 +64,7 @@ The `chan`, `par1`, and `par2` parameters can have the following formats:
 * `<from_min>-<from_max>=<value>` matches values in the range and sets them to _value_ in the created event
 * `<from_min>-<from_max>=<to_min>-<to_max>` matches values in the _from_ range and scales them to values in the _to_ range for `par1` and `par2`; for `chan` any event in the _from_ range creates events on every channel in the _to_ range
 * `<from_channel>=<min_channel>-<max_channel>` matches messages from the specified channel and creates events on every channel in the given range
+* `<from_min>-<from_max>*<factor>+<offset>` matches values in the range, multiplies them by _factor_ and adds _offset_.
 
 The rule type can be any of those listed above in `messages`. The created event can also be a different type from the triggering message by specifying the type as `<type>=<newtype>`. If the new type has a different number of parameters than the triggering message, the parameters of the event are determined as follows:
 
@@ -71,11 +72,7 @@ The rule type can be any of those listed above in `messages`. The created event 
 * 1- to 2-parameter: `par1` becomes `par2`, `par1` is taken from `par2` of the rule
 * sytem realtime to 1- or 2-parameter: `chan`, `par1`, and `par2` are set by the rule parameters
 
-Rules can have other parameters, in which case they do not send events to the synth and are used to trigger additional features. Some of these are explained in the relevants sections below. A rule with a `fluidsetting` parameter will change the corresponding FluidSynth setting. Rules with a `patch` parameter can be used to select patches:
-
-* a patch number or name as the parameter value selects the patch
-* a number followed by `+` or `-` increments the patch number
-* `select` sets the patch number according to the message
+Rules can have other parameters, in which case they do not send events to the synth and are used to trigger additional features. A rule with a `fluidsetting` parameter will change the corresponding FluidSynth setting. Rules with a `patch` parameter can be used to select patches - a patch number or name as the parameter value selects that patch, a number followed by `+` or `-` increments the patch number, and `select` sets the patch number according to the message. Other special rules are explained in relevant sections below.
 
 ### `midiplayers`
 
@@ -87,8 +84,8 @@ A subsection that contains one or more named midiplayers that can play, loop, an
 - `barlength` - the number of ticks corresponding to a whole number of musical measures in the song. If the midiplayer is playing and a router rule tells it to seek to a point in the song, it will wait until the end of a bar to do so. By default barlength is 0 and seeking will occur immediately.
 - `chan` - a channel routing specification, of the same format as for a router rule, for all the messages in the file. This can be useful if your MIDI controller plays on the same channel as one or more of the tracks in the file, and you don't want the messages to interfere.
 - `mask` - a list of MIDI message types to ignore in the file. A useful value is `['prog']`, which will prevent program changes in the file from changing your patch settings.
-  
-A router rule with a `midiplayer` parameter will tell the named midiplayer to play if the routed message value is positive or pause if the value is zero. If the rule also has a `tick` parameter, the midiplayer will seek to that tick position in the song. If the value of `tick` has a `+` or `-` suffix the midiplayer will seek forward or backward from the current position. If the routed message value is negative and the midiplayer is currently playing, seeking will be postponed until the song reaches the end of a measure as specified by `barlength`.
+
+Router rules for controlling midiplayers have a `midiplayer` parameter with the player name as its value. will tell the named midiplayer to play if the routed message value is positive or pause if the value is zero. If the rule also has a `tick` parameter, the midiplayer will seek to that tick position in the song. If the value of `tick` has a `+` or `-` suffix the midiplayer will seek forward or backward from the current position. If the routed message value is negative and the midiplayer is currently playing, seeking will be postponed until the song reaches the end of a measure as specified by `barlength`.
 
 ### `sequencers`
 
