@@ -792,7 +792,7 @@ class Synth:
             for ladpsafx in self.ladspafx.values():
                 ladpsafx.fxunits = []
 
-    def fxchain_add(self, name, lib, plugin=None, group=[], audio='stereo', vals={}, **_):
+    def fxchain_add(self, name, lib, plugin=None, group=[], audio='mono', vals={}, **_):
         if name not in self.ladspafx:
             if FS.fluid_ladspa_is_active(self.ladspa):
                 FS.fluid_ladspa_reset(self.ladspa)
