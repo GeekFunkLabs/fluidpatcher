@@ -8,8 +8,14 @@ nav:
 - Plugins: ladspa_plugins.md
 - API Reference: api_reference.md
 theme:
-  name: material
+  name: readthedocs
   favicon: img/gfl_logo.ico
 plugins:
-  - mkdocstrings
-  
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_section_style: list
+            members_order: source
+            show_root_heading: true
+            show_signature_annotations: true

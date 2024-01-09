@@ -33,9 +33,9 @@ currentbank: bank1.yaml
 
 ## Usage
 
-To add plugins to a bank file, create a `ladspafx` section as described in [Creating Banks](bank_files.md#ladspafx). The LADSPA SDK provides the `analyseplugin` command in order to view information about what audio in/out ports and control ports a plugin has. Enter the command, followed by the full path of the plugin. Here is the output for the `amp` plugin:
+To add plugins to a bank file, create a `ladspafx` section as described in [Creating Banks](bank_files.md#ladspafx) and add a named section for each plugin. Setting the parameters correctly requires knowing some details about the plugin, which can be found using the `analyseplugin` command provided by the LADSPA SDK. Enter the command, followed by the full path to the plugin file. Here is the output for the `amp` plugin file:
 
-```bash
+```shell
 $ analyseplugin /usr/lib/ladspa/amp.so
 
 Plugin Name: "Mono Amplifier"
@@ -68,3 +68,24 @@ Ports:  "Gain" input, control, 0 to ..., default 1, logarithmic
         "Input (Right)" input, audio
         "Output (Right)" output, audio
 ```
+
+As in the example above, some plugin files contain multiple plugins. The `plugin` parameter is used to set the label of the desired plugin. To route audio through the plugin, the `audio` parameter needs to be a list of the audio port names. List the inputs first, followed by the outputs. Part of the name can be used, as long as it is a unique match. The alias `mono` sets the ports to `Input, Output`, and `stereo` sets them to `Input L, Input R, Output L, Output R`. The control port names are used to set initial values with the `val` parameter, or connect router rules.
+
+The `groups` parameter is a list of the audio groups to route through the plugin. The number of groups is set in the config file as described above, and numbering begins with 1. Multiple audio groups can be sent through a plugin and are not mixed, but each additional group increases CPU load.
+ 
+The bank file snippet below sets up the `amp_stereo` plugin and a router rule to control its Gain using CC# 13:
+
+```yaml
+ladspafx:
+  Stereo Amp:
+	lib: amp
+	plugin: amp_stereo
+	audio: Input (L, Input (R, Output (L, Output (R
+	vals:
+	  Gain: 0.5
+	group: 3
+router_rules:
+  - {type: cc, par1: 13, ladspafx: Stereo Amp, port: Gain, par2: 0-127=0-1}
+```
+
+If `synth.audio-groups` were set to `4`, and assuming there are 16 MIDI channels, this plugin would affect audio from channels 3, 7, 11, and 15.

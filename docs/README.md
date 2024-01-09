@@ -10,6 +10,8 @@ This package provides a python interface for controlling the versatile, cross-pl
 
 Patches are written in YAML format in human-readable and -editable bank files. Bank files can easily be copied and used in FluidPatcher programs written for different platforms and purposes. Two programs are included in the `scripts/` directory of this repository - a command-line synth and a graphical synth/editor. FluidPatcher is the default synth engine used by the [SquishBox](https://geekfunklabs.com/products/squishbox) Raspberry Pi-based sound module.
 
+See the [official documentation](https://geekfunklabs.github.io/fluidpatcher) for full details.
+
 ## Requirements
 
 * [Python](https://python.org/downloads/) >= 3.9
@@ -25,15 +27,15 @@ Patches are written in YAML format in human-readable and -editable bank files. B
 Copy the `fluidpatcher/` folder from the github [repository](https://github.com/GeekFunkLabs/fluidpatcher) to to the same directory as any python scripts that use it. For example, to use the included scripts, use the folder structure below:
 
 ```shell
-scripts/
-├── fluidpatcher_gui.pyw
-├── fluidpatcher_cli.py
-├── config/
-│   ├── banks/
-│   ├── midi/
-│   ├── sf2/
-│   └── fluidpatcherconf.yaml
-└── fluidpatcher/
+📁 scripts/
+├── 📄 fluidpatcher_gui.pyw
+├── 📄 fluidpatcher_cli.py
+├── 📁 config/
+│   ├── 📁 banks/
+│   ├── 📁 midi/
+│   ├── 📁 sf2/
+│   └── 📄 fluidpatcherconf.yaml
+└── 📁 fluidpatcher/
 ```
 	
 In future, a `setup.py` file or [PyPI](https://pypi.org) package may be available.

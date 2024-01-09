@@ -34,7 +34,12 @@ Soundfont editors such as those listed below can be used to modify existing soun
 * [Polyphone](https://www.polyphone-soundfonts.com/)
 * [Viena](https://www.softpedia.com/get/Multimedia/Audio/Other-AUDIO-Tools/Viena.shtml)
 
-The `defaultGM.sf2` soundfont included with fluidpatcher is a small GM soundfont that is used in the example bank files included in this repository. If a user desires higher-quality GM sounds, it can be replaced with one of the fonts below by downloading and renaming the file.
+The `defaultGM.sf2` soundfont included with fluidpatcher is a small GM soundfont that is used in the example bank files included in this repository. If a user desires higher-quality GM sounds, it can be easily substituted with another (below are some examples) by simply renaming the new file. Better yet, create a symbolic link (on Unix-like systems) using the following commands:
+
+```shell
+mv defaultGM.sf2 liteGM.sf2
+ln -s <new soundfont> defaultGM.sf2
+```
 
 * [FluidR3_GM.sf2](https://archive.org/details/fluidr3-gm-gs) (141MB) - pro-quality soundfont created by Frank Wen
 * [GeneralUser_GS_1.471.sf2](https://schristiancollins.com/generaluser) (30MB) - lean but high-quality soundfont by S. Christian Collins
