@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Soundfonts - FluidPatcher</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Soundfonts";
+        var mkdocs_page_input_path = "soundfonts.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> FluidPatcher
+        </a>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../basic_usage/">Basic Usage</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="./">Soundfonts</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#adding-soundfonts">Adding Soundfonts</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#obtaining-soundfonts">Obtaining Soundfonts</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../bank_files/">Creating Banks</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../ladspa_plugins/">Plugins</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../api_reference/">API Reference</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">FluidPatcher</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Soundfonts</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher/edit/master/docs/soundfonts.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="soundfonts">Soundfonts</h1>
+<p>Soundfonts are a file format that contains audio samples and parameters that describe instruments based on those samples. The <a href="http://www.synthfont.com/sfspec24.pdf">soundfont specification</a> defines all the parameters and how synthesizers should interpret them, so that soundfonts will sound the same when used on different software/platforms.</p>
+<p>The individual sounds that can be selected from a soundfont are called <em>presets</em>. Presets are organized into separate <em>banks</em> each containing up to 128 presets, with <em>program</em> numbers 0-127. Banks can be numbered from 0-16383, but generally only the first few banks are used for instruments, and bank 128 for percussion. Some soundfonts follow the <a href="https://www.midi.org/specifications/midi1-specifications/general-midi-specifications">General Midi</a> (GM) specification, which defines a set list of instruments they should contain and their preset numbers. Other soundfonts have a random assortment of presets, or just one or two.</p>
+<h2 id="adding-soundfonts">Adding Soundfonts</h2>
+<p>The soundfonts in the <code>bankdir</code> folder and its subfolders, defined in the <a href="../basic_usage/#config-files">config</a> file, are those that will be available to FluidPatcher. You can add soundfonts by copying them to this folder, but to actually play the presets you must add them to a bank file.</p>
+<p>Find the <code>patches</code> item in a bank file, such as the example below. Each patch begins with an indented name. For each preset you want to use, create a new patch and add the preset with the format <code>&lt;MIDI channel&gt;: &lt;soundfont file&gt;:&lt;bank&gt;:&lt;program&gt;</code>. Almost all keyboards will send notes on MIDI channel 1 by default. You can find the bank and program numbers of the presets in the soundfont by opening it with an editor such as the ones listed below. The <code>fluidpatcher_gui.py</code> script will list all the presets in a soundfont and let you hear what they sound like before adding them to a patch.</p>
+<pre><code class="language-yaml">patches:
+  Bright Piano:
+    1: defaultGM.sf2:000:001
+  Awesome Guitar Sound:
+    1: coolguitars.sf2:000:099
+  Spacey Synth:
+    1: aliensounds.sf2:2:84
+</code></pre>
+<h2 id="obtaining-soundfonts">Obtaining Soundfonts</h2>
+<p>Many soundfonts, both free and paid, are available for download on the internet. A few sites are listed below, and many more can be found with a simple web search.</p>
+<ul>
+<li><a href="https://musical-artifacts.com/">Musical Artifacts</a></li>
+<li><a href="https://www.polyphone-soundfonts.com/download-soundfonts">Polyphone</a></li>
+<li><a href="https://rkhive.com/">RKHive</a></li>
+</ul>
+<p>Soundfont editors such as those listed below can be used to modify existing soundfonts, or create them from scratch using audio samples.</p>
+<ul>
+<li><a href="http://www.swamiproject.org/">Swami</a></li>
+<li><a href="https://www.polyphone-soundfonts.com/">Polyphone</a></li>
+<li><a href="https://www.softpedia.com/get/Multimedia/Audio/Other-AUDIO-Tools/Viena.shtml">Viena</a></li>
+</ul>
+<p>The <code>defaultGM.sf2</code> soundfont included with fluidpatcher is a small GM soundfont that is used in the example bank files included in this repository. If a user desires higher-quality GM sounds, it can be easily substituted with another (below are some examples) by simply renaming the new file. Better yet, create a symbolic link (on Unix-like systems) using the following commands:</p>
+<pre><code class="language-shell">mv defaultGM.sf2 liteGM.sf2
+ln -s &lt;new soundfont&gt; defaultGM.sf2
+</code></pre>
+<ul>
+<li><a href="https://archive.org/details/fluidr3-gm-gs">FluidR3_GM.sf2</a> (141MB) - pro-quality soundfont created by Frank Wen</li>
+<li><a href="https://schristiancollins.com/generaluser">GeneralUser_GS_1.471.sf2</a> (30MB) - lean but high-quality soundfont by S. Christian Collins</li>
+</ul>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../basic_usage/" class="btn btn-neutral float-left" title="Basic Usage"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../bank_files/" class="btn btn-neutral float-right" title="Creating Banks">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../basic_usage/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../bank_files/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
