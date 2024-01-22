@@ -67,7 +67,7 @@ def sig_handler(sig):
             s.pno = sig.patch
         fp.apply_patch(s.pno)
         print(f"Selected patch {s.pno + 1}/{len(fp.patches)}: {fp.patches[s.pno]}")            
-    elif s.monitor and not hasattr(sig, 'val'):
+    elif s.monitor and not hasattr(sig, 'val') and sig.type in MSG_TYPES:
         t = MSG_TYPES.index(sig.type)
         if t < 3:
             octave = int(sig.par1 / 12) - 1
