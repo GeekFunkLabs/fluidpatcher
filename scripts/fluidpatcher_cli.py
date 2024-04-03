@@ -11,7 +11,6 @@ from fluidpatcher import FluidPatcher
 try:
     import atexit
     import select
-    import sys
     import termios
     EDITOR = 'vi'
     stdin_fd = sys.stdin.fileno()
@@ -21,13 +20,13 @@ try:
     termios.tcsetattr(stdin_fd, termios.TCSAFLUSH, new_term)
     def restoreterm():
         termios.tcsetattr(stdin_fd, termios.TCSAFLUSH, old_term)
+    atexit.register(restoreterm)
     def pollkeyb():
         dr,dw,de = select.select([sys.stdin], [], [], 0)
         if not dr == []:
             return sys.stdin.read(1)
         return None
-    atexit.register(restoreterm)
-except ImportError:
+except ImportError: # must be Windows
     import msvcrt
     EDITOR = 'notepad'
     def pollkeyb():
