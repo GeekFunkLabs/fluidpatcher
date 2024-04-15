@@ -23,7 +23,7 @@ patches:
     1: defaultGM.sf2:000:004
     10: defaultGM.sf2:128:032
   FM Piano:
-    1: FM Piano.sf2:000:000
+    1: defaultGM.sf2:000:005
   Vibes: 
     1: defaultGM.sf2:000:011
   Tonewheel:
