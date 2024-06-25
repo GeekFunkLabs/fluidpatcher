@@ -51,7 +51,7 @@ class FluidPatcher:
     See the documentation for information on bank file format.
     """
 
-    def __init__(self, cfgfile='', **fluidsettings):
+    def __init__(self, cfgfile, **fluidsettings):
         """Creates FluidPatcher and starts FluidSynth
         
         Starts fluidsynth using settings found in yaml-formatted `cfgfile`.
@@ -61,12 +61,12 @@ class FluidPatcher:
         for config file format.
         
         Args:
-          cfgfile: path to config file
-          fluidsettings: additional fluidsettings as keyword list
+          cfgfile: Path object pointing to config file
+          fluidsettings: dictionary of additional fluidsettings
         """
-        self.cfgfile = Path(cfgfile) if cfgfile else None
-        self.cfg = {}
-        self.read_config()
+        
+        self.cfgfile = Path(cfgfile)
+        self.cfg = parseyaml(self.cfgfile.read_text())
         self.bank = {}
         self.soundfonts = set()
         self.fsynth = Synth(**{**self.cfg.get('fluidsettings', {}), **fluidsettings})
@@ -105,34 +105,10 @@ class FluidPatcher:
         """List of patch names in the current bank"""
         return list(self.bank.get('patches', {})) if self.bank else []
 
-    def read_config(self):
-        """Read configuration from `cfgfile` set on creation
-
-        Returns: the raw contents of the config file
+    def update_config(self):
+        """Write current configuration stored in `cfg` to file.
         """
-        if self.cfgfile == None:
-            # If no cfgfile was provided return a representation of self.cfg
-            return renderyaml(self.cfg)
-        raw = self.cfgfile.read_text()
-        self.cfg = parseyaml(raw)
-        return raw
-
-    def write_config(self, raw=''):
-        """Write current config to file
-        
-        Write current configuration stored in `cfg` to file.
-        If raw is provided and parses, write that exactly.
-
-        Args:
-          raw: exact text to write
-        """
-        if self.cfgfile == None:
-        	return
-        if raw:
-            self.cfg = parseyaml(raw)
-            self.cfgfile.write_text(raw)
-        else:
-            self.cfgfile.write_text(renderyaml(self.cfg))
+        self.cfgfile.write_text(renderyaml(self.cfg))
 
     def load_bank(self, bankfile='', raw=''):
         """Load a bank from a file or from raw yaml text
@@ -141,7 +117,7 @@ class FluidPatcher:
         nested collection of dict and list objects. The top-level
         dict must have at minimum a `patches` element or an error
         is raised. If loaded from a file successfully, that file
-        is set as `currentbank` in the config - call write_config()
+        is set as `currentbank` in the config - call update_config()
         to make it persistent.
 
         Upon loading, resets the synth, loads all necessary soundfonts,

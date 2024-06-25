@@ -1,455 +1,252 @@
-#!/usr/bin/env python3
+#!/usr/bin/env pythonw
 """
-Description: a wxpython-based graphical implementation of patcher.py
-              for composing/editing bank files or live playing
+Description: a graphical implementation of fluidpatcher
+             for composing/editing bank files or live playing
 """
 
+from pathlib import Path
+import sys
+import tkinter as tk
+from tkinter.font import Font
+import tkinter.ttk as ttk
+import tkinter.messagebox as msgbox
+import tkinter.filedialog as filedlg
+import traceback
+import webbrowser
+
+from fluidpatcher import FluidPatcher, __version__
+
 WIDTH = 500
-HEIGHT = 320
+HEIGHT = 300
+XPOS = 50
+YPOS = 50
 FONTSIZE = 24
 PAD = 10
 FILLSCREEN = False
 
-import sys
-import traceback
-import webbrowser
-from pathlib import Path
-
-try:
-    import wx
-except ModuleNotFoundError:
-    sys.exit("wxPython not installed!")
-
-from fluidpatcher import FluidPatcher, __version__
-
-POLL_TIME = 25
-APP_NAME = 'FluidPatcher'
 MSG_TYPES = 'note', 'noteoff', 'kpress', 'cc', 'prog', 'pbend', 'cpress'
 MSG_NAMES = "Note On", "Note Off", "Key Pressure", "Control Change", "Program Change", "Pitch Bend", "Aftertouch"
 
-
 def gui_excepthook(etype, val, tb):
-    # catch all unhandled exceptions
-    # display the error in a message box
     s = traceback.format_exception(etype, val, tb)
-    wx.MessageBox(''.join(s), "Error", wx.OK|wx.ICON_ERROR)
+    msgbox.showerror("Error", ''.join(s))
 
 
-class ControlBoard(wx.Panel):
+class PersistentDialog(tk.Toplevel):
 
-    def __init__(self, parent):
-        super(ControlBoard, self).__init__(parent)
-        self.SetBackgroundStyle(wx.BG_STYLE_PAINT)
-        self.Bind(wx.EVT_SIZE, self.onSize)
-        self.Bind(wx.EVT_PAINT, self.onPaint)
-        self.Bind(wx.EVT_MOUSE_EVENTS, self.onClick)
-        
-    def onSize(self, event):
-        event.Skip()
-        self.Refresh()
-        
-    def onPaint(self, event):
-        w, h = self.GetClientSize()
-        dc = wx.AutoBufferedPaintDC(self)
-        dc.SetFont(wx.Font(wx.FontInfo(FONTSIZE)))
-        fh = dc.GetTextExtent('X')[1]
-        h2 = fh * 3 + PAD * 4
-        dc.Clear()
-        dc.SetPen(wx.Pen(wx.BLACK, 5))
-        dc.SetBrush(wx.Brush((0, 100, 255)))
-        dc.DrawRectangle(0, 0, w, h2)
-        dc.SetTextForeground(wx.WHITE)
-        dc.SetClippingRegion(PAD, PAD, w - 2 * PAD, fh * 3 + PAD * 2)
-        dc.DrawLabel(display[0], wx.Rect(PAD, PAD, w - 2 * PAD, fh))
-        dc.DrawLabel(display[1], wx.Rect(PAD, fh * 1 + PAD * 2, w - 2 * PAD, fh))
-        dc.DrawLabel(display[2], wx.Rect(PAD, fh * 2 + PAD * 3, w - 2 * PAD, fh), wx.ALIGN_RIGHT)
-        dc.DestroyClippingRegion()
-        
-        dc.SetTextForeground(wx.BLACK)
-        dc.SetFont(wx.Font(wx.FontInfo(int(FONTSIZE * 0.6))))
-        for i, name, symbol, accel, color in ((0, 'Prev', '-', '[F3]', (255, 255, 0)),
-                                              (1, 'Next', '+', '[F4]', (0, 255, 0)),
-                                              (2, 'Bank', '>', '[F6]', (255, 100, 100))):
-            dc.SetPen(wx.Pen(color, 0))
-            dc.SetBrush(wx.Brush(color))
-            dc.DrawRectangle(int(w / 3 * i), h2, int(w / 3 + 1), h - h2)
-            dc.DrawLabel(symbol, wx.Rect(int(w / 3 * (i + 0.5)), int((h + h2) / 2), 1, 1), wx.ALIGN_CENTER)
-            if h > (fh + PAD) * 5 and w > (fh + PAD) * 4:
-                dc.DrawLabel(name, wx.Rect(int(w / 3 * i + PAD), h2 + PAD, 1, 1))
-                dc.DrawLabel(accel, wx.Rect(int(w / 3 * (i + 1) - PAD), h - PAD, 1, 1), wx.ALIGN_RIGHT|wx.ALIGN_BOTTOM)
-        
-        self.h2 = h2
-        self.w = w
-        
-    def onClick(self, event):
-        event.Skip()
-        if event.LeftDown() and event.GetY() > self.h2:
-            if event.GetX() < self.w / 3 * 1:
-                if fp.patches: main.select_patch(pno=(main.pno - 1) % len(fp.patches))
-            elif event.GetX() < self.w / 3 * 2:
-                if fp.patches: main.select_patch(pno=(main.pno + 1) % len(fp.patches))
-            elif event.GetX() < self.w / 3 * 3:
-                main.next_bankfile()
+    def __init__(self, master, hint=""):
+        super().__init__()
+        self.master = master
+        self.protocol('WM_DELETE_WINDOW', self.hide)
+        self.last_geometry = hint
 
-
-class TextCtrlDialog(wx.Dialog):
-
-    def __init__(self, parent, text, title, caption='', flags=wx.CLOSE, edit=False, **kwargs):
-        super(TextCtrlDialog, self).__init__(parent, title=title,
-            style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER, **kwargs)
-        self.text = wx.TextCtrl(self, style=wx.TE_MULTILINE|wx.TE_RICH|wx.HSCROLL)
-        if edit:
-            fwf = wx.Font(wx.FontInfo().Family(wx.FONTFAMILY_TELETYPE))
-            self.text.SetDefaultStyle(wx.TextAttr(wx.NullColour, font=fwf))
-        self.text.WriteText(text)
-        self.text.SetInsertionPoint(0)
-        self.text.SetEditable(edit)
-        vbox = wx.BoxSizer(wx.VERTICAL)
-        if caption:
-            self.caption = wx.StaticText(self, label=caption)
-            vbox.Add(self.caption, 0, wx.ALL|wx.ALIGN_LEFT, 10)
-        vbox.Add(self.text, 1, wx.LEFT|wx.RIGHT|wx.EXPAND, 15)
-        x=self.CreateStdDialogButtonSizer(flags)
-        vbox.Add(x, 0, wx.ALL|wx.EXPAND, 10)
-        self.SetSizer(vbox)
-
-
-class MidiMonitor(wx.Dialog):
-
-    def __init__(self, parent):
-        super(MidiMonitor, self).__init__(parent, title='MIDI Monitor', size=(350, 500),
-            style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
-        self.msglist = wx.ListCtrl(self, style=wx.LC_REPORT|wx.LC_SINGLE_SEL)
-        self.msglist.AppendColumn('Type')
-        self.msglist.AppendColumn('Channel')
-        self.msglist.AppendColumn('Data')
-        vbox = wx.BoxSizer(wx.VERTICAL)
-        vbox.Add(self.msglist, 1, wx.LEFT|wx.RIGHT|wx.EXPAND, 15)
-        vbox.Add(self.CreateStdDialogButtonSizer(wx.CLOSE), 0, wx.ALL|wx.EXPAND, 10)
-        self.SetSizer(vbox)
-        self.msglist.SetColumnWidth(0, 120)
-        self.msglist.SetColumnWidth(1, 60)
-        self.msglist.SetColumnWidth(2, 100)
-        self.timer = wx.Timer(self)
-        self.Bind(wx.EVT_TIMER, self.onTimer)
-        self.Bind(wx.EVT_SHOW, self.onHide)
-
-    def onHide(self, event):
-        event.Skip()
-        if not event.IsShown():
-            self.timer.Stop()
-            self.msglist.DeleteAllItems()
+    def show(self, *_):
+        if self.state() == 'normal':
+            self.last_geometry = self.geometry()
+            self.withdraw()
+        else:
+            self.transient(self.master)
+            self.geometry(self.last_geometry)
+            self.deiconify()
             
-    def onTimer(self, event):
-        if midisignals:
-            for msg in midisignals:
-                self.msglist.Append(msg)
-            midisignals.clear()
-            n = self.msglist.GetItemCount()
-            pos = self.msglist.GetItemPosition(n - 1)
-            self.msglist.ScrollList(0, pos.y)
+    def hide(self, *_):
+        self.last_geometry = self.geometry()
+        self.withdraw()
 
-    
-class SoundfontBrowser(wx.Dialog):
+   
+class PresetChooser(PersistentDialog):
 
-    def __init__(self, parent, sfrel, presets):
-        self.sfrel = sfrel
+    def __init__(self, master):
+        super().__init__(master)
+        self.master = master
+        self.plist = ttk.Treeview(self, columns=('bank', 'prog', 'name'), show='headings', selectmode='browse')
+        ysc = ttk.Scrollbar(self, orient='vertical', command=self.plist.yview)
+        self.plist.configure(yscrollcommand=ysc.set)
+        self.plist.heading(0, text='Bank')
+        self.plist.heading(1, text='Program')
+        self.plist.heading(2, text='Name')
+        self.plist.column(0, width=75)
+        self.plist.column(1, width=75)
+        self.plist.column(2, width=200)
+        ysc.pack(side='right', fill='y')
+        self.plist.pack(fill='both', expand=True)
+        self.plist.bind('<<TreeviewSelect>>', self.preset_select)
+        self.plist.bind('<Double-Button-1>', self.ok)
+        self.bind('<KeyPress-Return>', self.ok)
+        self.bind('<KeyPress-Escape>', self.cancel)
+        self.protocol('WM_DELETE_WINDOW', self.cancel)
+
+    def preset_select(self, *_):
+        if (self.plist.selection()) == ():
+            self.preset_text = ""
+        else:
+            bank, prog, name = self.presets[int(self.plist.selection()[0])]
+            warn = self.master.fp.select_sfpreset(self.title(), bank, prog)
+            if warn:
+                msgbox.showwarning("Preset Warning", '\n'.join(warn))
+            self.preset_text = f"{self.title()}:{bank:03d}:{prog:03d}"
+
+    def getpreset(self, sfrel, presets):
+        self.title(sfrel)
         self.presets = presets
-        self.copypreset = ''
-        super(SoundfontBrowser, self).__init__(parent, title=sfrel, size=(400, 650),
-            style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
+        for i in self.plist.get_children():
+            self.plist.delete(i)
+        for i, (bank, prog, name) in enumerate(presets):
+            self.plist.insert('', 'end', iid=str(i), values=(f"{bank:03d}", f"{prog:03d}", name))
+        self.plist.selection_set("0")
+        self.show()
+        self.wait_visibility()
+        self.grab_set()
 
-        self.presetlist = wx.ListCtrl(self, style=wx.LC_REPORT|wx.LC_SINGLE_SEL)
-        self.presetlist.AppendColumn('Bank')
-        self.presetlist.AppendColumn('Program')
-        self.presetlist.AppendColumn('Name')
-        vbox = wx.BoxSizer(wx.VERTICAL)
-        vbox.Add(self.presetlist, 1, wx.LEFT|wx.RIGHT|wx.EXPAND, 15)
-        vbox.Add(self.CreateStdDialogButtonSizer(wx.OK|wx.CANCEL), 0, wx.ALL|wx.EXPAND, 10)
-        self.SetSizer(vbox)
-
-        for bank, prog, name in presets:
-            self.presetlist.Append((f"{bank:03d}:", f"{prog:03d}:", name))
-        
-        self.presetlist.SetColumnWidth(0, wx.LIST_AUTOSIZE_USEHEADER)
-        self.presetlist.SetColumnWidth(1, wx.LIST_AUTOSIZE_USEHEADER)
-        self.presetlist.SetColumnWidth(2, wx.LIST_AUTOSIZE_USEHEADER)
-        self.Bind(wx.EVT_LIST_ITEM_SELECTED, self.preset_select, self.presetlist)
-        self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.onActivate, self.presetlist)
-        self.presetlist.SetItemState(0, wx.LIST_STATE_SELECTED, wx.LIST_STATE_SELECTED)
-        
-    def preset_select(self, event):
-        if (i := event.GetIndex()) < 0:
-            return
-        bank, prog, name = self.presets[i]
-        warn = fp.select_sfpreset(self.sfrel, bank, prog)
-        if warn:
-            wx.MessageBox('\n'.join(warn), "Warning", wx.OK|wx.ICON_WARNING)
-        self.copypreset = f"{self.sfrel}:{bank:03d}:{prog:03d}"
-
-    def onActivate(self, event):
-        self.EndModal(wx.ID_OK)
+    def ok(self, *_):
+        self.grab_release()
+        self.hide()
+        self.master.bedit.text.insert('insert', self.preset_text)
+        self.master.bedit.text.see('insert')
+        self.master.bedit.text.focus_set()
+        self.master.parse_bank()
+    
+    def cancel(self, *_):
+        self.grab_release()
+        self.hide()
 
 
-class MainWindow(wx.Frame):
+class SettingsDialog(PersistentDialog):
+
+    def __init__(self, master):
+        super().__init__(master)
+        self.master = master
+        self.title(cfgfile)
+        self.cfg = tk.Text(self, wrap='none')
+        xsc = ttk.Scrollbar(self, orient='horizontal', command=self.cfg.xview)
+        ysc = ttk.Scrollbar(self, orient='vertical', command=self.cfg.yview)
+        bf = ttk.Frame(self, relief='groove', padding=10)
+        self.cfg.configure(xscrollcommand=xsc.set, yscrollcommand=ysc.set)
+        self.cfg.grid(row=0, column=0, sticky='nsew')
+        ysc.grid(row=0, column=1, sticky='ns')
+        xsc.grid(row=1, column=0, sticky='ew')
+        bf.grid(row=2, column=0, sticky='ew', columnspan=2)
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+        applybtn = ttk.Button(bf, text="Apply", command=self.apply)
+        cancelbtn = ttk.Button(bf, text="Cancel", command=self.cancel)
+        cancelbtn.pack(side='right')
+        applybtn.pack(side='right')
+        self.protocol('WM_DELETE_WINDOW', self.cancel)
+
+    def viewsettings(self):
+        self.cfg.delete('1.0', 'end')
+        self.cfg.insert('1.0', cfgfile.read_text())
+        self.show()
+        self.wait_visibility()
+        self.grab_set()
+
+    def apply(self):
+        cfgfile.write_text(self.cfg.get('1.0', 'end'))
+        try:
+            self.master.fp = FluidPatcher(cfgfile)
+        except Exception as e:
+            msgbox.showerror("Configuration Error", f"Error in config file {cfgfile}:\n{str(e)}")
+        else:
+            self.grab_release()
+            self.hide()
+            self.master.fp.midi_callback = self.master.listener
+            self.master.parse_bank()
+            
+    def cancel(self):
+        self.grab_release()
+        self.hide()
+
+
+class MainWindow(ttk.Frame):
 
     def __init__(self):
-        super(MainWindow, self).__init__(None, title=APP_NAME, size=(WIDTH, HEIGHT))
-
-        fileMenu = wx.Menu()
-        x = fileMenu.Append(wx.ID_NEW, '&New Bank\tCtrl+N', 'Start a new bank')
-        self.Bind(wx.EVT_MENU, self.onNew, x)
-        x = fileMenu.Append(wx.ID_OPEN, 'L&oad Bank...\tCtrl+O', 'Load bank file')
-        self.Bind(wx.EVT_MENU, self.onOpen, x)
-        x = fileMenu.Append(wx.ID_SAVE, '&Save Bank\tCtrl+S', 'Save current bank')
-        self.Bind(wx.EVT_MENU, self.onSave, x)
-        x = fileMenu.Append(wx.ID_SAVEAS, 'Save Bank &As...\tCtrl+Shift+S', 'Save bank file')
-        self.Bind(wx.EVT_MENU, self.onSaveAs, x)
-        fileMenu.AppendSeparator()
-        x = fileMenu.Append(wx.ID_EXIT, 'E&xit\tCtrl+Q', 'Terminate the program')
-        self.Bind(wx.EVT_MENU, self.onExit, x)
-
-        self.patchMenu = wx.Menu()
-        toolsMenu = wx.Menu()
-        x = toolsMenu.Append(wx.ID_ANY, 'Edit &Bank\tCtrl+B', 'Edit the current bank')
-        self.Bind(wx.EVT_MENU, self.onEditBank, x)
-        x = toolsMenu.Append(wx.ID_ANY, 'Choose &Preset\tCtrl+P', 'Choose preset from a soundfont')
-        self.Bind(wx.EVT_MENU, self.onChoosePreset, x)
-        x = toolsMenu.Append(wx.ID_ANY, '&MIDI Monitor', 'Monitor incoming MIDI messages')
-        self.Bind(wx.EVT_MENU, self.onMidiMon, x)
-        x = toolsMenu.Append(wx.ID_ANY, '&Fill Screen\tF11', 'Fill the screen')
-        self.Bind(wx.EVT_MENU, self.onFillScreen, x)
-        toolsMenu.AppendSeparator()
-        x = toolsMenu.Append(wx.ID_ANY, '&Settings...\tCtrl+,', 'Edit FluidPatcher configuration')
-        self.Bind(wx.EVT_MENU, self.onSettings, x)
-        
-        helpMenu = wx.Menu()
-        x = helpMenu.Append(wx.ID_ANY, '&Online Help', 'Open online help in a web browser')
-        self.Bind(wx.EVT_MENU, lambda _: webbrowser.open('https://github.com/albedozero/fluidpatcher/wiki'), x)
-        x = helpMenu.Append(wx.ID_ABOUT, '&About', 'Information about this program')
-        self.Bind(wx.EVT_MENU, self.onAbout, x)
-
-        self.menubar = wx.MenuBar()
-        self.menubar.Append(fileMenu, '&File')
-        self.menubar.Append(self.patchMenu, '&Patches')
-        self.menubar.Append(toolsMenu, '&Tools')
-        self.menubar.Append(helpMenu, '&Help')
-        self.SetMenuBar(self.menubar)
-
-        self.ctrlboard = ControlBoard(self)
-        self.bedit = TextCtrlDialog(self, '', "Bank Editor", ' ', flags=wx.APPLY|wx.CLOSE, edit=True, size=(500, 450))
-        self.midimon = MidiMonitor(self)
-        self.bedit.Bind(wx.EVT_TEXT, self.onMod)
-        self.bedit.Bind(wx.EVT_BUTTON, self.onBankEditButton)
-        self.bedit.Bind(wx.EVT_CHAR_HOOK, self.onKeyPressDialog)
-        self.midimon.Bind(wx.EVT_CHAR_HOOK, self.onKeyPressDialog)
-        self.Bind(wx.EVT_CHAR_HOOK, self.onKeyPress)
-        self.Bind(wx.EVT_CLOSE, self.onExit)        
-        _icon = wx.Icon('assets/gfl_logo.ico', wx.BITMAP_TYPE_ICO)
-        self.SetIcon(_icon)
-        if FILLSCREEN: self.onFillScreen()
-        
-        self.lastdir = dict(bank=fp.bankdir, sf2=fp.sfdir)
-        self.onNew()
-        if fp.currentbank: self.load_bankfile(fp.currentbank)
-
-    def listener(self, sig):
-        if hasattr(sig, 'val'):
-            if hasattr(sig, 'patch') and fp.patches:
-                if sig.patch == -1:
-                    self.select_patch(pno=(self.pno + sig.val) % len(fp.patches))
-                else:
-                    self.select_patch(pno=sig.patch)
-            elif hasattr(sig, 'lcdwrite'):
-                if hasattr(sig, 'format'):
-                    val = format(sig.val, sig.format)
-                    display[2] = f"{sig.lcdwrite} {val}"
-                else:
-                    display[2] = sig.lcdwrite
-                self.ctrlboard.Refresh()
-        elif hasattr(self.midimon, 'timer') and self.midimon.timer.IsRunning() and sig.type in MSG_TYPES:
-            t = MSG_TYPES.index(sig.type)
-            if t < 3:
-                octave = int(sig.par1 / 12) - 1
-                note = ('C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B')[sig.par1 % 12]
-                midisignals.append((MSG_NAMES[t], str(sig.chan), f"{sig.par1} ({note}{octave})={sig.par2}"))
-            elif t < 4:
-                midisignals.append((MSG_NAMES[t], str(sig.chan), f"{sig.par1}={sig.par2}"))
-            elif t < 7:
-                midisignals.append((MSG_NAMES[t], str(sig.chan), str(sig.par1)))
-
-    def load_bankfile(self, bfile=''):
-        display[:] = [str(bfile), "", "loading patches"]
-        self.ctrlboard.Refresh()
-        self.ctrlboard.Update()
         try:
-            rawbank = fp.load_bank(bfile)
+            self.fp = FluidPatcher(cfgfile)
         except Exception as e:
-            wx.MessageBox(str(e), f"Error Loading {bfile}", wx.OK|wx.ICON_ERROR)
-            display[0] = self.currentfile
-            self.select_patch(pno=self.pno, force=True)
-            return False
-        fp.write_config()
-        self.bedit.text.Clear()
-        self.bedit.text.AppendText(rawbank)
-        self.bedit.text.SetInsertionPoint(0)
-        self.bedit.caption.SetLabel(str(bfile))
-        for i in self.patchMenu.GetMenuItems():
-            self.patchMenu.Delete(i)
-        for p in fp.patches:
-            x = self.patchMenu.Append(wx.ID_ANY, p)
-            self.Bind(wx.EVT_MENU, self.select_patch, x)
-        self.currentfile = str(bfile)
-        self.select_patch(pno=0, force=True)
-        return True
+            msgbox.showerror("Configuration Error", f"Error in config file {cfgfile}:\n{str(e)}")
+            sys.exit() # open settings dialog instead!
+    
+        super().__init__()
+        self.master.title('FluidPatcher')
+        self.master.geometry(f'{WIDTH}x{HEIGHT}+{XPOS}+{YPOS}')
+        self.master.protocol('WM_DELETE_WINDOW', self.menu_exit)
 
-    def next_bankfile(self):
-        banks = sorted([b.relative_to(fp.bankdir) for b in fp.bankdir.rglob('*.yaml')])
-        bno = (banks.index(fp.currentbank) + 1 ) % len(banks) if fp.currentbank in banks else 0
-        self.load_bankfile(banks[bno])
+        # create the bank editor window
+        self.bedit = PersistentDialog(self, f'+{XPOS + WIDTH + 20}+{YPOS}')
+        self.bedit.text = tk.Text(self.bedit, wrap='none', undo=True)
+        xsc = ttk.Scrollbar(self.bedit, orient='horizontal', command=self.bedit.text.xview)
+        ysc = ttk.Scrollbar(self.bedit, orient='vertical', command=self.bedit.text.yview)
+        self.bedit.text.configure(xscrollcommand=xsc.set, yscrollcommand=ysc.set)
+        self.bedit.text.grid(row=0, column=0, sticky='nsew')
+        ysc.grid(row=0, column=1, sticky='ns')
+        xsc.grid(row=1, column=0, sticky='ew')
+        self.bedit.grid_columnconfigure(0, weight=1)
+        self.bedit.grid_rowconfigure(0, weight=1)
+        self.bedit.withdraw()
+        self.bedit.text.bind('<KeyRelease>', self.parse_bank)
 
-    def parse_bank(self, text=''):
-        lastpatch = fp.patches[self.pno] if fp.patches else ''
-        try:
-            fp.load_bank(raw=text or self.bedit.text.GetValue())
-        except Exception as e:
-            wx.MessageBox(str(e), "Error Reading Bank", wx.OK|wx.ICON_ERROR)
-            return False
-        for i in self.patchMenu.GetMenuItems():
-            self.patchMenu.Delete(i)
-        for p in fp.patches:
-            x = self.patchMenu.Append(wx.ID_ANY, p)
-            self.Bind(wx.EVT_MENU, self.select_patch, x)
-        if lastpatch in fp.patches:
-            self.select_patch(pno=fp.patches.index(lastpatch), force=True)
-        elif self.pno < len(fp.patches):
-            self.select_patch(pno=self.pno, force=True)
-        else:
-            self.select_patch(pno=0, force=True)
-        return True
+        # create the midi monitor window
+        self.midimon = PersistentDialog(self, f'+{XPOS}+{YPOS + HEIGHT + 75}')
+        self.midimon.title("MIDI Monitor")
+        self.midimon.msglist = ttk.Treeview(self.midimon, columns=('type', 'chan', 'data'), show='headings', selectmode='none')
+        ysc = ttk.Scrollbar(self.midimon, orient='vertical', command=self.midimon.msglist.yview)
+        self.midimon.msglist.configure(yscrollcommand=ysc.set)
+        self.midimon.msglist.heading(0, text='Type')
+        self.midimon.msglist.heading(1, text='Channel')
+        self.midimon.msglist.heading(2, text='Data')
+        self.midimon.msglist.column(0, width=120)
+        self.midimon.msglist.column(1, width=60)
+        self.midimon.msglist.column(2, width=100)
+        ysc.pack(side='right', fill='y')
+        self.midimon.msglist.pack(fill='both', expand=True)
+        self.midimon.withdraw()
+
+        # create the preset chooser window
+        self.presetdlg = PresetChooser(self)
+        self.presetdlg.withdraw()
+
+        # create the settings dialog
+        self.settingsdlg = SettingsDialog(self)
+        self.settingsdlg.withdraw()
+
+        # create the main menu
+        self.menu = tk.Menu(self)
+        fm = tk.Menu(self.menu, tearoff=0)
+        fm.add_command(label='New Bank', underline=0, command=self.menu_new, accelerator='Ctrl+N')
+        fm.add_command(label='Load Bank', underline=1, command=self.menu_open, accelerator='Ctrl+O')
+        fm.add_command(label='Save Bank', underline=0, command=self.menu_save, accelerator='Ctrl+S')
+        fm.add_command(label='Save Bank As...', underline=10, command=self.menu_saveas, accelerator='Ctrl+Shift+S')
+        fm.add_separator()
+        fm.add_command(label='Exit', underline=1, command=self.menu_exit, accelerator='Ctrl+Q')
+        self.bind_all('<Control-n>', self.menu_new)
+        self.bind_all('<Control-o>', self.menu_open)
+        self.bind_all('<Control-s>', self.menu_save)
+        self.bind_all('<Control-S>', self.menu_saveas)
+        self.bind_all('<Control-q>', self.menu_exit)
         
-    def select_patch(self, event=None, pno=0, force=False):
-        if not fp.patches:
-            self.pno = 0
-            display[1:] = "No Patches", "patch 0/0"
-            warn = fp.apply_patch('')
-        else:
-            if event:
-                p = self.patchMenu.FindItemById(event.GetId()).GetItemLabelText()
-                self.pno = fp.patches.index(p)
-            elif pno == self.pno and not force:
-                return
-            else:
-                self.pno = pno
-            warn = fp.apply_patch(self.pno)
-            display[1:] = fp.patches[self.pno], f"patch {self.pno + 1}/{len(fp.patches)}"
-        self.ctrlboard.Refresh()
-        if warn: wx.MessageBox('\n'.join(warn), "Warning", wx.OK|wx.ICON_WARNING)
-
-    def onNew(self, event=None):
-        if self.GetTitle().endswith('*'):
-            resp = wx.MessageBox("Unsaved changes in bank - close?", "New", wx.ICON_WARNING|wx.OK|wx.CANCEL)
-            if resp != wx.OK:
-                return
-        self.currentfile = ''
-        self.pno = 0
-        self.bedit.text.Clear()
-        self.bedit.text.AppendText(" ")
-        self.bedit.text.SetInsertionPoint(0)
-        self.parse_bank('{}')
-        display[0] = "(Untitled)"
-        self.bedit.caption.SetLabel("(Untitled)")
-        self.ctrlboard.Refresh()
-
-    def onOpen(self, event):
-        bank = wx.FileSelector("Load Bank", str(self.lastdir['bank']), "", "*.yaml", "Bank files (*.yaml)|*.yaml", wx.FD_OPEN)
-        if bank == '': return
-        self.lastdir['bank'] = Path(bank).parent
-        self.load_bankfile(Path(bank).relative_to(fp.bankdir))
-
-    def onSave(self, event):
-        self.onSaveAs(bfile=self.currentfile)
-
-    def onSaveAs(self, event=None, bfile=''):
-        if not self.parse_bank():
-            return
-        if bfile == '':
-            bank = wx.FileSelector("Save Bank", str(self.lastdir['bank']), "", "*.yaml", "Bank files (*.yaml)|*.yaml", wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT)
-            if bank == '': return
-            self.lastdir['bank'] = Path(bank).parent
-            bfile = str(Path(bank).relative_to(fp.bankdir))
-        try:
-            fp.save_bank(bfile, self.bedit.text.GetValue())
-        except Exception as e:
-            wx.MessageBox(str(e), "Error Saving Bank", wx.OK|wx.ICON_ERROR)
-            return
-        fp.write_config()
-        display[0] = bfile
-        self.bedit.caption.SetLabel(bfile)
-        self.currentfile = bfile
-        self.ctrlboard.Refresh()
-
-    def onExit(self, event=None):
-        if isinstance(event, wx.CloseEvent) and not event.CanVeto():
-            self.Destroy()
-        if self.bedit.caption.GetLabel().endswith('*'):
-            resp = wx.MessageBox("Unsaved changes in bank - quit?", "Exit", wx.ICON_WARNING|wx.OK|wx.CANCEL)
-            if resp != wx.OK:
-                if hasattr(event, 'Veto'): event.Veto()
-                return
-        self.Destroy()
-        self.bedit.Destroy()
-        self.midimon.Destroy()
-
-    def onFillScreen(self, event=None):
-        if self.GetMenuBar() == self.menubar:
-            self.SetMenuBar(None)
-            self.bedit.Show(False)
-            self.midimon.Show(False)
-            self.Maximize()
-        else:
-            self.SetMenuBar(self.menubar)
-            self.Maximize(False)
-
-    def onEditBank(self, event):
-        self.bedit.Show()
-        self.bedit.Raise()
-
-    def onChoosePreset(self, event):
-        sf = wx.FileSelector("Open Soundfont", str(self.lastdir['sf2']), "", "*.sf2", "Soundfont (*.sf2)|*.sf2", wx.FD_OPEN)
-        if sf == '': return
-        self.lastdir['sf2'] = Path(sf).parent
-        sfrel = Path(sf).relative_to(fp.sfdir).as_posix()
-        if not (presets := fp.solo_soundfont(sfrel)):
-            wx.MessageBox(f"Unable to load {sf}", "Error", wx.OK|wx.ICON_ERROR)
-            return
-        sfbrowser = SoundfontBrowser(self, sfrel, presets)
-        if sfbrowser.ShowModal() == wx.ID_OK and self.bedit.IsShown():
-            self.bedit.text.WriteText(sfbrowser.copypreset)
-        sfbrowser.Destroy()
-        fp.load_bank()
-        self.select_patch(pno=self.pno, force=True)
-
-    def onMidiMon(self, event):
-        self.midimon.timer.Start(100)
-        self.midimon.Show()
-        self.midimon.Raise()
-
-    def onSettings(self, event):
-        rawcfg = fp.read_config()
-        tmsg = TextCtrlDialog(self, rawcfg, "Settings", cfgfile, wx.OK|wx.CANCEL, edit=True, size=(500, 450))
-        if tmsg.ShowModal() == wx.ID_OK:
-            newcfg = tmsg.text.GetValue()
-            try:
-                fp.write_config(newcfg)
-            except Exception as e:
-                wx.MessageBox(str(e), "Error Saving Settings", wx.OK|wx.ICON_ERROR)
-                return
-            wx.MessageBox("Configuration saved!\nRestart may be needed for some settings to apply.", "Success", wx.OK)
-        tmsg.Destroy()
-
-    def onAbout(self, event):
-        msg = f"""
+        self.patchmenu = tk.Menu(self.menu, tearoff=0)
+        
+        tm = tk.Menu(self.menu, tearoff=0)
+        tm.add_command(label="Edit Bank", underline=5, command=self.bedit.show, accelerator='Ctrl+B')
+        tm.add_command(label="Choose Preset", underline=7, command=self.menu_choosepreset, accelerator='Ctrl+P')
+        tm.add_command(label="Midi Monitor", underline=0, command=self.menu_midimon, accelerator='Ctrl+M')
+        tm.add_command(label="Fill Screen", underline=0, command=self.menu_fillscreen, accelerator='F11')
+        tm.add_separator()
+        tm.add_command(label="Settings", underline=0, command=self.settingsdlg.viewsettings)
+        self.bind_all('<Control-b>', self.bedit.show)
+        self.bind_all('<Control-p>', self.menu_choosepreset)
+        self.bind_all('<Control-m>', self.menu_midimon)
+        self.bind_all('<F11>', self.menu_fillscreen)
+        for key in 'bnop':
+            self.bind_class('Text', f'<Control-{key}>', lambda _: ())
+        
+        hm = tk.Menu(self.menu, tearoff=0, name='help')
+        hm.add_command(label='Quick Help', underline=6,
+                             command=lambda: webbrowser.open('https://geekfunklabs.github.io/fluidpatcher/basic_usage/#fluidpatcher_guipyw'))
+        hm.add_command(label='Documentation', underline=0,
+                             command=lambda: webbrowser.open('https://geekfunklabs.github.io/fluidpatcher'))
+        hm.add_command(label='About', underline=0, command=lambda: msgbox.showinfo("About", f"""
 FluidPatcher {__version__}
 github.com/albedozero/fluidpatcher
 
@@ -457,58 +254,269 @@ by Bill Peterson
 geekfunklabs.com
 
 Python version {sys.version.split()[0]}
-WxPython version {wx.__version__}
-"""
-        wx.MessageBox(msg, "About", wx.OK)
+"""))
 
-    def onMod(self, event):
-        t = self.bedit.caption.GetLabel()
-        self.bedit.caption.SetLabel(t.rstrip('*') + '*')
+        self.menu.add_cascade(label='File', underline=0, menu=fm)
+        self.menu.add_cascade(label='Patches', underline=0, menu=self.patchmenu)
+        self.menu.add_cascade(label='Tools', underline=0, menu=tm)
+        self.menu.add_cascade(label='Help', underline=0, menu=hm)
+        self.master.configure(menu=self.menu)
 
-    def onKeyPress(self, event):
-        if event.HasAnyModifiers():
-            event.Skip()
+        # create the UI
+        self.ui = tk.Canvas(self)
+        w, h = WIDTH, HEIGHT
+        fh = int(FONTSIZE * 1.6)
+        font1 = Font(size=FONTSIZE)
+        font2 = Font(size=int(0.8 * FONTSIZE))
+        h2 = fh * 3 + PAD * 4
+        self.ui.create_rectangle(0, 0, 0, 0, fill='#0064ff', width=0, tags='lcd')
+        self.ui.create_text(0, 0, fill="white", anchor='nw', font=font1, tags='row1')
+        self.ui.create_text(0, 0, fill="white", anchor='nw', font=font1, tags='row2')
+        self.ui.create_text(0, 0, fill="white", anchor='ne', font=font1, tags='row3')
+        self.ui.create_rectangle(0, 0, 0, 0, width=4, tags='frame')
+        for i, symbol, color in ((0, '-', '#ffff00'), (1, '+', '#00ff00'), (2, '>', '#ff6464')):
+            self.ui.create_rectangle(0, 0, 0, 0, fill=color, width=0, tags=f"button{i}")
+            self.ui.create_text(0, 0, text=symbol, fill="black", font=font2, tags=(f"button{i}", f"symbol{i}"))
+            if h > (fh + PAD) * 5 and w > (fh + PAD) * 4:
+                self.ui.create_text(0, 0, fill="black", anchor='nw', font=font2, tags=(f"button{i}", f"name{i}"))
+                self.ui.create_text(0, 0, fill="black", anchor='se', font=font2, tags=(f"button{i}", f"accel{i}"))
+        self.ui.bind('<Configure>', self.resizeui)
+        self.ui.pack(fill='both', expand=1)
+        self.pack(fill='both', expand=1)
+        self.pack_propagate(0)
+        self.ui.tag_bind("button0", '<Button-1>', lambda _: self.select_patch((self.pno - 1) % len(self.fp.patches)))
+        self.ui.tag_bind("button1", '<Button-1>', lambda _: self.select_patch((self.pno + 1) % len(self.fp.patches)))
+        self.ui.tag_bind("button2", '<Button-1>', self.next_bank)
+        self.bind_all('<F3>', lambda _: self.select_patch((self.pno - 1) % len(self.fp.patches)))
+        self.bind_all('<F4>', lambda _: self.select_patch((self.pno + 1) % len(self.fp.patches)))
+        self.bind_all('<F6>', self.next_bank)
+
+        # initialize stuff
+        self._lastfile = ''
+        self.last_bankdir = self.fp.bankdir
+        self.last_sfdir = self.fp.sfdir
+        self.last_sfont = ""
+        self.fp.midi_callback = self.listener
+        self.load_bank(self.fp.currentbank)
+        if FILLSCREEN: self.menu_fillscreen()
+
+    @property        
+    def lastfile(self):
+        return self._lastfile
+
+    @lastfile.setter
+    def lastfile(self, bfile):
+        self._lastfile = bfile
+        if bfile == '':
+            self.set_text(row1="(Untitled)")
+            self.bedit.title("(Untitled)")
         else:
-            if event.GetKeyCode() == wx.WXK_F3:
-                if fp.patches: self.select_patch(pno=(self.pno - 1) % len(fp.patches))
-            elif event.GetKeyCode() == wx.WXK_F4:
-                if fp.patches: self.select_patch(pno=(self.pno + 1) % len(fp.patches))
-            elif event.GetKeyCode() == wx.WXK_F6: self.next_bankfile()
-            elif event.GetKeyCode() == wx.WXK_F11: self.onFillScreen()
-            else: event.Skip()
+            self.set_text(row1=self._lastfile)
+            self.bedit.title(self._lastfile)
 
-    def onKeyPressDialog(self, event):
-        if event.HasAnyModifiers():
-            if event.GetModifiers() == wx.MOD_CONTROL:
-                if event.GetKeyCode() == ord('N'): self.onNew(event)
-                elif event.GetKeyCode() == ord('O'): self.onOpen(event)
-                elif event.GetKeyCode() == ord('S'): self.onSave(event)
-                elif event.GetKeyCode() == ord('Q'): self.onExit(event)
-                elif event.GetKeyCode() == ord('B'): self.onEditBank(event)
-                elif event.GetKeyCode() == ord('P'): self.onChoosePreset(event)
-                elif event.GetKeyCode() == ord(','): self.onSettings(event)
-                else: event.Skip()
-            elif event.GetModifiers() == wx.MOD_CONTROL | wx.MOD_SHIFT:
-                if event.GetKeyCode() == ord('S'): self.onSaveAs(event)
-                else: event.Skip()
-            else: event.Skip()
+    def select_patch(self, i):
+        if self.lastfile == '':
+            self.set_text(row1="Untitled")
         else:
-            self.onKeyPress(event)
+            self.set_text(row1=self.lastfile)
+        if self.fp.patches == []:
+            self.pno = -1
+            self.set_text(row2="No Patches", row3="patch 0/0")
+        else:
+            self.pno = i
+            self.set_text(row2=self.fp.patches[self.pno],
+                          row3=f"patch {self.pno + 1}/{len(self.fp.patches)}")
+        warn = self.fp.apply_patch(self.pno)
+        if warn:
+            msgbox.showwarning("Patch Warning", '\n'.join(warn))
 
-    def onBankEditButton(self, event):
-        event.Skip()
-        if event.GetEventObject().GetLabelText() == 'Apply':
-            self.parse_bank()
+    def resizeui(self, event):
+        w, h = event.width, event.height
+        fh = int(FONTSIZE * 1.6)
+        h2 = fh * 3 + PAD * 4
+        self.ui.coords('lcd', 0, 0, w, h2)
+        self.ui.coords('row1', PAD, PAD)
+        self.ui.coords('row2', PAD, fh * 1 + PAD * 2)
+        self.ui.coords('row3', w - PAD, fh * 2 + PAD * 3)
+        self.ui.coords('frame', 3, 3, w - 2, h2 - 2)
+        for i, name, accel in ((0, 'Prev', '[F3]'), (1, 'Next', '[F4]'), (2, 'Bank', '[F6]')):
+            self.ui.coords(f"button{i}", int(w / 3 * i), h2, int(w / 3 * (i + 1)), h)
+            self.ui.coords(f"symbol{i}", int(w / 3 * (i + 0.5)), int((h + h2) / 2))
+            if h > (fh + PAD) * 6 and w > (fh + PAD) * 5:
+                self.ui.coords(f"name{i}", int(w / 3 * i + PAD), h2 + PAD)
+                self.ui.itemconfigure(f"name{i}", text=name)
+                self.ui.coords(f"accel{i}", int(w / 3 * (i + 1) - PAD), h - PAD)
+                self.ui.itemconfigure(f"accel{i}", text=accel)
+            else:
+                self.ui.itemconfigure(f"name{i}", text='')
+                self.ui.itemconfigure(f"accel{i}", text='')
+
+    def set_text(self, row1=None, row2=None, row3=None):
+        if row1 != None:
+            self.ui.itemconfigure('row1', text=row1)
+        if row2 != None:
+            self.ui.itemconfigure('row2', text=row2)
+        if row3 != None:
+            self.ui.itemconfigure('row3', text=row3)
+
+    def listener(self, sig):
+        if hasattr(sig, 'val'):
+            if hasattr(sig, 'patch') and self.fp.patches:
+                if sig.patch == -1:
+                    self.select_patch((self.pno + sig.val) % len(self.fp.patches))
+                else:
+                    self.select_patch(sig.patch)
+            elif hasattr(sig, 'lcdwrite'):
+                if hasattr(sig, 'format'):
+                    val = format(sig.val, sig.format)
+                    self.set_text(row3=f"{sig.lcdwrite} {val}")
+                else:
+                    self.set_text(row3=sig.lcdwrite)
+        elif sig.type in MSG_TYPES and self.midimon.state() == 'normal':
+            t = MSG_TYPES.index(sig.type)
+            if t < 3:
+                octave = int(sig.par1 / 12) - 1
+                note = ('C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B')[sig.par1 % 12]
+                msg = MSG_NAMES[t], sig.chan, f"{sig.par1} ({note}{octave})={sig.par2}"
+            elif t < 4:
+                msg = MSG_NAMES[t], sig.chan, f"{sig.par1}={sig.par2}"
+            elif t < 7:
+                msg = MSG_NAMES[t], sig.chan, sig.par1
+            self.midimon.msglist.insert('', 'end', values=msg)
+            self.midimon.msglist.yview_moveto(1.0)
+
+    def menu_new(self, *_):
+        if self.bedit.text.edit_modified():
+            resp = msgbox.askyesnocancel("New", "Unsaved changes in bank - save?")
+            if resp == True: self.menu_saveas()
+            elif resp == None: return
+        self.lastfile = ''
+        self.select_patch(0)
+        self.bedit.text.delete('1.0', 'end')
+        self.fp.load_bank(raw="{}")
+        self.bedit.text.edit_modified(False)
+
+    def menu_open(self, *_):
+        if self.bedit.text.edit_modified():
+            resp = msgbox.askyesnocancel("Load Bank", "Unsaved changes in bank - save?")
+            if resp == True: self.menu_saveas()
+            elif resp == None: return
+        bank = filedlg.askopenfilename(initialdir=self.last_bankdir, initialfile=self.lastfile,
+                                       defaultextension='.yaml',
+                                       filetypes=[('Bank Files', '*.yaml')])
+        if bank == '': return
+        self.last_bankdir = Path(bank).parent
+        self.load_bank(bank)
+        
+    def menu_save(self, bank=''):
+        if bank == '': bank = self.lastfile
+        bank = Path(bank).resolve().relative_to(self.fp.bankdir)
+        try:
+            self.fp.save_bank(bank, self.bedit.text.get('1.0', 'end'))
+        except Exception as e:
+            msgbox.showerror("Save Bank", f"Error saving {bfile}:\n{str(e)}")
+            return
+        self.fp.update_config()
+        self.lastfile = bank
+        self.bedit.text.edit_modified(False)
+        
+    def menu_saveas(self, *_):
+        if self.bedit.text['foreground'] == 'red':
+            resp = msgbox.askokcancel("Save", "Errors in bank - save anyway?")
+            if resp == False: return
+        bank = filedlg.asksaveasfilename(initialdir=str(self.last_bankdir), defaultextension='.yaml',
+                                       filetypes=[('Bank Files', '*.yaml')])
+        if bank == '': return
+        self.last_bankdir = Path(bank).parent
+        self.menu_save(bank)
+        
+    def menu_exit(self, *_):
+        if self.bedit.text.edit_modified():
+            resp = msgbox.askyesnocancel("Exit", "Unsaved changes in bank - save?")
+            if resp == True: self.menu_saveas()
+            elif resp == None: return
+        sys.exit()
+
+    def menu_choosepreset(self, *_):
+        sfont = filedlg.askopenfilename(initialdir=self.last_sfdir, initialfile=self.last_sfont,
+                                       defaultextension='.sf2',
+                                       filetypes=[('Soundfonts', '*.sf2')])
+        if sfont == '': return
+        self.last_sfdir = Path(sfont).parent
+        sfrel = Path(sfont).relative_to(self.fp.sfdir).as_posix()
+        if not (presets := self.fp.solo_soundfont(sfrel)):
+            msgbox.showerror("Choose Preset", f"Unable to load {sf}")
+            return
+        self.last_sfont = sfont
+        self.presetdlg.getpreset(sfrel, presets)
+
+    def menu_midimon(self, *_):
+        for i in self.midimon.msglist.get_children():
+            self.midimon.msglist.delete(i)        
+        self.midimon.show()
+
+    def menu_fillscreen(self, *_):
+        if self.master.wm_attributes('-fullscreen'):
+            self.master.configure(menu=self.menu)
+            self.master.wm_attributes('-fullscreen', False)
+        else:
+            self.master.configure(menu="")
+            self.master.wm_attributes('-fullscreen', True)
+
+    def load_bank(self, bank=''):
+        if bank == '': bank = self.fp.bankdir / self.fp.currentbank
+        self.set_text(str(bank), "", "loading bank")
+        try:
+            rawbank = (self.fp.bankdir / bank).read_text()
+        except Exception as e:
+            msgbox.showerror("Load Bank", f"Error loading {bank}:\n{str(e)}")
+            return
+        try:
+            self.fp.load_bank(bank)
+        except Exception as e:
+            msgbox.showerror("Bank Error", f"Error in bank {bank}:\n{str(e)}")
+        self.fp.update_config()
+        self.lastfile = bank
+        self.bedit.title(self.lastfile)
+        self.bedit.text.delete('1.0', 'end')
+        self.bedit.text.insert('1.0', rawbank)
+        self.select_patch(0)
+        self.parse_bank()
+        self.bedit.text.edit_modified(False)
+        
+    def next_bank(self, *_):
+        banks = sorted([b.relative_to(self.fp.bankdir)
+                        for b in self.fp.bankdir.rglob('*.yaml')])
+        if self.fp.currentbank in banks:
+            bno = (banks.index(self.fp.currentbank) + 1) % len(banks)
+        else:
+            bno = 0
+        self.load_bank(banks[bno])
+
+    def parse_bank(self, *_):
+        lastpatch = self.fp.patches[self.pno] if self.fp.patches else ''
+        try:
+            self.fp.load_bank(raw=self.bedit.text.get('1.0', 'end'))
+        except Exception as e:
+            self.bedit.text.configure(foreground='red')
+            return False
+        self.bedit.text.configure(foreground='black')
+        self.patchmenu.delete(0, self.patchmenu.index('end'))
+        for i, p in enumerate(self.fp.patches):
+            self.patchmenu.add_command(label=p, command=lambda i=i: self.select_patch(i))
+        if lastpatch in self.fp.patches:
+            self.select_patch(self.fp.patches.index(lastpatch))
+        elif self.pno < len(self.fp.patches):
+            self.select_patch(self.pno)
+        else:
+            self.select_patch(0)
+        return True
 
 
-if __name__ == "__main__":
-    app = wx.App()
-    sys.excepthook = gui_excepthook
-    midisignals = []
-    display = ["", "", ""]
-    cfgfile = sys.argv[1] if len(sys.argv) > 1 else 'fluidpatcherconf.yaml'
-    fp = FluidPatcher(cfgfile)
-    main = MainWindow()
-    fp.midi_callback = main.listener
-    main.Show()
-    app.MainLoop()
+sys.excepthook = gui_excepthook
+if len(sys.argv) > 1:
+    cfgfile = Path(sys.argv[1])
+else:
+    cfgfile = Path('config/fluidpatcherconf.yaml')
+app = MainWindow()
+app.mainloop()
