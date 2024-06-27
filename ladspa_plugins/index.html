@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Plugins - FluidPatcher</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Plugins";
+        var mkdocs_page_input_path = "ladspa_plugins.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> FluidPatcher
+        </a>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../basic_usage/">Basic Usage</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../soundfonts/">Soundfonts</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../bank_files/">Creating Banks</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Plugins</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#setup">Setup</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#usage">Usage</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../api_reference/">API Reference</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">FluidPatcher</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Plugins</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher/edit/master/docs/ladspa_plugins.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="plugins">Plugins</h1>
+<p><a href="https://www.ladspa.org/">LADSPA</a> plugins are optional separate programs that provide additional audio effects. It is possible to compile and use them on other platforms, but at this time support is only provided for Linux usage.</p>
+<h2 id="installation">Installation</h2>
+<p>To install a base LADSPA system and several batches of plugins, enter</p>
+<pre><code class="language-bash">sudo apt-get install ladspa-sdk swh-plugins tap-plugins wah-plugins
+</code></pre>
+<p>To compile and install <code>patchcord.so</code>, which is used for mixing channels to outputs, go to the <code>src/</code> folder and enter</p>
+<pre><code class="language-bash">sudo gcc -shared patchcord.c -o /usr/lib/ladspa/patchcord.so
+</code></pre>
+<h2 id="setup">Setup</h2>
+<p>To enable plugins, set the fluidsetting <code>synth.ladspa.active: 1</code> in the config file, and set <code>plugindir</code> to the location where plugins are stored (most Linux distributions put them in <code>/usr/lib/ladspa</code> by default). The fluidsetting <code>synth.audio-groups</code> can be used to create separate effects mixing channels. The audio generated by each MIDI channel is assigned to an audio group in order, wrapping around if there are fewer groups than MIDI channels.</p>
+<pre><code class="language-yaml">bankdir: config/banks
+plugindir: /usr/lib/ladspa
+fluidsettings:
+  midi.autoconnect: 1
+  player.reset-synth: 0
+  synth.audio.groups: 16
+  synth.ladspa.active: 1
+currentbank: bank1.yaml
+</code></pre>
+<h2 id="usage">Usage</h2>
+<p>To add plugins to a bank file, create a <code>ladspafx</code> section as described in <a href="../bank_files/#ladspafx">Creating Banks</a> and add a named section for each plugin. Setting the parameters correctly requires knowing some details about the plugin, which can be found using the <code>analyseplugin</code> command provided by the LADSPA SDK. Enter the command, followed by the full path to the plugin file. Here is the output for the <code>amp</code> plugin file:</p>
+<pre><code class="language-shell">$ analyseplugin /usr/lib/ladspa/amp.so
+
+Plugin Name: &quot;Mono Amplifier&quot;
+Plugin Label: &quot;amp_mono&quot;
+Plugin Unique ID: 1048
+Maker: &quot;Richard Furse (LADSPA example plugins)&quot;
+Copyright: &quot;None&quot;
+Must Run Real-Time: No
+Has activate() Function: No
+Has deactivate() Function: No
+Has run_adding() Function: No
+Environment: Normal or Hard Real-Time
+Ports:  &quot;Gain&quot; input, control, 0 to ..., default 1, logarithmic
+        &quot;Input&quot; input, audio
+        &quot;Output&quot; output, audio
+
+Plugin Name: &quot;Stereo Amplifier&quot;
+Plugin Label: &quot;amp_stereo&quot;
+Plugin Unique ID: 1049
+Maker: &quot;Richard Furse (LADSPA example plugins)&quot;
+Copyright: &quot;None&quot;
+Must Run Real-Time: No
+Has activate() Function: No
+Has deactivate() Function: No
+Has run_adding() Function: No
+Environment: Normal or Hard Real-Time
+Ports:  &quot;Gain&quot; input, control, 0 to ..., default 1, logarithmic
+        &quot;Input (Left)&quot; input, audio
+        &quot;Output (Left)&quot; output, audio
+        &quot;Input (Right)&quot; input, audio
+        &quot;Output (Right)&quot; output, audio
+</code></pre>
+<p>As in the example above, some plugin files contain multiple plugins. The <code>plugin</code> parameter is used to set the label of the desired plugin. To route audio through the plugin, the <code>audio</code> parameter needs to be a list of the audio port names. List the inputs first, followed by the outputs. Part of the name can be used, as long as it is a unique match. The alias <code>mono</code> sets the ports to <code>Input, Output</code>, and <code>stereo</code> sets them to <code>Input L, Input R, Output L, Output R</code>. The control port names are used to set initial values with the <code>val</code> parameter, or connect router rules.</p>
+<p>The <code>group</code> parameter is a list of the audio groups to route through the plugin. The number of groups is set in the config file as described above, and numbering begins with 1. Multiple audio groups can be sent through a plugin and are not mixed, but each additional group increases CPU load.</p>
+<p>The bank file snippet below sets up the <code>amp_stereo</code> plugin and a router rule to control its Gain using CC# 13:</p>
+<pre><code class="language-yaml">ladspafx:
+  Stereo Amp:
+    lib: amp
+    plugin: amp_stereo
+    audio: Input (L, Input (R, Output (L, Output (R
+    vals:
+      Gain: 0.5
+    group: 3
+router_rules:
+  - {type: cc, par1: 13, ladspafx: Stereo Amp, port: Gain, par2: 0-127=0-1}
+</code></pre>
+<p>If <code>synth.audio-groups</code> were set to <code>4</code>, and assuming there are 16 MIDI channels, this plugin would affect audio from channels 3, 7, 11, and 15.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../bank_files/" class="btn btn-neutral float-left" title="Creating Banks"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../api_reference/" class="btn btn-neutral float-right" title="API Reference">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../bank_files/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../api_reference/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

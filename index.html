@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="description" content="None" />
+      <link rel="shortcut icon" href="img/favicon.ico" />
+    <title>FluidPatcher</title>
+    <link rel="stylesheet" href="css/theme.css" />
+    <link rel="stylesheet" href="css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Home";
+        var mkdocs_page_input_path = "README.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="." class="icon icon-home"> FluidPatcher
+        </a>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Home</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#requirements">Requirements</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#usage">Usage</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#support">Support</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="basic_usage/">Basic Usage</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="soundfonts/">Soundfonts</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="bank_files/">Creating Banks</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="ladspa_plugins/">Plugins</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="api_reference/">API Reference</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href=".">FluidPatcher</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Home</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher/edit/master/docs/README.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="fluidpatcher">FluidPatcher</h1>
+<p>This package provides a python interface for controlling the versatile, cross-platform, and free <a href="https://www.fluidsynth.org">FluidSynth</a> software synthesizer. Rather than simply wrapping all the C functions in the FluidSynth API, it provides a higher-level interface for loading and switching between <em>patches</em> - groups of settings including:</p>
+<ul>
+<li>soundfonts and presets per channel</li>
+<li>effect settings</li>
+<li>MIDI routing rules</li>
+<li>sequencers, arpeggiators, MIDI file players</li>
+<li>LADSPA effect plugins</li>
+</ul>
+<p>Patches are written in YAML format in human-readable and -editable bank files. Bank files can easily be copied and used in FluidPatcher programs written for different platforms and purposes. Two programs are included in the <code>scripts/</code> directory of this repository - a command-line synth and a graphical synth/editor. FluidPatcher is the default synth engine used by the <a href="https://geekfunklabs.com/products/squishbox">SquishBox</a> Raspberry Pi-based sound module.</p>
+<p>See the <a href="https://geekfunklabs.github.io/fluidpatcher">official documentation</a> for full details.</p>
+<h2 id="requirements">Requirements</h2>
+<ul>
+<li><a href="https://python.org/downloads/">Python</a> &gt;= 3.9</li>
+<li><a href="https://pypi.org/project/PyYAML/">PyYAML</a> python package</li>
+<li>FluidSynth &gt;= 2.2.0, can be obtained in various ways depending on platform:<ul>
+<li>Windows: download latest <a href="https://github.com/FluidSynth/fluidsynth/releases">release</a> from github and add its location to your Windows <code>%PATH%</code>, or copy it to the same folder as your scripts</li>
+<li>Linux, Mac OS: install using your system's <a href="https://github.com/FluidSynth/fluidsynth/wiki/Download">package manager</a></li>
+<li><a href="https://github.com/FluidSynth/fluidsynth/wiki/BuildingWithCMake">build</a> the latest version from source</li>
+</ul>
+</li>
+</ul>
+<h2 id="installation">Installation</h2>
+<p>Copy the <code>fluidpatcher/</code> folder from the github <a href="https://github.com/GeekFunkLabs/fluidpatcher">repository</a> to to the same directory as any python scripts that use it. For example, to use the included scripts, use the folder structure below:</p>
+<pre><code class="language-shell">📁 scripts/
+├── 📄 fluidpatcher_gui.pyw
+├── 📄 fluidpatcher_cli.py
+├── 📁 config/
+│   ├── 📁 banks/
+│   ├── 📁 midi/
+│   ├── 📁 sf2/
+│   └── 📄 fluidpatcherconf.yaml
+└── 📁 fluidpatcher/
+</code></pre>
+<p>In future, a <code>setup.py</code> file or <a href="https://pypi.org">PyPI</a> package may be available.</p>
+<h2 id="usage">Usage</h2>
+<p>To understand how to use the included scripts and adjust config files for your system, read <a href="basic_usage/">Basic Usage</a>.</p>
+<p>To learn how to add sounds and create your own patches and bank files, see <a href="soundfonts/">Soundfonts</a>, <a href="bank_files/">Creating Banks</a>, and <a href="ladspa_plugins/">Plugins</a>.</p>
+<p>To write your own programs using FluidPatcher, study the <a href="api_reference/">API Reference</a> and the code of the included scripts.</p>
+<h2 id="support">Support</h2>
+<p>Ask questions, suggest improvements, and/or share your successes in <a href="github.com/GeekFunkLabs/fluidpatcher/discussions">Discussions</a>. If you think you've found a bug, report an <a href="github.com/GeekFunkLabs/fluidpatcher/issues">Issue</a>.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="basic_usage/" class="btn btn-neutral float-right" title="Basic Usage">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+    
+      <span><a href="basic_usage/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = ".";</script>
+    <script src="js/theme_extra.js"></script>
+    <script src="js/theme.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
+
+<!--
+MkDocs version : 1.6.0
+Build Date UTC : 2024-06-27 05:05:48.438757+00:00
+-->
