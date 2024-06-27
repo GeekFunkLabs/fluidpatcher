@@ -71,7 +71,7 @@ Ports:  "Gain" input, control, 0 to ..., default 1, logarithmic
 
 As in the example above, some plugin files contain multiple plugins. The `plugin` parameter is used to set the label of the desired plugin. To route audio through the plugin, the `audio` parameter needs to be a list of the audio port names. List the inputs first, followed by the outputs. Part of the name can be used, as long as it is a unique match. The alias `mono` sets the ports to `Input, Output`, and `stereo` sets them to `Input L, Input R, Output L, Output R`. The control port names are used to set initial values with the `val` parameter, or connect router rules.
 
-The `groups` parameter is a list of the audio groups to route through the plugin. The number of groups is set in the config file as described above, and numbering begins with 1. Multiple audio groups can be sent through a plugin and are not mixed, but each additional group increases CPU load.
+The `group` parameter is a list of the audio groups to route through the plugin. The number of groups is set in the config file as described above, and numbering begins with 1. Multiple audio groups can be sent through a plugin and are not mixed, but each additional group increases CPU load.
  
 The bank file snippet below sets up the `amp_stereo` plugin and a router rule to control its Gain using CC# 13:
 
