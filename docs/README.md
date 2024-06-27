@@ -16,7 +16,6 @@ See the [official documentation](https://geekfunklabs.github.io/fluidpatcher) fo
 
 * [Python](https://python.org/downloads/) >= 3.9
 * [PyYAML](https://pypi.org/project/PyYAML/) python package
-* [WxPython](https://wxpython.org/pages/downloads/) python package (for `fluidpatcher_gui.pyw`)
 * FluidSynth >= 2.2.0, can be obtained in various ways depending on platform:
     * Windows: download latest [release](https://github.com/FluidSynth/fluidsynth/releases) from github and add its location to your Windows `%PATH%`, or copy it to the same folder as your scripts
     * Linux, Mac OS: install using your system's [package manager](https://github.com/FluidSynth/fluidsynth/wiki/Download)
