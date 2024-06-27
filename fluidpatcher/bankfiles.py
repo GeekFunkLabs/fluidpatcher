@@ -241,8 +241,8 @@ class LadspaEffect(BankObject):
             elif isinstance(pars['group'], str):
                 self.pars['group'] = [int(t) for t in pars['group'].split(',')]
         if 'audio' in pars:
-            if isinstance(pars['audio'], str):
-                self.pars['audio'] = pars['audio'].split(',')
+            if ',' in pars['audio']:
+                self.pars['audio'] = [t.strip() for t in pars['audio'].split(',')]
 
     @staticmethod
     def to_yaml(dumper, data):
