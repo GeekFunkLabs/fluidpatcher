@@ -4,16 +4,11 @@
 import re
 import yaml
 
-sfp = re.compile('^(.+\.sf2):(\d+):(\d+)$', flags=re.I)
 nn = '[A-G]?[b#]?\d*[.]?\d+' # scientific note name or number
-msg = re.compile(f'^(note|cc|prog|pbend|cpress|kpress|noteoff|clock|start|continue|stop):(\d+)?:({nn})?:(\d+)?$')
 rspec = re.compile(f'^({nn})-({nn})\*(-?[\d\.]+)([+-]{nn})$')
 ftspec = re.compile(f'^({nn})?-?({nn})?=?(-?{nn})?-?(-?{nn})?$')
 scinote = re.compile('([+-]?)([A-G])([b#]?)(-?[0-9])') # scientific note name parts
-
 handlers = dict(Loader=yaml.SafeLoader, Dumper=yaml.SafeDumper)
-yaml.add_implicit_resolver('!sfpreset', sfp, **handlers)
-yaml.add_implicit_resolver('!midimsg', msg, **handlers)
 
 def add_bankobj_resolver(tag, path, kind):
     yaml.add_path_resolver(tag, path, kind, **handlers)
@@ -24,6 +19,9 @@ add_bankobj_resolver('!midiplayer', ['midiplayers', (dict, None)], dict)
 add_bankobj_resolver('!sequencer', ['sequencers', (dict, None)], dict)
 add_bankobj_resolver('!arpeggiator', ['arpeggiators', (dict, None)], dict)
 add_bankobj_resolver('!ladspafx', ['ladspafx', (dict, None)], dict)
+add_bankobj_resolver('!sfpreset', [(dict, None)], str)
+add_bankobj_resolver('!midimsg', ['messages', (list, None)], str)
+add_bankobj_resolver('!midimsg', ['sequencers', (dict, None)], 'notes', (list, None)], str)
 
 def scinote_to_val(n):
     """convert scientific note name to MIDI note number
@@ -75,10 +73,15 @@ class SFPreset(yaml.YAMLObject):
 
     @classmethod
     def from_yaml(cls, loader, node):
-        sfont, bank, prog = sfp.search(loader.construct_scalar(node)).groups()
-        bank = int(bank)
-        prog = int(prog)
-        return cls(sfont, bank, prog)
+		text = loader.construct_scalar(node)
+		try:
+			sfont, bank, prog = text.split(':')
+			bank = int(bank)
+			prog = int(prog)
+		except TypeError, ValueError:
+			return text
+		else:
+			return cls(sfont, bank, prog)
 
     @staticmethod
     def to_yaml(dumper, data):
@@ -91,24 +94,37 @@ class MidiMessage(yaml.YAMLObject):
     yaml_loader = yaml.SafeLoader
     yaml_dumper = yaml.SafeDumper
 
-    def __init__(self, type, chan, par1, par2, yaml=''):
+    def __init__(self, type, chan=1, num=0, val=0, yaml=''):
         self.type = type
         self.chan = chan
-        self.par1 = scinote_to_val(par1)
-        self.par2 = par2
-        self.yaml = yaml or f"{type}:{chan or ''}:{par1 or ''}:{par2 or ''}"
+        self.num = scinote_to_val(num)
+        self.val = val
+        if yaml == '':
+			if self.type == 'sysex':
+				data = [int(b) for b in self.val]
+				self.yaml = f"sysex:{':'.join(data)}"
+			else:
+				parts = [p for p in (type, chan, num, val) if p]
+				self.yaml = ':'.join(parts)
 
     def __str__(self):
         return self.yaml
 
     def __iter__(self):
-        return iter([self.type, self.chan, self.par1, self.par2])
+        return iter([self.type, self.chan, self.num, self.val])
 
     @classmethod
     def from_yaml(cls, loader, node):
-        m = msg.search(loader.construct_scalar(node))
-        type, chan, par1, par2 = [sift(g) for g in m.groups()]
-        return cls(type, chan, par1, par2, m[0])
+		text = loader.construct_scalar(node)
+		parts = [sift(p) for p in text.split(':')]
+		if parts[0] == 'sysex':
+			return cls(parts[0], val=parts[1:], yaml=text)
+		elif len(parts) == 3:
+			return cls(parts[0], chan=parts[1], val=parts[2], yaml=text)
+		elif len(parts) == 4:
+			return cls(parts[0], chan=parts[1], num=parts[2], val=parts[3], yaml=text)
+		else:
+			return cls(parts[0], yaml=text)			
 
     @staticmethod
     def to_yaml(dumper, data):
@@ -127,8 +143,8 @@ class BankObject(yaml.YAMLObject):
     yaml_dumper = yaml.SafeDumper
 
     def __init__(self, **pars):
-        self.opars = {**pars}
-        self.pars = {**pars}
+        self.opars = dict(pars)
+        self.pars = dict(pars)
 
     def __str__(self):
         return str(self.opars)
@@ -156,20 +172,15 @@ class RouterRule(BankObject):
 
     def __init__(self, **pars):
         super().__init__(**pars)
-        try:
-            type = self.pars.pop('type').split('=')[:2]
-        except KeyError as e:
-            raise AttributeError("Router rule must have a type.") from e
-        if 'type2' in pars: type.append(self.pars.pop('type2')) # old format
-        self.type = [(t, type[-1]) for t in type[0].split('|')]
+        types = self.pars.pop('type').split('=')
+        self.type = types[0], types[-1]
         self.chan = ChannelSpec(self.pars.pop('chan', ''))
-        self.pars['par1'] = ParamSpec(pars.get('par1', ''))
-        self.pars['par2'] = ParamSpec(pars.get('par2', ''))
+        self.pars['num'] = ParamSpec(self.pars.get('num', ''))
+        self.pars['val'] = ParamSpec(self.pars.get('val', ''))
 
     def add(self, addfunc):
-        for type in self.type:
-            for chan in self.chan or [None]:
-                addfunc(type, chan, **self.pars)
+		for chan in self.chan or [None]:
+			addfunc(self.type, chan, **self.pars)
 
     @staticmethod
     def to_yaml(dumper, data):
@@ -303,8 +314,6 @@ class ChannelSpec(ParamSpec):
             if max == None: max = min
             if tomin == None: tomin = min
             if tomax == None: tomax = max if tomin == None else tomin
-            mul = 1 if min == max else (tomax - tomin) / (max - min)
-            add = tomin - min * mul
             self.tups = [(min, max, 0.0, chto)
                          for chto in range(tomin, tomax + 1)]
         else:

@@ -15,11 +15,9 @@ FLUID_PLAYER_TEMPO_INTERNAL = 0
 FLUID_PLAYER_TEMPO_EXTERNAL_MIDI = 2
 FLUID_PLAYER_PLAYING = 1
 FLUID_PLAYER_DONE = 3
-MIDI_TYPES = {'note': 0x90, 'cc': 0xb0, 'prog': 0xc0, 'pbend': 0xe0, 'cpress': 0xd0, 'kpress': 0xa0, 'noteoff': 0x80,
-              'clock': 0xf8, 'start': 0xfa, 'continue': 0xfb, 'stop': 0xfc}
-MIDI_VOICE_2PAR = 'note', 'cc', 'kpress', 'noteoff'
-MIDI_VOICE_1PAR = 'prog', 'pbend', 'cpress'
-MIDI_REALTIME = 'clock', 'start', 'continue', 'stop'
+RULE_TYPES = 'note', 'cc', 'prog', 'pbend', 'cpress', 'kpress'
+MIDI_TYPES = {'noteoff': 0x80, 'note': 0x90, 'kpress': 0xa0, 'cc': 0xb0, 'prog': 0xc0, 'cpress': 0xd0, 'pbend': 0xe0, 
+              'sysex': 0xf0, 'clock': 0xf8, 'start': 0xfa, 'continue': 0xfb, 'stop': 0xfc}
 SEEK_DONE = -1
 SEEK_WAIT = -2
 
@@ -89,14 +87,13 @@ def fl_midi_router_rule_set_param2(rule, min, max, mul, add):
 specfunc(FS.new_fluid_midi_event, c_void_p)
 specfunc(FS.delete_fluid_event, None, c_void_p)
 specfunc(FS.fluid_midi_event_get_type, c_int, c_void_p)
-specfunc(FS.fluid_midi_event_get_channel, c_int, c_void_p)
-fl_midi_event_get_par1 = specfunc(FS.fluid_midi_event_get_key, c_int, c_void_p)
-fl_midi_event_get_par2 = specfunc(FS.fluid_midi_event_get_velocity, c_int, c_void_p)
 specfunc(FS.fluid_midi_event_set_type, c_int, c_void_p, c_int)
-specfunc(FS.fluid_midi_event_set_channel, c_int, c_void_p, c_int)
+fl_midi_event_get_par1 = specfunc(FS.fluid_midi_event_get_key, c_int, c_void_p)
 fl_midi_event_set_par1 = specfunc(FS.fluid_midi_event_set_key, c_int, c_void_p, c_int)
+fl_midi_event_get_par2 = specfunc(FS.fluid_midi_event_get_velocity, c_int, c_void_p)
 fl_midi_event_set_par2 = specfunc(FS.fluid_midi_event_set_velocity, c_int, c_void_p, c_int)
-specfunc(FS.fluid_midi_event_set_sysex, c_int, c_void_p, c_void_p, c_int, c_int)
+specfunc(FS.fluid_midi_event_get_channel, c_int, c_void_p)
+specfunc(FS.fluid_midi_event_set_channel, c_int, c_void_p, c_int)
 def fl_midi_event_get_channel(event): return FS.fluid_midi_event_get_channel(event) + 1
 def fl_midi_event_set_channel(event, chan): FS.fluid_midi_event_set_channel(event, chan - 1)
 
@@ -150,170 +147,25 @@ try:
     specfunc(FS.fluid_ladspa_effect_set_control, c_int, c_void_p, c_char_p, c_char_p, c_float)
     specfunc(FS.fluid_ladspa_effect_link, c_int, c_void_p, c_char_p, c_char_p, c_char_p)
     specfunc(FS.fluid_synth_get_ladspa_fx, c_void_p, c_void_p)
-    LADSPA_SUPPORT = True
+    ladspa_available = True
 except AttributeError:
-    LADSPA_SUPPORT = False
+    ladspa_available = False
 
 
-class MidiEvent:
+class FluidEvent:
 
-    def __init__(self, event):
-        self.event = event
-
-    @property
-    def type(self):
-        b = FS.fluid_midi_event_get_type(self.event)
-        if b == 0x90 and self.par2 == 0: b = 0x80
-        return {v: k for k, v in MIDI_TYPES.items()}.get(b, None)
-    @type.setter
-    def type(self, n):
-        n = MIDI_TYPES.get(n, None)
-        FS.fluid_midi_event_set_type(self.event, n)
-
-    @property
-    def chan(self): return fl_midi_event_get_channel(self.event)
-    @chan.setter
-    def chan(self, v): fl_midi_event_set_channel(self.event, v)
-    
-    @property
-    def par1(self): return fl_midi_event_get_par1(self.event)
-    @par1.setter
-    def par1(self, v): fl_midi_event_set_par1(self.event, v)
-
-    @property
-    def par2(self): return fl_midi_event_get_par2(self.event)
-    @par2.setter
-    def par2(self, v): fl_midi_event_set_par2(self.event, v)
-    
-    def __repr__(self):
-        return "type: %s, chan: %d, par1: %d, par2: %d" % (self.type, self.chan, self.par1, self.par2)
-
-
-class Route:
-
-    def __init__(self, min, max, mul, add):
-        self.min = min
-        self.max = max
-        self.mul = mul
-        self.add = add
-
-
-class CustomRule:
-
-    def __init__(self, type, chan, par1, par2, **apars):
-        if isinstance(type, str): type = [type]
-        self.hastype = type[0]
-        self.newtype = type[-1]
-        self.chan = Route(*chan) if chan else None
-        self.par1 = Route(*par1) if par1 else None
-        self.par2 = Route(*par2) if par2 else None
-        for attr, val in apars.items():
-            setattr(self, attr, val)
-
-    def __repr__(self):
-        return str(self.__dict__)
-
-    def __iter__(self):
-        return iter(self.__dict__)
-
-    def applies(self, mevent):
-        if self.hastype != mevent.type:
-            return False
-        if self.hastype in MIDI_REALTIME:
-            return True
-        if self.chan != None:
-            if self.chan.min > self.chan.max:
-                if self.chan.min < mevent.chan < self.chan.max:
-                    return False
-            else:
-                if not (self.chan.min <= mevent.chan <= self.chan.max):
-                    return False
-        if self.par1 != None:
-            if self.par1.min > self.par1.max:
-                if self.par1.min < mevent.par1 < self.par1.max:
-                    return False
-            else:
-                if not (self.par1.min <= mevent.par1 <= self.par1.max):
-                    return False
-        if self.hastype in MIDI_VOICE_2PAR and self.par2 != None:
-            if self.par2.min > self.par2.max:
-                if self.par2.min < mevent.par2 < self.par2.max:
-                    return False
-            else:
-                if not (self.par2.min <= mevent.par2 <= self.par2.max):
-                    return False
-        return True
-
-    def apply(self, mevent):
-        msig = MidiSignal(mevent, rule=self)
-        if self.chan != None: msig.chan = int(mevent.chan * self.chan.mul + self.chan.add + 0.5)
-        if self.par1 != None: msig.par1 = int(mevent.par1 * self.par1.mul + self.par1.add + 0.5)
-        if self.par2 != None: msig.par2 = int(mevent.par2 * self.par2.mul + self.par2.add + 0.5)
-        if self.hastype in MIDI_VOICE_2PAR:
-            msig.val = mevent.par2
-            if self.par2: msig.val = msig.val * self.par2.mul + self.par2.add
-        elif self.hastype in MIDI_VOICE_1PAR:
-            msig.val = mevent.par1
-            if self.par1: msig.val = msig.val * self.par1.mul + self.par1.add
-        elif self.hastype == 'clock':
-            msig.val = 0.041666664
-        elif self.hastype in ('start', 'continue'):
-            msig.val = self.par1.min if self.par1 else -1
-        elif self.hastype == 'stop':
-            msig.val = self.par1.min if self.par1 else 0
-        return msig
-
-
-class TransRule(CustomRule):
-
-    def __init__(self, type, chan, par1, par2):
-        super().__init__(type, chan, par1, par2)
-
-    def apply(self, mevent):
-        newevent = MidiEvent(FS.new_fluid_midi_event())
-        newevent.type = self.newtype
-        newevent.chan = mevent.chan
-        newevent.par1 = mevent.par1
-        newevent.par2 = mevent.par2
-        if self.hastype in MIDI_REALTIME:
-            if self.chan != None: newevent.chan = self.chan.min
-            if self.par1 != None: newevent.par1 = self.par1.min
-            if self.par2 != None: newevent.par2 = self.par2.min
-        else:
-            if self.chan != None: newevent.chan = int(mevent.chan * self.chan.mul + self.chan.add + 0.5)
-        if self.hastype in MIDI_VOICE_2PAR:
-            if self.newtype in MIDI_VOICE_2PAR:
-                if self.par1 != None: newevent.par1 = int(mevent.par1 * self.par1.mul + self.par1.add + 0.5)
-                if self.par2 != None: newevent.par2 = int(mevent.par2 * self.par2.mul + self.par2.add + 0.5)
-            elif self.newtype in MIDI_VOICE_1PAR:
-                if self.par2 == None: newevent.par1 = mevent.par2
-                else: newevent.par1 = int(mevent.par2 * self.par2.mul + self.par2.add + 0.5)
-        elif self.hastype in MIDI_VOICE_1PAR:
-            if self.newtype in MIDI_VOICE_1PAR:
-                if self.par1 != None: newevent.par1 = int(mevent.par1 * self.par1.mul + self.par1.add + 0.5)
-            elif self.newtype in MIDI_VOICE_2PAR:
-                if self.par2 != None: newevent.par1 = self.par2.min
-                if self.par1 == None: newevent.par2 = mevent.par1
-                else: newevent.par2 = int(mevent.par1 * self.par1.mul + self.par1.add + 0.5)
-        return newevent
-
-
-class MidiSignal:
-
-    def __init__(self, mevent, rule=None):
-        if rule: self.__dict__.update(rule.__dict__)
-        self.type = mevent.type
-        self.chan = mevent.chan
-        self.par1 = mevent.par1
-        self.par2 = mevent.par2
+    def __init__(self, fevent):
+		b = FS.fluid_midi_event_get_type(fevent)
+		self.type = {v: k for k, v in MIDI_TYPES.items()}.get(b, None)
+		self.chan = fl_midi_event_get_channel(fevent)
+		if type in ('prog', 'cpress', 'pbend'):
+			self.val = fl_midi_event_get_par1(fevent)
+			self.num = None
+		elif type in ('noteoff', 'note', 'kpress', 'cc'):
+			self.num = fl_midi_event_get_par1(fevent)
+			self.val = fl_midi_event_get_par2(fevent)
+		
         
-    def __repr__(self):
-        return str(self.__dict__)
-
-    def __iter__(self):
-        return iter(self.__dict__)
-
-
 class SequencerNote:
 
     def __init__(self, chan, key, vel):
@@ -451,16 +303,14 @@ class MidiPlayer:
         self.seek = None
         self.seek_now = False
         self.lasttick = 0
-        self.frouter_callback = fl_eventcallback(FS.fluid_midi_router_handle_midi_event)
-        #self.frouter = FS.new_fluid_midi_router(synth.st, synth.custom_router_callback, synth.frouter)
-        self.frouter = FS.new_fluid_midi_router(synth.st, self.frouter_callback, synth.frouter)
-        FS.fluid_midi_router_clear_rules(self.frouter)
+        frouter = FS.new_fluid_midi_router(synth.st, fl_eventcallback(synth.custom_router), synth.frouter)
+        FS.fluid_midi_router_clear_rules(frouter)
         for rtype in set(list(MIDI_TYPES)[:6]) - set(mask):
             rule = FS.new_fluid_midi_router_rule()
             if chan: fl_midi_router_rule_set_chan(rule, *chan)
-            FS.fluid_midi_router_add_rule(self.frouter, rule, list(MIDI_TYPES).index(rtype))
+            FS.fluid_midi_router_add_rule(frouter, rule, list(MIDI_TYPES).index(rtype))
         self.playback_callback = fl_eventcallback(FS.fluid_midi_router_handle_midi_event)
-        FS.fluid_player_set_playback_callback(self.fplayer, self.playback_callback, self.frouter)
+        FS.fluid_player_set_playback_callback(self.fplayer, self.playback_callback, frouter)
         self.tickcallback = fl_tickcallback(self.looper)
         FS.fluid_player_set_tick_callback(self.fplayer, self.tickcallback, None)
 
@@ -557,30 +407,40 @@ class LadspaEffect:
             FS.fluid_ladspa_effect_set_control(self.synth.ladspa, fxunit, port.encode(), c_float(val))
 
 
+class Soundfont:
+
+    def __init__(self, id):
+        self.id = id
+        self.presets = []
+        fsfont = FS.fluid_synth_get_sfont_by_id(self.fsynth, id)
+        FS.fluid_sfont_iteration_start(fsfont)
+        while True:
+            p = FS.fluid_sfont_iteration_next(fsfont)
+            if p == None: break
+            bank = FS.fluid_preset_get_banknum(p)
+            prog = FS.fluid_preset_get_num(p)
+            name = FS.fluid_preset_get_name(p).decode()
+            self.presets.append((bank, prog, name))
+
+
 class Synth:
 
-    def __init__(self, **settings):
+    def __init__(self, midi_handler=None, **fluidsettings):
+        self.midi_handler = midi_handler or FS.fluid_midi_router_handle_midi_event
         self.st = FS.new_fluid_settings()
-        for opt, val in settings.items():
-            self.setting(opt, val)
-        # create the synth and audio driver
+        for setting in fluidsettings:
+            self.setting(setting, fluidsettings[setting])
         self.fsynth = FS.new_fluid_synth(self.st)
         FS.new_fluid_audio_driver(self.st, self.fsynth)
-        # create a fluid router and point it at the synth
-        self.frouter_callback = fl_eventcallback(FS.fluid_synth_handle_midi_event)
-        self.frouter = FS.new_fluid_midi_router(self.st, self.frouter_callback, self.fsynth)
-        # create the midi driver and point it at the custom router
-        self.custom_router_callback = fl_eventcallback(lambda _, e: self.custom_midi_router(e))
-        FS.new_fluid_midi_driver(self.st, self.custom_router_callback, None)
-        # create a sequencer and register it to the synth
+        self.frouter = FS.new_fluid_midi_router(self.st, FS.fluid_synth_handle_midi_event, self.fsynth)
+        self.fdriver_callback = fl_eventcallback(self.midi_handler)
+        FS.new_fluid_midi_driver(self.st, self.fdriver_callback, self.frouter)
         self.fseq = FS.new_fluid_sequencer2(0)
         self.fsynth_id = FS.fluid_sequencer_register_fluidsynth(self.fseq, self.fsynth)
-        self.clocks = [0, 0]
-        self.xrules = []
-        self.sfid = {}
         self.players = {}
+		self.ladspafx = {}
         self.midi_callback = None
-        if LADSPA_SUPPORT:
+        if ladspa_available:
             nports = self.get_setting('synth.audio-groups')
             nchan = self.get_setting('synth.audio-channels')
             if nports == 1:
@@ -590,65 +450,19 @@ class Synth:
                 outports = hostports[0:nchan] * nports
             self.port_mapping = list(zip(hostports, outports))
             self.ladspa = FS.fluid_synth_get_ladspa_fx(self.fsynth)
-            self.ladspafx = {}
-            
+
+    @property
+    def currenttick(self):
+        return FS.fluid_sequencer_get_tick(self.fseq)
+
     def reset(self):
+        self.router_clear()
+        for name in self.players:
+            self.player_remove(name)
+        self.fxchain_clear()
         FS.fluid_synth_system_reset(self.fsynth)
 
-    def custom_midi_router(self, event):
-        mevent = MidiEvent(event)
-        t = FS.fluid_sequencer_get_tick(self.fseq)
-        dt = 0
-        for rule in self.xrules:
-            if not rule.applies(mevent):
-                continue
-            res = rule.apply(mevent)
-            if isinstance(rule, TransRule):
-                FS.fluid_synth_handle_midi_event(self.fsynth, res.event)
-                continue
-            if 'fluidsetting' in rule:
-                self.setting(rule.fluidsetting, res.val)
-            elif 'sequencer' in rule:
-                if rule.sequencer in self.players:
-                    if 'step' in rule:
-                        self.players[rule.sequencer].step(res.event, res.step) # should be rule.event? new event?
-                    self.players[rule.sequencer].play(res.val)
-            elif 'arpeggiator' in rule:
-                if rule.arpeggiator in self.players:
-                    self.players[rule.arpeggiator].note(res.chan, res.par1, res.val)
-            elif 'midiplayer' in rule:
-                if rule.midiplayer in self.players:
-                    if 'tick' in rule:
-                        self.players[rule.midiplayer].transport(res.val, rule.tick)
-                    else:
-                        self.players[rule.midiplayer].transport(res.val)
-            elif 'tempo' in rule:
-                if rule.tempo in self.players:
-                    self.players[rule.tempo].set_tempo(res.val)
-            elif 'swing' in rule:
-                if rule.swing in self.players:
-                    self.players[rule.swing].swing = res.val if 0.5 <= res.val < 1 else 0.5
-            elif 'groove' in rule:
-                if rule.groove in self.players:
-                    self.players[rule.groove].groove = [res.val]
-            elif 'sync' in rule:
-                if rule.sync in self.players:
-                    dt, dt2 = t - self.clocks[0], self.clocks[0] - self.clocks[1]
-                    bpm = 1000 * 60 * res.val / dt
-                    if dt2/dt > 0.5: self.players[rule.sync].set_tempo(bpm)
-            elif LADSPA_SUPPORT and 'ladspafx' in rule:
-                if rule.ladspafx in self.ladspafx:
-                    self.ladspafx[rule.ladspafx].setcontrol(rule.port, res.val)
-            else:
-                # not handled here, pass it to the callback
-                if self.midi_callback: self.midi_callback(res)
-        if dt > 0: self.clocks = t, self.clocks[0]
-        if self.midi_callback:
-            # send the original event to the callback
-            self.midi_callback(MidiSignal(mevent))
-        # pass the original event along to the fluid router
-        return FS.fluid_midi_router_handle_midi_event(self.frouter, event)
-
+    def __setitem__(self, opt, val):
     def setting(self, opt, val):
         stype = FS.fluid_settings_get_type(self.st, opt.encode())
         if stype == FLUID_STR_TYPE:
@@ -658,6 +472,7 @@ class Synth:
         elif stype == FLUID_NUM_TYPE:
             FS.fluid_settings_setnum(self.st, opt.encode(), c_double(val))
 
+    def __getitem__(self, opt):
     def get_setting(self, opt):
         stype = FS.fluid_settings_get_type(self.st, opt.encode())
         if stype == FLUID_STR_TYPE:
@@ -674,26 +489,18 @@ class Synth:
                 return round(num.value, 6)
         return None
 
-    def load_soundfont(self, sfont):
-        i = FS.fluid_synth_sfload(self.fsynth, str(sfont).encode(), False)
-        if i == FLUID_FAILED:
-            return False
-        self.sfid[sfont] = i
-        return True
+    def load_soundfont(self, file):
+        id = FS.fluid_synth_sfload(self.fsynth, str(file).encode(), False)
+        if id == FLUID_FAILED:
+            raise OSError(f"Unable to load {file}")
+        return SoundFont(id)
 
     def unload_soundfont(self, sfont):
-        if FS.fluid_synth_sfunload(self.fsynth, self.sfid[sfont], False) == FLUID_FAILED:
-            return False
-        del self.sfid[sfont]
-        return True
+        FS.fluid_synth_sfunload(self.fsynth, sfont.id, False)
 
     def program_select(self, chan, sfont, bank, prog):
-        if sfont not in self.sfid:
-            return False
-        x = fl_synth_program_select(self.fsynth, chan, self.sfid[sfont], bank, prog)
-        if x == FLUID_FAILED:
-            return False
-        return True
+        x = fl_synth_program_select(self.fsynth, chan, sfont.id, bank, prog)
+        return True if x == FLUID_OK else False
 
     def program_unset(self, chan):
         fl_synth_unset_program(self.fsynth, chan)
@@ -703,37 +510,7 @@ class Synth:
         bank = c_int()
         prog = c_int()
         fl_synth_get_program(self.fsynth, chan, byref(i), byref(bank), byref(prog))
-        if i.value not in self.sfid.values():
-            return None
-        sfont = {v: k for k, v in self.sfid.items()}[i.value]
-        return sfont, bank.value, prog.value
-
-    def get_sfpresets(self, sfont):
-        presets = []
-        sfont_obj = FS.fluid_synth_get_sfont_by_id(self.fsynth, self.sfid[sfont])
-        FS.fluid_sfont_iteration_start(sfont_obj)
-        while True:
-            p = FS.fluid_sfont_iteration_next(sfont_obj)
-            if p == None: break
-            bank = FS.fluid_preset_get_banknum(p)
-            prog = FS.fluid_preset_get_num(p)
-            name = FS.fluid_preset_get_name(p).decode()
-            presets.append((bank, prog, name))
-        return presets
-
-    def send_event(self, type, chan, par1, par2):
-        newevent = MidiEvent(FS.new_fluid_midi_event())
-        newevent.type = type
-        if chan: newevent.chan = chan
-        if par1: newevent.par1 = par1
-        if par2: newevent.par2 = par2
-        self.custom_midi_router(newevent.event)
-
-    def send_sysex(self, data):
-        newevent = MidiEvent(FS.new_fluid_midi_event())
-        syxdata = (c_int * len(data))(*data)
-        FS.fluid_midi_event_set_sysex(newevent.event, syxdata, sizeof(syxdata), True)
-        FS.fluid_midi_router_handle_midi_event(self.frouter, newevent.event)
+        return i.value, bank.value, prog.value
 
     def get_cc(self, chan, ctrl):
         val = c_int()
@@ -742,31 +519,44 @@ class Synth:
 
     def router_clear(self):
         FS.fluid_midi_router_clear_rules(self.frouter)
-        self.xrules = []
 
     def router_default(self):
         FS.fluid_midi_router_set_default_rules(self.frouter)
-        self.xrules = []
 
-    def router_addrule(self, type, chan, par1, par2, **apars):
-        if type[0] != type[-1]:
-            self.xrules.insert(0, TransRule(type, chan, par1, par2))
-        elif apars:
-            self.xrules.insert(0, CustomRule(type, chan, par1, par2, **apars))
-            if 'arpeggiator' in apars:
-                self.xrules.insert(0, CustomRule('noteoff', chan, par1, (0, 127, 0, 0), **apars))
-        elif type[0] in list(MIDI_TYPES)[:6]:
+    def router_addrule(self, type, chan=None, num=None, val=None):
+		if type in RULE_TYPES:
             rule = FS.new_fluid_midi_router_rule()
-            if chan: fl_midi_router_rule_set_chan(rule, *chan)
-            if par1: fl_midi_router_rule_set_param1(rule, *par1)
-            if par2: fl_midi_router_rule_set_param2(rule, *par2)
-            FS.fluid_midi_router_add_rule(self.frouter, rule, list(MIDI_TYPES).index(type[0]))
+            if chan:
+				fl_midi_router_rule_set_chan(rule, *chan)
+            if par1:
+				fl_midi_router_rule_set_param1(rule, *par1)
+            if par2:
+				fl_midi_router_rule_set_param2(rule, *par2)
+            FS.fluid_midi_router_add_rule(self.frouter, rule, RULE_TYPES.index(type))
 
-    def players_clear(self, save=[]):
-        for name in set(self.players) - set(save):
-            self.players[name].dismiss()
-            del self.players[name]
+    def route_event(self, fevent):
+        FS.fluid_midi_router_handle_midi_event(self.frouter, fevent)
 
+    def send_event(self, event):
+		fevent = FS.new_fluid_midi_event()
+		if event.type == 'sysex':
+			syxdata = (c_int * len(event.val))(*event.val)
+			FS.fluid_midi_event_set_sysex(fevent, syxdata, sizeof(syxdata), True)
+		else:
+			FS.fluid_midi_event_set_type(fevent, MIDI_TYPES.get(event.type))
+			if event.type in ('prog', 'cpress', 'pbend'):
+				fl_midi_event_set_channel(fevent, event.chan)
+				fl_midi_event_set_par1(fevent, event.val)
+			elif event.type in ('noteoff', 'note', 'kpress', 'cc'):
+				fl_midi_event_set_channel(fevent, event.chan)
+				fl_midi_event_set_par1(fevent, event.num)
+				fl_midi_event_set_par2(fevent, event.val)
+        FS.fluid_synth_handle_midi_event(self.fsynth, fevent)
+
+    def player_remove(self, name):
+        self.players[name].dismiss()
+        del self.players[name]
+    
     def sequencer_add(self, name, notes, tdiv=8, swing=0.5, groove=[1], tempo=120, **_):
         if name not in self.players:
             self.players[name] = Sequencer(self, notes, tdiv, swing, groove)
@@ -784,23 +574,15 @@ class Synth:
                 self.players[name].set_tempo(tempo)
 
     def fxchain_clear(self, save=[]):
-        clear = set(self.ladspafx) - set(save)
-        if clear:
-            FS.fluid_ladspa_reset(self.ladspa)
-            for name in clear:
-                del self.ladspafx[name]
-            for ladpsafx in self.ladspafx.values():
-                ladpsafx.fxunits = []
+        FS.fluid_ladspa_reset(self.ladspa)
+        self.ladspafx = {}
 
     def fxchain_add(self, name, lib, plugin=None, group=[], audio='mono', vals={}, **_):
         if name not in self.ladspafx:
-            if FS.fluid_ladspa_is_active(self.ladspa):
-                FS.fluid_ladspa_reset(self.ladspa)
             self.ladspafx[name] = LadspaEffect(self, name, lib, plugin, group, audio)
-        self.ladspafx[name].portvals.update(vals)
+            self.ladspafx[name].portvals.update(vals)
 
     def fxchain_connect(self):
-        if self.ladspafx == {} or FS.fluid_ladspa_is_active(self.ladspa): return
         for effect in self.ladspafx.values():
             effect.addfxunits()
             for ctrl, val in effect.portvals.items():
@@ -820,7 +602,7 @@ class Synth:
             effects[-1].link(hostports, lastports, outports)
         FS.fluid_ladspa_activate(self.ladspa)
 
-    if not LADSPA_SUPPORT:
+    if not ladspa_available:
         def fxchain_clear(self): pass
         def fxchain_add(self, **_): pass
         def fxchain_connect(self): pass

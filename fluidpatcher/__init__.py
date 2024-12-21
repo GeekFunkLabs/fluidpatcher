@@ -22,6 +22,7 @@ from pathlib import Path
 from copy import deepcopy
 
 from .bankfiles import parseyaml, renderyaml, SFPreset, MidiMessage, RouterRule
+from .router import Router
 from .pfluidsynth import Synth
 
 
@@ -67,10 +68,14 @@ class FluidPatcher:
         
         self.cfgfile = Path(cfgfile)
         self.cfg = parseyaml(self.cfgfile.read_text())
-        self.bank = {}
-        self.soundfonts = set()
-        self.fsynth = Synth(**{**self.cfg.get('fluidsettings', {}), **fluidsettings})
-        self.fsynth.midi_callback = self._midisignal_handler
+        self.bankdir = Path(self.cfg.get('bankdir', 'banks')).resolve()
+        self.sfdir = Path(self.cfg.get('soundfontdir', self.bankdir / '../sf2')).resolve()
+        self.mfilesdir = Path(self.cfg.get('mfilesdir', self.bankdir / '../midi')).resolve()
+        self.plugindir = Path(self.cfg.get('plugindir', '')).resolve()
+        self.synth = Synth(**{self.cfg.get('fluidsettings', {}) | fluidsettings})
+        self.router = Router(self.synth)
+        self.router.midi_callback = self._midisignal_handler
+        self.soundfonts = {}
         self.max_channels = self.fluidsetting_get('synth.midi-channels')
         self.patchcord = {'patchcordxxx': {'lib': self.plugindir / 'patchcord', 'audio': 'mono'}}
         self.midi_callback = None
@@ -79,31 +84,6 @@ class FluidPatcher:
     def currentbank(self):
         """a Path object pointing to the current bank file"""
         return Path(self.cfg['currentbank']) if 'currentbank' in self.cfg else ''
-
-    @property
-    def bankdir(self):
-        """Path to bank files"""
-        return Path(self.cfg.get('bankdir', 'banks')).resolve()
-
-    @property
-    def sfdir(self):
-        """Path to soundfonts"""
-        return Path(self.cfg.get('soundfontdir', self.bankdir / '../sf2')).resolve()
-
-    @property
-    def mfilesdir(self):
-        """Path to MIDI files"""
-        return Path(self.cfg.get('mfilesdir', self.bankdir / '../midi')).resolve()
-
-    @property
-    def plugindir(self):
-        """Path to LADSPA effects"""
-        return Path(self.cfg.get('plugindir', '')).resolve()
-
-    @property
-    def patches(self):
-        """List of patch names in the current bank"""
-        return list(self.bank.get('patches', {})) if self.bank else []
 
     def update_config(self):
         """Write current configuration stored in `cfg` to file.
@@ -132,29 +112,19 @@ class FluidPatcher:
         Returns: yaml stream that was loaded
         """
         if bankfile:
-            try:
-                raw = (self.bankdir / bankfile).read_text()
-                bank = parseyaml(raw)
-            except:
-                if Path(bankfile).as_posix() == self.cfg['currentbank']:
-                    self.cfg.pop('currentbank', None)
-                raise
-            else:
-                self.bank = bank
-                self.cfg['currentbank'] = Path(bankfile).as_posix()
-        elif raw:
-            bank = parseyaml(raw)
-            self.bank = bank
-        self._reset_synth()
-        self._refresh_bankfonts()
-        for zone in self.bank, *self.bank.get('patches', {}).values():
-            for midi in zone.get('midiplayers', {}).values():
-                midi['file'] = self.mfilesdir / midi['file']
-            for fx in zone.get('ladspafx', {}).values():
-                fx['lib'] = self.plugindir / fx['lib']
-        for syx in self.bank.get('init', {}).get('sysex', []):
-            self.fsynth.send_sysex(syx)
-        for opt, val in self.bank.get('init', {}).get('fluidsettings', {}).items():
+            raw = (self.bankdir / bankfile).read_text()
+            self.cfg['currentbank'] = Path(bankfile).as_posix()
+        self.bank = Bank(parseyaml(raw))
+
+        self.synth.reset()        
+        for file in set(self.soundfonts) - self.bank.soundfonts:
+            self.synth.unload_soundfont(self.soundfonts[file])
+            del self.soundfonts[file]
+        for file in self.bank.soundfonts - set(self.soundfonts):
+            self.soundfonts[file] = self.synth.load_soundfont(self.sfdir / file):
+        for opt, val in (_SYNTH_DEFAULTS |
+                         self.cfg.get('fluidsettings', {}) |
+                         self.bank.get('init', {}).get('fluidsettings', {})).items():
             self.fluidsetting_set(opt, val)
         for msg in self.bank.get('init', {}).get('messages', []):
             self.send_event(msg)
@@ -191,72 +161,41 @@ class FluidPatcher:
 
         Args:
           patch: patch index or name
-
-        Returns: a list of warnings, if any
         """
-        warnings = []
-        patch = self._resolve_patch(patch)
-        def mrg(kw):
-            try: return self.bank.get(kw, {}) | patch.get(kw, {})
-            except TypeError: return self.bank.get(kw, []) + patch.get(kw, [])
-        # presets
         for ch in range(1, self.max_channels + 1):
-            if p := self.bank.get(ch) or patch.get(ch):
-                if not self.fsynth.program_select(ch, self.sfdir / p.sfont, p.bank, p.prog):
-                    warnings.append(f"Unable to select preset {p} on channel {ch}")
-            else: self.fsynth.program_unset(ch)
-        # sysex
-        for syx in mrg('sysex'):
-            self.fsynth.send_sysex(syx)
+            if p := self.bank[patch][ch]:
+                self.synth.program_select(ch, self.sfdir / p.sfont, p.bank, p.prog)
+            else:
+                self.synth.program_unset(ch)
         # fluidsettings
-        for opt, val in mrg('fluidsettings').items():
+        for opt, val in self.bank[patch]['fluidsettings'].items():
             self.fluidsetting_set(opt, val)
         # sequencers, arpeggiators, midiplayers
-        self.fsynth.players_clear(save=[*mrg('sequencers'), *mrg('arpeggiators'), *mrg('midiplayers')])
-        for name, seq in mrg('sequencers').items():
-            self.fsynth.sequencer_add(name, **seq)
-        for name, arp in mrg('arpeggiators').items():
-            self.fsynth.arpeggiator_add(name, **arp)
-        for name, midi in mrg('midiplayers').items():
-            self.fsynth.midiplayer_add(name, **midi)
+        for name in self.synth.players:
+            if name not in [*self.bank[patch]['sequencers'],
+                            *self.bank[patch]['arpeggiators'],
+                            *self.bank[patch]['midiplayers']]:
+                self.synth.player_remove(name)
+        for name, seq in self.bank[patch]['sequencers'].items():
+            self.synth.sequencer_add(name, **seq)
+        for name, arp in self.bank[patch]['arpeggiators'].items():
+            self.synth.arpeggiator_add(name, **arp)
+        for name, midi in self.bank[patch]['midiplayers'].items():
+            self.synth.midiplayer_add(name, **midi)
         # ladspa effects
-        self.fsynth.fxchain_clear(save=mrg('ladspafx'))
-        for name, fx in (mrg('ladspafx') | self.patchcord).items():
-            self.fsynth.fxchain_add(name, **fx)
-        self.fsynth.fxchain_connect()
+        if self.synth.ladspafx != self.bank[patch]['ladspafx']:
+            self.synth.fxchain_clear()
+            for name, fx in (self.bank[patch]['ladspafx'] | self.patchcord).items():
+                self.synth.fxchain_add(name, **fx)
+            if self.synth.ladspafx:
+                self.synth.fxchain_connect()
         # router rules -- invert b/c fluidsynth applies rules last-first
-        self.fsynth.router_default()
-        rules = [*mrg('router_rules')][::-1]
-        if 'clear' in rules:
-            self.fsynth.router_clear()
-            rules = rules[:rules.index('clear')]
-        for rule in rules:
-            rule.add(self.fsynth.router_addrule)
+        self.synth.router_default()
+        for rule in self.bank[patch]['router_rules'][::-1]:
+            rule.add(self.router.addrule)
         # midi messages
-        for msg in mrg('messages'):
+        for msg in self.bank[patch]['messages']:
             self.send_event(msg)
-        return warnings
-
-    def add_patch(self, name, addlike=None):
-        """Add a new patch
-
-        Create a new empty patch, or one that copies all settings
-        other than instruments from an existing patch
-
-        Args:
-          name: a name for the new patch
-          addlike: number or name of an existing patch
-
-        Returns: the index of the new patch
-        """
-        if 'patches' not in self.bank: self.bank['patches'] = {}
-        self.bank['patches'][name] = {}
-        if addlike:
-            addlike = self._resolve_patch(addlike)
-            for x in addlike:
-                if not isinstance(x, int):
-                    self.bank['patches'][name][x] = deepcopy(addlike[x])
-        return self.patches.index(name)
 
     def update_patch(self, patch):
         """Update the current patch
@@ -271,15 +210,14 @@ class FluidPatcher:
         Args:
           patch: index or name of the patch to update
         """
-        patch = self._resolve_patch(patch)
-        messages = set(patch.get('messages', []))
+        messages = self.bank[patch]['messages']
         for channel in range(1, self.max_channels + 1):
             for cc, default in enumerate(_CC_DEFAULTS):
-                if default < 0: continue
-                val = self.fsynth.get_cc(channel, cc)
-                if val != default:
-                    messages.add(MidiMessage('cc', channel, cc, val))
-            info = self.fsynth.program_info(channel)
+                val = self.synth.get_cc(channel, cc)
+                if val == default or default < 0 :
+                    continue
+                self.bank[patch]['messages'] += MidiMessage('cc', channel, cc, val)
+            info = self.synth.program_info(channel)
             if not info:
                 patch.pop(channel, None)
                 continue
@@ -297,12 +235,19 @@ class FluidPatcher:
         Args:
           patch: index or name of the patch to delete
         """
-        if isinstance(patch, int):
-            name = self.patches[patch]
-        else:
-            name = patch
-        del self.bank['patches'][name]
-        self._refresh_bankfonts()
+        del self.bank[patch]
+        for file in set(self.soundfonts) - self.bank.soundfonts
+            self.synth.unload_soundfont(self.soundfonts[file])
+            del self.soundfonts[file]
+
+    def select_preset(self, chan, file, bank, prog):
+        for file in set(self.soundfonts) - self.bank.soundfonts - {file}
+            self.synth.unload_soundfont(self.soundfonts[file])
+            del self.soundfonts[file]
+        if file not in self.soundfonts:
+            sfont = self.synth.load_soundfont(self.sfdir / file):
+            self.soundfonts[file] = sfont
+        self.fsynth.program_select(chan, sfont, bank, prog)
 
     def fluidsetting_get(self, opt):
         """Get the current value of a FluidSynth setting
@@ -312,7 +257,7 @@ class FluidPatcher:
 
         Returns: the setting's current value as float, int, or str
         """
-        return self.fsynth.get_setting(opt)
+        return self.synth.get_setting(opt)
 
     def fluidsetting_set(self, opt, val, patch=None):
         """Change a FluidSynth setting
@@ -320,8 +265,7 @@ class FluidPatcher:
         Modifies a FluidSynth setting. Settings without a "synth." prefix
         are ignored. If `patch` is provided, these settings are also added to
         the current bank in memory at bank level, and any conflicting
-        settings are removed from the specified patch - which should ideally
-        be the current patch so that the changes can be heard. The bank file
+        settings are removed from the specified patch. The bank file
         must be saved for the changes to become permanent.
 
         Args:
@@ -330,7 +274,7 @@ class FluidPatcher:
           patch: patch name or index
         """
         if not opt.startswith('synth.'): return
-        self.fsynth.setting(opt, val)
+        self.synth.setting(opt, val)
         if patch != None:
             if 'fluidsettings' not in self.bank:
                 self.bank['fluidsettings'] = {}
@@ -350,14 +294,14 @@ class FluidPatcher:
         Returns:
           pars: router rule as a set of key=value pairs
         """
-        RouterRule(**pars).add(self.fsynth.router_addrule)
+        RouterRule(**pars).add(self.router.addrule)
 
-    def send_event(self, msg=None, type='note', chan=1, par1=0, par2=0):
+    def send_event(self, msg=None, type='note', chan=1, num=0, val=0):
         """Send a MIDI event to the Synth
 
         Sends a MidiMessage, or constructs one from a bank file-styled string
         (<type>:<channel>:<par1>:<par2>) or keywords and sends it
-        to the Synth, which will apply all current router rules.
+        to the synth.
 
         Args:
           msg: MidiMessage instance or string
@@ -369,59 +313,8 @@ class FluidPatcher:
         if isinstance(msg, str):
             msg = parseyaml(msg)
         elif msg == None:
-            msg = MidiMessage(type, chan, par1, par2)
-        self.fsynth.send_event(*msg)
-
-    def solo_soundfont(self, soundfont):
-        """Suspend the current bank and load a single soundfont
-
-        Resets the Synth, loads a single soundfont, and creates router
-        rules that route messages from all channels to channel 1.
-        Scans through each bank and program in order and retrieves the
-        preset name. After this, select_sfpreset() can be used to play
-        any instrument in the soundfont. Call load_bank() with no
-        arguments to restore the current bank.
-
-        Args:
-          soundfont: soundfont file to load, absolute or relative to `sfdir`
-        
-        Returns: a list of (bank, prog, name) tuples for each preset
-        """
-        for sfont in self.soundfonts - {soundfont}:
-            self.fsynth.unload_soundfont(self.sfdir / sfont)
-        if {soundfont} - self.soundfonts:
-            if not self.fsynth.load_soundfont(self.sfdir / soundfont):
-                self.soundfonts = set()
-                return []
-        self.soundfonts = {soundfont}
-        self._reset_synth()
-        for channel in range(1, self.max_channels + 1):
-            self.fsynth.program_unset(channel)
-        for type in 'note', 'cc', 'pbend', 'cpress', 'kpress':
-            self.add_router_rule(type=type, chan=f"2-{self.max_channels}=1")
-        return self.fsynth.get_sfpresets(self.sfdir / soundfont)
-        
-    def select_sfpreset(self, sfont, bank, prog, *_):
-        """Select a preset on channel 1
-
-        Call to select one of the presets in the soundfont loaded
-        by solo_soundfount(). The variable-length garbage argument
-        allows this function to be called by unpacking one of the
-        tuples returned by solo_soundfont().
-
-        Args:
-          sfont: the soundfont file loaded by solo_soundfont(),
-            absolute or relative to `sfdir`
-          bank: the bank to select
-          prog: the program to select from bank
-
-        Returns: a list of warnings, empty if none
-        """
-        if sfont not in self.soundfonts:
-            return [f"{str(sfont)} is not loaded"]
-        if self.fsynth.program_select(1, self.sfdir / sfont, bank, prog):
-            return []
-        else: return [f"Unable to select preset {str(sfont)}:{bank:03d}:{prog:03d}"]
+            msg = MidiMessage(type, chan, num, val)
+        self.synth.send_event(msg)
 
     def _midisignal_handler(self, sig):
         if 'patch' in sig:
@@ -439,35 +332,68 @@ class FluidPatcher:
                 sig.val = 0
         if self.midi_callback: self.midi_callback(sig)
 
-    def _refresh_bankfonts(self):
-        sfneeded = set()
+
+class Bank:
+
+    def __init__(self, bank):
+        self.bank = data
+        
+    def __getitem__(self, name):
+        patches = self.bank.get('patches', {})
+        if name in patches:
+            patch = patches[name]
+        elif isinstance(name, int):
+            patch = patches[name % len(patches)]
+        else:
+            patch = {}
+        return Patch(self.bank, patch)
+
+    def __setitem__(self, name, patch):
+        if 'patches' in self.bank:
+            self.bank['patches'] = {name: patch}
+        else:
+            self.bank['patches'][name] = patch
+    
+    def __delitem__(self, name):
+        del self.bank['patches'][name]
+        if self.bank['patches'] == {}:
+            del self.bank['patches']
+
+    def __len__(self):
+        return len(self.bank.get('patches', {}))
+
+    @property
+    def patches(self):
+        """List of patch names"""
+        return list(self.bank.get('patches', {}))
+        
+    @property
+    def soundfonts(self):
+        """Set of all soundfonts used by patches"""
+        sfonts = set()
         for zone in self.bank, *self.bank.get('patches', {}).values():
-            for sfont in [zone[ch].sfont for ch in zone if isinstance(ch, int)]:
-                sfneeded.add(sfont)
-        missing = set()
-        for sfont in self.soundfonts - sfneeded:
-            self.fsynth.unload_soundfont(self.sfdir / sfont)
-        for sfont in sfneeded - self.soundfonts:
-            if not self.fsynth.load_soundfont(self.sfdir / sfont):
-                missing.add(sfont)
-        self.soundfonts = sfneeded - missing
+            for object in zone:
+                if isinstance(object, int):
+                    sfonts.add(zone[object].sfont)
+        return sfonts
 
-    def _resolve_patch(self, patch):
-        if isinstance(patch, int):
-            if 0 <= patch < len(self.patches):
-                patch = self.patches[patch]
-            else: patch = {}
-        if isinstance(patch, str):
-            patch = self.bank.get('patches', {}).get(patch, {})
-        return patch
 
-    def _reset_synth(self):
-        self.fsynth.players_clear()
-        self.fsynth.fxchain_clear()
-        self.fsynth.router_default()
-        self.fsynth.reset()
-        for opt, val in {**_SYNTH_DEFAULTS, **self.cfg.get('fluidsettings', {})}.items():
-            self.fluidsetting_set(opt, val)
+class Patch:
+
+    def __init__(self, bank, patch):
+        self.bank = bank
+        self.patch = patch
+        
+    def __getitem__(self, name):
+        if isinstance(name, int):
+            return self.patch.get(name) or self.bank.get(name)
+        elif name in 'router_rules', 'messages':
+            return self.bank.get(name, []) + self.patch.get(name, [])
+        else:
+            return self.bank.get(name, {}) | self.patch.get(name, {})
+
+    def __setitem__(self, name, item):
+        self.patch[name] = item
 
 
 _CC_DEFAULTS = [0] * 120
