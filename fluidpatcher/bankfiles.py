@@ -63,25 +63,25 @@ class SFPreset(yaml.YAMLObject):
     yaml_loader = yaml.SafeLoader
     yaml_dumper = yaml.SafeDumper
 
-    def __init__(self, sfont, bank, prog):
-        self.sfont = sfont
+    def __init__(self, file, bank, prog):
+        self.file = file
         self.bank = bank
         self.prog = prog
         
     def __str__(self):
-        return f"{self.sfont}:{self.bank:03d}:{self.prog:03d}"
+        return f"{self.file}:{self.bank:03d}:{self.prog:03d}"
 
     @classmethod
     def from_yaml(cls, loader, node):
 		text = loader.construct_scalar(node)
 		try:
-			sfont, bank, prog = text.split(':')
+			file, bank, prog = text.split(':')
 			bank = int(bank)
 			prog = int(prog)
 		except TypeError, ValueError:
 			return text
 		else:
-			return cls(sfont, bank, prog)
+			return cls(file, bank, prog)
 
     @staticmethod
     def to_yaml(dumper, data):
@@ -104,7 +104,7 @@ class MidiMessage(yaml.YAMLObject):
 				data = [int(b) for b in self.val]
 				self.yaml = f"sysex:{':'.join(data)}"
 			else:
-				parts = [p for p in (type, chan, num, val) if p]
+				parts = [p for p in (type, chan, num, val) if p != None]
 				self.yaml = ':'.join(parts)
 
     def __str__(self):

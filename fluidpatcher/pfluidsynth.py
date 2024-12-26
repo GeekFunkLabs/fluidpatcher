@@ -55,10 +55,14 @@ specfunc(FS.fluid_synth_program_select, c_int, c_void_p, c_int, c_int, c_int, c_
 specfunc(FS.fluid_synth_unset_program, c_int, c_void_p, c_int)
 specfunc(FS.fluid_synth_get_program, c_int, c_void_p, c_int, POINTER(c_int), POINTER(c_int), POINTER(c_int))
 specfunc(FS.fluid_synth_get_cc, c_int, c_void_p, c_int, c_int, POINTER(c_int))
-def fl_synth_program_select(synth, chan, id, bank, prog): FS.fluid_synth_program_select(synth, chan - 1, id, bank, prog)
-def fl_synth_unset_program(synth, chan): FS.fluid_synth_unset_program(synth, chan - 1)
-def fl_synth_get_program(synth, chan, id, bank, prog): FS.fluid_synth_get_program(synth, chan - 1, id, bank, prog)
-def fl_synth_get_cc(synth, chan, ctrl, val): FS.fluid_synth_get_cc(synth, chan - 1, ctrl, val)
+def fl_synth_program_select(synth, chan, id, bank, prog):
+    FS.fluid_synth_program_select(synth, chan - 1, id, bank, prog)
+def fl_synth_unset_program(synth, chan):
+    FS.fluid_synth_unset_program(synth, chan - 1)
+def fl_synth_get_program(synth, chan, id, bank, prog):
+    FS.fluid_synth_get_program(synth, chan - 1, id, bank, prog)
+def fl_synth_get_cc(synth, chan, ctrl, val):
+    FS.fluid_synth_get_cc(synth, chan - 1, ctrl, val)
 
 # soundfonts
 specfunc(FS.fluid_sfont_iteration_start, None, c_void_p)
@@ -94,8 +98,10 @@ fl_midi_event_get_par2 = specfunc(FS.fluid_midi_event_get_velocity, c_int, c_voi
 fl_midi_event_set_par2 = specfunc(FS.fluid_midi_event_set_velocity, c_int, c_void_p, c_int)
 specfunc(FS.fluid_midi_event_get_channel, c_int, c_void_p)
 specfunc(FS.fluid_midi_event_set_channel, c_int, c_void_p, c_int)
-def fl_midi_event_get_channel(event): return FS.fluid_midi_event_get_channel(event) + 1
-def fl_midi_event_set_channel(event, chan): FS.fluid_midi_event_set_channel(event, chan - 1)
+def fl_midi_event_get_channel(event):
+    return FS.fluid_midi_event_get_channel(event) + 1
+def fl_midi_event_set_channel(event, chan):
+    FS.fluid_midi_event_set_channel(event, chan - 1)
 
 # sequencer events
 specfunc(FS.new_fluid_event, c_void_p)
@@ -106,8 +112,10 @@ specfunc(FS.fluid_event_set_source, None, c_void_p, c_void_p)
 specfunc(FS.fluid_event_set_dest, None, c_void_p, c_void_p)
 specfunc(FS.fluid_event_timer, None, c_void_p, c_void_p)
 specfunc(FS.fluid_event_get_type, c_int, c_void_p)
-def fl_event_noteon(event, chan, key, vel): FS.fluid_event_noteon(event, chan - 1, key, vel)
-def fl_event_noteoff(event, chan, key): FS.fluid_event_noteoff(event, chan - 1, key)
+def fl_event_noteon(event, chan, key, vel):
+    FS.fluid_event_noteon(event, chan - 1, key, vel)
+def fl_event_noteoff(event, chan, key):
+    FS.fluid_event_noteoff(event, chan - 1, key)
 
 # sequencer
 fl_seqcallback = CFUNCTYPE(None, c_uint, c_void_p, c_void_p, c_void_p)
@@ -152,20 +160,20 @@ except AttributeError:
     ladspa_available = False
 
 
-class FluidEvent:
+class FluidMidiEvent:
 
-    def __init__(self, fevent):
-		b = FS.fluid_midi_event_get_type(fevent)
+    def __init__(self, event):
+		b = FS.fluid_midi_event_get_type(event)
 		self.type = {v: k for k, v in MIDI_TYPES.items()}.get(b, None)
-		self.chan = fl_midi_event_get_channel(fevent)
+		self.chan = fl_midi_event_get_channel(event)
 		if type in ('prog', 'cpress', 'pbend'):
-			self.val = fl_midi_event_get_par1(fevent)
+			self.val = fl_midi_event_get_par1(event)
 			self.num = None
 		elif type in ('noteoff', 'note', 'kpress', 'cc'):
-			self.num = fl_midi_event_get_par1(fevent)
-			self.val = fl_midi_event_get_par2(fevent)
-		
-        
+			self.num = fl_midi_event_get_par1(event)
+			self.val = fl_midi_event_get_par2(event)
+
+
 class SequencerNote:
 
     def __init__(self, chan, key, vel):
@@ -426,28 +434,28 @@ class Soundfont:
 class Synth:
 
     def __init__(self, midi_handler=None, **fluidsettings):
-        self.midi_handler = midi_handler or FS.fluid_midi_router_handle_midi_event
         self.st = FS.new_fluid_settings()
-        for setting in fluidsettings:
-            self.setting(setting, fluidsettings[setting])
+        for name, val in fluidsettings.items():
+            self[name] = val
         self.fsynth = FS.new_fluid_synth(self.st)
         FS.new_fluid_audio_driver(self.st, self.fsynth)
         self.frouter = FS.new_fluid_midi_router(self.st, FS.fluid_synth_handle_midi_event, self.fsynth)
-        self.fdriver_callback = fl_eventcallback(self.midi_handler)
-        FS.new_fluid_midi_driver(self.st, self.fdriver_callback, self.frouter)
+        if midi_handler:
+            self.fdriver_callback = fl_eventcallback(lambda _, e: midi_handler(FluidMidiEvent(e)))
+            FS.new_fluid_midi_driver(self.st, self.fdriver_callback, self.frouter)
+        else:
+            FS.new_fluid_midi_driver(self.st, FS.fluid_midi_router_handle_midi_event, self.frouter)
+        self.midi_callback = None
         self.fseq = FS.new_fluid_sequencer2(0)
         self.fsynth_id = FS.fluid_sequencer_register_fluidsynth(self.fseq, self.fsynth)
         self.players = {}
 		self.ladspafx = {}
-        self.midi_callback = None
         if ladspa_available:
-            nports = self.get_setting('synth.audio-groups')
-            nchan = self.get_setting('synth.audio-channels')
-            if nports == 1:
+            if self['synth.audio-groups'] == 1:
                 hostports = outports = [('Main:L', 'Main:R')]
             else:
-                hostports = [(f'Main:L{i}', f'Main:R{i}') for i in range(1, nports + 1)]
-                outports = hostports[0:nchan] * nports
+                hostports = [(f'Main:L{i}', f'Main:R{i}') for i in range(1, self['synth.audio-groups'] + 1)]
+                outports = hostports[0:self['synth.audio-channels']] * self['synth.audio-groups']
             self.port_mapping = list(zip(hostports, outports))
             self.ladspa = FS.fluid_synth_get_ladspa_fx(self.fsynth)
 
@@ -456,38 +464,35 @@ class Synth:
         return FS.fluid_sequencer_get_tick(self.fseq)
 
     def reset(self):
-        self.router_clear()
         for name in self.players:
             self.player_remove(name)
         self.fxchain_clear()
         FS.fluid_synth_system_reset(self.fsynth)
 
-    def __setitem__(self, opt, val):
-    def setting(self, opt, val):
-        stype = FS.fluid_settings_get_type(self.st, opt.encode())
-        if stype == FLUID_STR_TYPE:
-            FS.fluid_settings_setstr(self.st, opt.encode(), str(val).encode())
-        elif stype == FLUID_INT_TYPE:
-            FS.fluid_settings_setint(self.st, opt.encode(), int(val))
-        elif stype == FLUID_NUM_TYPE:
-            FS.fluid_settings_setnum(self.st, opt.encode(), c_double(val))
-
-    def __getitem__(self, opt):
-    def get_setting(self, opt):
-        stype = FS.fluid_settings_get_type(self.st, opt.encode())
+    def __getitem__(self, name):
+        stype = FS.fluid_settings_get_type(self.st, name.encode())
         if stype == FLUID_STR_TYPE:
             strval = create_string_buffer(32)
-            if FS.fluid_settings_copystr(self.st, opt.encode(), strval, 32) == FLUID_OK:
+            if FS.fluid_settings_copystr(self.st, name.encode(), strval, 32) == FLUID_OK:
                 return strval.value.decode()
         elif stype == FLUID_INT_TYPE:
             val = c_int()
-            if FS.fluid_settings_getint(self.st, opt.encode(), byref(val)) == FLUID_OK:
+            if FS.fluid_settings_getint(self.st, name.encode(), byref(val)) == FLUID_OK:
                 return val.value
         elif stype == FLUID_NUM_TYPE:
             num = c_double()
-            if FS.fluid_settings_getnum(self.st, opt.encode(), byref(num)) == FLUID_OK:
+            if FS.fluid_settings_getnum(self.st, name.encode(), byref(num)) == FLUID_OK:
                 return round(num.value, 6)
         return None
+
+    def __setitem__(self, name, val):
+        stype = FS.fluid_settings_get_type(self.st, name.encode())
+        if stype == FLUID_STR_TYPE:
+            FS.fluid_settings_setstr(self.st, name.encode(), str(val).encode())
+        elif stype == FLUID_INT_TYPE:
+            FS.fluid_settings_setint(self.st, name.encode(), int(val))
+        elif stype == FLUID_NUM_TYPE:
+            FS.fluid_settings_setnum(self.st, name.encode(), c_double(val))
 
     def load_soundfont(self, file):
         id = FS.fluid_synth_sfload(self.fsynth, str(file).encode(), False)
@@ -534,10 +539,7 @@ class Synth:
 				fl_midi_router_rule_set_param2(rule, *par2)
             FS.fluid_midi_router_add_rule(self.frouter, rule, RULE_TYPES.index(type))
 
-    def route_event(self, fevent):
-        FS.fluid_midi_router_handle_midi_event(self.frouter, fevent)
-
-    def send_event(self, event):
+    def send_event(self, event, route=True):
 		fevent = FS.new_fluid_midi_event()
 		if event.type == 'sysex':
 			syxdata = (c_int * len(event.val))(*event.val)
@@ -551,7 +553,10 @@ class Synth:
 				fl_midi_event_set_channel(fevent, event.chan)
 				fl_midi_event_set_par1(fevent, event.num)
 				fl_midi_event_set_par2(fevent, event.val)
-        FS.fluid_synth_handle_midi_event(self.fsynth, fevent)
+        if route:
+            FS.fluid_midi_router_handle_midi_event(self.frouter, fevent)
+        else:
+            FS.fluid_synth_handle_midi_event(self.fsynth, fevent)
 
     def player_remove(self, name):
         self.players[name].dismiss()

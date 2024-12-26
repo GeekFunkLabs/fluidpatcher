@@ -54,12 +54,11 @@ class FluidRule:
 		self.num = Route(*num) if num else None
 		self.val = Route(*val) if val else None
 		self.tags = tags
-		self.active = True
 
 
 class CustomRule:
 
-    def __init__(self, types, chan=None, num=None, val=None, tags=[], **pars):
+    def __init__(self, types, chan=None, num=None, val=None, **pars):
 		self.fromtype = types[0]
 		self.totype = types[-1]
         self.chan = Route(*chan) if chan else None
@@ -67,7 +66,6 @@ class CustomRule:
 		self.val = Route(*val) if val else None
 		self.tags = tags
         self.__dict__.update(pars)
-		self.active = True
 
 	def __contains__(self, k):
 		return k in self.__dict__
@@ -117,14 +115,14 @@ class CustomRule:
 
 class TransRule(CustomRule):
 
-    def __init__(self, types, chan=None, num=None, val=None, tags=[]):
+    def __init__(self, types, chan=None, num=None, val=None):
         super().__init__(types, chan, num, val, tags)
 
 
 class Router:
 
-    def __init__(self, synth, fluid_default=True):
-    	self.synth = synth
+    def __init__(self, fluid_default=True):
+    	self.synth = None
         self.fluidrules = []
         self.customrules = []
         self.fluid_default = fluid_default
@@ -146,20 +144,17 @@ class Router:
 			self.fluidrules.insert(0, FluidRule(type[0], chan, num, val, tags))
 			self.synth.router_addrule(type[0], chan, num, val)
 
-    def handle_midi(self, fevent, _):
-    	event = FluidEvent(fevent)
+    def handle_midi(self, event):
         t = self.synth.currenttick
         dt = 0
         for rule in list(self.customrules):
-			if not rule.active:
-				continue
             if not rule.applies(event):
                 continue
 			newevent = rule.apply(event)
 			if isinstance(rule, TransRule):
-				self.synth.send_event(newevent)
+				self.synth.send_event(newevent, route=False)
             elif 'fluidsetting' in rule:
-                self.synth.setting(rule.fluidsetting, newevent.val)
+                 self.synth.setting(rule.fluidsetting, newevent.val)
             elif 'sequencer' in rule:
                 if rule.sequencer in self.synth.players:
                     if 'step' in rule:
@@ -202,4 +197,4 @@ class Router:
             # send the FluidEvent to the callback
             self.midi_callback(event)
         # pass the original event along to the fluid router
-        return self.synth.route_event(fevent)
+        return self.synth.send_event(event)
