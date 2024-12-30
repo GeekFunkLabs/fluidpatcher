@@ -4,24 +4,7 @@
 import re
 import yaml
 
-nn = '[A-G]?[b#]?\d*[.]?\d+' # scientific note name or number
-rspec = re.compile(f'^({nn})-({nn})\*(-?[\d\.]+)([+-]{nn})$')
-ftspec = re.compile(f'^({nn})?-?({nn})?=?(-?{nn})?-?(-?{nn})?$')
 scinote = re.compile('([+-]?)([A-G])([b#]?)(-?[0-9])') # scientific note name parts
-handlers = dict(Loader=yaml.SafeLoader, Dumper=yaml.SafeDumper)
-
-def add_bankobj_resolver(tag, path, kind):
-    yaml.add_path_resolver(tag, path, kind, **handlers)
-    yaml.add_path_resolver(tag, ['patches', (dict, None), *path], kind, **handlers)
-
-add_bankobj_resolver('!rrule', ['router_rules', (list, None)], dict)
-add_bankobj_resolver('!midiplayer', ['midiplayers', (dict, None)], dict)
-add_bankobj_resolver('!sequencer', ['sequencers', (dict, None)], dict)
-add_bankobj_resolver('!arpeggiator', ['arpeggiators', (dict, None)], dict)
-add_bankobj_resolver('!ladspafx', ['ladspafx', (dict, None)], dict)
-add_bankobj_resolver('!sfpreset', [(dict, None)], str)
-add_bankobj_resolver('!midimsg', ['messages', (list, None)], str)
-add_bankobj_resolver('!midimsg', ['sequencers', (dict, None)], 'notes', (list, None)], str)
 
 def scinote_to_val(n):
     """convert scientific note name to MIDI note number
@@ -135,6 +118,10 @@ class MidiMessage(yaml.YAMLObject):
     def to_yaml(dumper, data):
         return dumper.represent_scalar('!midimsg', str(data))
 
+    def sub(self, names):
+        for b in 'chan', 'num', 'val':
+            if getattr(self, b) in names:
+                setattr(self, b, names[b])
 
 class BankObject(yaml.YAMLObject):
     """Translation layer between YAML representation and bank data
@@ -157,19 +144,15 @@ class BankObject(yaml.YAMLObject):
     def __iter__(self):
         return iter(self.opars.items())
 
-    def __setitem__(self, key, val):
+    def __setattr__(self, key, val):
         self.pars[key] = val
 
-    def __getitem__(self, key):
+    def __getattr__(self, key):
         return self.pars[key]
-
-    def keys(self):
-        return self.pars.keys()
 
     @classmethod
     def from_yaml(cls, loader, node):
         return cls(**loader.construct_mapping(node))
-
 
 class RouterRule(BankObject):
 
@@ -187,9 +170,75 @@ class RouterRule(BankObject):
         for chan in self.chan or [None]:
             addfunc(self.type, chan, **self.pars)
 
+    def sub(self, names):
+        
+
     @staticmethod
     def to_yaml(dumper, data):
         return dumper.represent_mapping('!rrule', data, flow_style=True)
+
+
+fluidspec = re.compile('^(\w+)-(\w+)\*(-?[\d\.]+)([+-]\w+)$')
+fromtospec = re.compile('^(\w+)?-?(\w+)?=?(-?\w+)?-?(-?\w+)?$')
+
+class ParamSpec:
+    
+    def __init__(self, text):
+        self.text = str(text)
+        if not text:
+            self.tups = []
+        elif spec := fluidspec.match(self.text):
+            min, max, mul, add = [scinote_to_val(sift(x)) for x in spec.groups()]
+            self.tups = min, max, mul, add
+        elif spec := fromtospec.match(self.text):
+            min, max, tomin, tomax = [scinote_to_val(sift(x)) for x in spec.groups()]
+            if min == None: min, max = 0, 127
+            if max == None: max = min
+            if tomin == None and tomax == None: tomin, tomax = min, max
+            elif tomax == None: tomax = tomin
+            mul = 1 if min == max else (tomax - tomin) / (max - min)
+            add = tomin - min * mul
+            self.tups = min, max, mul, add
+        else:
+            self.tups = []
+            
+    def __iter__(self):
+        return iter(self.tups)
+
+    def __str__(self):
+        return self.text
+
+    def __bool__(self):
+        return bool(self.tups)
+
+    @classmethod
+    def from_yaml(cls, loader, node):
+        return cls(loader.construct_scalar(node))
+
+    @staticmethod
+    def to_yaml(dumper, data):
+        return dumper.represent_scalar('!chspec', data)
+
+
+class ChannelSpec(ParamSpec):
+    
+    def __init__(self, text):
+        self.text = str(text)
+        if not text:
+            self.tups = []
+        elif spec := fluidspec.match(self.text):
+            min, max, mul, add = [sift(x) for x in spec.groups()]
+            self.tups = [(min, max, mul, add)]
+        elif spec := fromtospec.match(self.text):
+            min, max, tomin, tomax = [sift(x) for x in spec.groups()]
+            if min == None: min, max = 1, 256
+            if max == None: max = min
+            if tomin == None: tomin = min
+            if tomax == None: tomax = max if tomin == None else tomin
+            self.tups = [(min, max, 0.0, chto)
+                         for chto in range(tomin, tomax + 1)]
+        else:
+            self.tups = []
 
 
 class Arpeggiator(BankObject):
@@ -231,8 +280,6 @@ class MidiPlayer(BankObject):
 
     def __init__(self, **pars):
         super().__init__(**pars)
-        if 'chan' in pars:
-            self.pars['chan'] = ChannelSpec(pars['chan']).tups[0]
         if 'mask' in pars:
             if isinstance(pars['mask'], str):
                 self.pars['mask'] = [t.strip() for t in pars['mask'].split(',')]
@@ -265,61 +312,16 @@ class LadspaEffect(BankObject):
         return dumper.represent_mapping('!ladspafx', data)
 
 
-class ParamSpec:
-    
-    def __init__(self, text):
-        self.text = str(text)
-        if not text:
-            self.tups = []
-        elif spec := rspec.match(self.text):
-            min, max, mul, add = [scinote_to_val(sift(x)) for x in spec.groups()]
-            self.tups = min, max, mul, add
-        elif spec := ftspec.match(self.text):
-            min, max, tomin, tomax = [scinote_to_val(sift(x)) for x in spec.groups()]
-            if min == None: min, max = 0, 127
-            if max == None: max = min
-            if tomin == None and tomax == None: tomin, tomax = min, max
-            elif tomax == None: tomax = tomin
-            mul = 1 if min == max else (tomax - tomin) / (max - min)
-            add = tomin - min * mul
-            self.tups = min, max, mul, add
-        else:
-            self.tups = []
-            
-    def __iter__(self):
-        return iter(self.tups)
+def add_bankobj_resolver(tag, path, kind):
+    handlers = dict(Loader=yaml.SafeLoader, Dumper=yaml.SafeDumper)
+    yaml.add_path_resolver(tag, path, kind, **handlers)
+    yaml.add_path_resolver(tag, ['patches', (dict, None), *path], kind, **handlers)
 
-    def __str__(self):
-        return self.text
-
-    def __bool__(self):
-        return bool(self.tups)
-
-    @classmethod
-    def from_yaml(cls, loader, node):
-        return cls(loader.construct_scalar(node))
-
-    @staticmethod
-    def to_yaml(dumper, data):
-        return dumper.represent_scalar('!chspec', str(data))
-
-
-class ChannelSpec(ParamSpec):
-    
-    def __init__(self, text):
-        self.text = str(text)
-        if not text:
-            self.tups = []
-        elif spec := rspec.match(self.text):
-            min, max, mul, add = [sift(x) for x in spec.groups()]
-            self.tups = [(min, max, mul, add)]
-        elif spec := ftspec.match(self.text):
-            min, max, tomin, tomax = [sift(x) for x in spec.groups()]
-            if min == None: min, max = 1, 256
-            if max == None: max = min
-            if tomin == None: tomin = min
-            if tomax == None: tomax = max if tomin == None else tomin
-            self.tups = [(min, max, 0.0, chto)
-                         for chto in range(tomin, tomax + 1)]
-        else:
-            self.tups = []
+add_bankobj_resolver('!rrule', ['router_rules', (list, None)], dict)
+add_bankobj_resolver('!midiplayer', ['midiplayers', (dict, None)], dict)
+add_bankobj_resolver('!sequencer', ['sequencers', (dict, None)], dict)
+add_bankobj_resolver('!arpeggiator', ['arpeggiators', (dict, None)], dict)
+add_bankobj_resolver('!ladspafx', ['ladspafx', (dict, None)], dict)
+add_bankobj_resolver('!sfpreset', [(dict, None)], str)
+add_bankobj_resolver('!midimsg', ['messages', (list, None)], str)
+add_bankobj_resolver('!midimsg', ['sequencers', (dict, None)], 'notes', (list, None)], str)

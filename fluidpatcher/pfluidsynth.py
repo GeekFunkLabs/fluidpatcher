@@ -303,7 +303,7 @@ class Arpeggiator(Sequencer):
 
 class MidiPlayer:
 
-    def __init__(self, synth, file, loops, barlength, chan, mask):
+    def __init__(self, synth, file, loops, barlength, shift, mask):
         self.fplayer = FS.new_fluid_player(synth.fsynth)
         FS.fluid_player_add(self.fplayer, str(file).encode())
         self.loops = list(zip(loops[::2], loops[1::2]))
@@ -315,7 +315,8 @@ class MidiPlayer:
         FS.fluid_midi_router_clear_rules(frouter)
         for rtype in set(list(MIDI_TYPES)[:6]) - set(mask):
             rule = FS.new_fluid_midi_router_rule()
-            if chan: fl_midi_router_rule_set_chan(rule, *chan)
+            if shift:
+                fl_midi_router_rule_set_chan(rule, 1, 16, 1, shift)
             FS.fluid_midi_router_add_rule(frouter, rule, list(MIDI_TYPES).index(rtype))
         self.playback_callback = fl_eventcallback(FS.fluid_midi_router_handle_midi_event)
         FS.fluid_player_set_playback_callback(self.fplayer, self.playback_callback, frouter)
@@ -575,9 +576,9 @@ class Synth:
             self.players[name] = Arpeggiator(self, tdiv, swing, groove, style, octaves)
             self.players[name].set_tempo(tempo)
 
-    def midiplayer_add(self, name, file, loops=[], barlength=1, chan=None, mask=[], tempo=0, **_):
+    def midiplayer_add(self, name, file, loops=[], barlength=1, shift=0, mask=[], tempo=0, **_):
         if name not in self.players:
-            self.players[name] = MidiPlayer(self, file, loops, barlength, chan, mask)
+            self.players[name] = MidiPlayer(self, file, loops, barlength, shift, mask)
             if tempo > 0:
                 self.players[name].set_tempo(tempo)
 

@@ -105,9 +105,9 @@ class FluidPatcher:
         names = self.bank.root.get('names', {})
         for zone in self.bank:
             for midi in zone.get('midiplayers', {}).values():
-                midi['file'] = self.mfilesdir / midi['file']
+                midi.file = self.mfilesdir / midi.file
             for fx in zone.get('ladspafx', {}).values():
-                fx['lib'] = self.plugindir / fx['lib']
+                fx.lib = self.plugindir / fx.lib
             for rule in zone.get('router_rules', []):
                 rule.sub(names):
             for msg in zone.get('messages', []):
