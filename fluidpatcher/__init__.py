@@ -73,7 +73,7 @@ class FluidPatcher:
         self.router.midi_callback = self._midisignal_handler
         self.midi_callback = None
         self.soundfonts = {}
-        self.patchcord = {'patchcordxxx': {'lib': self.cfg.pluginpath / 'patchcord'}}
+        self._patchcord = {'_patchcord': {'lib': self.cfg.pluginpath / 'patchcord'}}
 
     def load_bank(self, bankfile='', raw=''):
         """Load a bank from a file or from raw yaml text
@@ -99,14 +99,24 @@ class FluidPatcher:
         if bankfile:
             raw = (self.cfg.bankpath / bankfile).read_text()
             self.cfg.bankfile = bankfile
-        self.bank = Bank(raw)
+        self.bank = Bank(parseyaml(raw))
 
         self.synth.reset()
-        init_fluidsettings = self.bank.get('init', {}).get('fluidsettings', {})
-        init_messages = self.bank.get('init', {}).get('messages', [])
-        for name, val in (_SYNTH_DEFAULTS | init_fluidsettings).items():
+        names = self.bank.root.get('names', {})
+        for zone in self.bank:
+            for midi in zone.get('midiplayers', {}).values():
+                midi['file'] = self.mfilesdir / midi['file']
+            for fx in zone.get('ladspafx', {}).values():
+                fx['lib'] = self.plugindir / fx['lib']
+            for rule in zone.get('router_rules', []):
+                rule.sub(names):
+            for msg in zone.get('messages', []):
+                msg.sub(names)
+        init = self.bank.root.get('init', {})
+        for name, val in (_SYNTH_DEFAULTS | init.get('fluidsettings', {})).items():
             self.synth[name] = val
-        for msg in init_messages:
+        for msg in init.get('messages', []):
+            msg.sub(names)
             self.send_event(msg)
         return raw
 
@@ -122,7 +132,7 @@ class FluidPatcher:
           raw: exact text to save
         """
         if raw:
-            self.bank = Bank(raw)
+            self.bank = Bank(parseyaml(raw))
         else:
             raw = renderyaml(self.bank.bank)
         (self.cfg.bankpath / bankfile).write_text(raw)
@@ -149,11 +159,11 @@ class FluidPatcher:
         for file in self.bank.soundfonts - set(self.soundfonts):
             self.soundfonts[file] = self.synth.load_soundfont(self.sfpath / file):
         # select presets
-        for ch in range(1, self.synth['synth.midi-channels'] + 1):
-            if p := self.bank[patch][ch]:
-                self.synth.program_select(ch, self.soundfonts[p.file], p.bank, p.prog)
+        for channel in range(1, self.synth['synth.midi-channels'] + 1):
+            if p := self.bank[patch][channel]:
+                self.synth.program_select(channel, self.soundfonts[p.file], p.bank, p.prog)
             else:
-                self.synth.program_unset(ch)
+                self.synth.program_unset(channel)
         # fluidsettings
         for name, val in self.bank[patch]['fluidsettings'].items():
             self.synth[opt] = val
@@ -168,26 +178,26 @@ class FluidPatcher:
         for name, arp in self.bank[patch]['arpeggiators'].items():
             self.synth.arpeggiator_add(name, **arp)
         for name, midi in self.bank[patch]['midiplayers'].items():
-            self.synth.midiplayer_add(name, **midi | self.cfg.midipath / midi['file'])
+            midi['file'] = self.cfg.midipath / midi['file']
+            self.synth.midiplayer_add(name, **midi)
         # ladspa effects
         if self.synth.ladspafx != self.bank[patch]['ladspafx']:
             self.synth.fxchain_clear()
-            for name, fx in (self.bank[patch]['ladspafx'] | self.patchcord).items():
-                self.synth.fxchain_add(name, **fx | self.cfg.pluginpath / fx['lib'])
+            for name, fx in (self.bank[patch]['ladspafx'] | self._patchcord).items():
+                fx['lib'] = self.cfg.pluginpath / fx['lib']
+                self.synth.fxchain_add(name, **fx)
             if self.synth.ladspafx:
                 self.synth.fxchain_connect()
         # router rules -- invert b/c fluidsynth applies rules last-first
-        self.synth.router_default()
-        for rule in self.bank[patch]['router_rules'][::-1]:
-            rule.add(self.router.addrule)
+        self.router.reset()
+        for rule in self.bank[patch]['router_rules']:
+            rule.add(self.router.add)
         # midi messages
         for msg in self.bank[patch]['messages']:
             self.synth.send_event(msg)
 
     def update_patch(self, patch):
         """Update a patch from the current synth state
-
-        needs work
 
         Instruments and controller values can be changed by program change (PC)
         and continuous controller (CC) messages, but these will not persist
@@ -199,22 +209,21 @@ class FluidPatcher:
         Args:
           patch: index or name of the patch to update
         """
-        messages = self.bank[patch]['messages']
+        self.bank.patches[patch]['messages'] = []
+        sfonts = {self.soundfonts[file].id, file for file in self.soundfonts}
         for channel in range(1, self.synth['synth.midi-channels'] + 1):
             for cc, default in enumerate(_CC_DEFAULTS):
                 val = self.synth.get_cc(channel, cc)
-                if val == default or default < 0 :
-                    continue
-                self.bank[patch]['messages'] += MidiMessage('cc', channel, cc, val)
-            info = self.synth.program_info(channel)
-            if not info:
-                patch.pop(channel, None)
-                continue
-            sfont, bank, prog = info
-            sfrel = Path(sfont).relative_to(self.sfpath).as_posix()
-            patch[channel] = SFPreset(sfrel, bank, prog)
-        if messages:
-            patch['messages'] = list(messages)
+                if val != default and default != -1 :
+                    self.bank.patches[patch]['messages'] += [MidiMessage('cc', channel, cc, val)]
+            id, bank, prog = self.synth.program_info(channel)
+            if id not in sfonts:
+                del self.bank[patch][channel]
+            else:
+                patch[channel] = SFPreset(sfonts[id], bank, prog)
+
+    def copy_patch(self, src, dest):
+        self.bank.patches[dest] = deepcopy(self.bank.patches[src])
 
     def delete_patch(self, patch):
         """Delete a patch from the bank in memory
@@ -237,7 +246,7 @@ class FluidPatcher:
         saved to the bank, and will disappear if a patch is applied
         or the synth is reset.
 
-        Returns:
+        Args:
           pars: router rule as a set of key=value pairs
         """
         RouterRule(**pars).add(self.router.addrule)
@@ -310,62 +319,51 @@ class Config:
 
 class Bank:
 
-    def __init__(self, text):
-        self.bank = parseyaml(raw)
+    def __init__(self, data):
+        self.patches = data.get('patches', {})
+        self.root = data
         
     def __getitem__(self, name):
-        patches = self.bank.get('patches', {})
-        if name in patches:
-            patch = patches[name]
+        if name in self.patches:
+            patch = self.patches[name]
         elif isinstance(name, int):
-            patch = patches[name % len(patches)]
-        else:
-            patch = {}
-        return Patch(self.bank, patch)
-
-    def __setitem__(self, name, patch):
-        if 'patches' in self.bank:
-            self.bank['patches'] = {name: patch}
-        else:
-            self.bank['patches'][name] = patch
-    
-    def __delitem__(self, name):
-        del self.bank['patches'][name]
-        if self.bank['patches'] == {}:
-            del self.bank['patches']
+            patch = self.patches[name % len(patches)]
+        return Patch(self.root, patch)
 
     def __len__(self):
-        return len(self.bank.get('patches', {}))
+        return len(self.patches)
 
-    @property
-    def patches(self):
-        """List of patch names"""
-        return list(self.bank.get('patches', {}))
+    def __iter__(self):
+        return iter([self.root, *self.patches.values()])
 
     @property
     def soundfonts(self):
         """Set of all soundfonts used by patches"""
         sfonts = set()
-        for zone in self.bank, *self.bank.get('patches', {}).values():
-            for object in zone:
-                if isinstance(object, int):
-                    sfonts.add(zone[object].file)
+        for patch in self.patches:
+            for item in self[patch]:
+                if isinstance(item, int):
+                    sfonts.add(patch[item].file)
         return sfonts
+
+    @property
+    def bank(self):
+        return self.root | ({'patches': self.patches} if self.patches else {})
 
 
 class Patch:
 
-    def __init__(self, bank, patch):
-        self.bank = bank
+    def __init__(self, root, patch):
         self.patch = patch
+        self.root = root
         
     def __getitem__(self, name):
         if isinstance(name, int):
-            return self.patch.get(name) or self.bank.get(name)
+            return self.patch.get(name) or self.root.get(name)
         elif name in 'router_rules', 'messages':
-            return self.bank.get(name, []) + self.patch.get(name, [])
+            return self.root.get(name, []) + self.patch.get(name, [])
         else:
-            return self.bank.get(name, {}) | self.patch.get(name, {})
+            return self.root.get(name, {}) | self.patch.get(name, {})
 
     def __setitem__(self, name, item):
         self.patch[name] = item

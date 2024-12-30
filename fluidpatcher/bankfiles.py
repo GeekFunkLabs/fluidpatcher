@@ -43,13 +43,18 @@ def sift(s):
     return int(s) if s.is_integer() else s
 
 def parseyaml(text='', data={}):
-    """prune branches that contain None instances"""
-    data = yaml.safe_load(text) if text else data
+    """prune branches that contain None instances
+    does this actually work on BankObjects? yes b/c iterable
+    """
+    if text:
+        data = yaml.safe_load(text)
     if isinstance(data, (list, dict)):
-        for item in data if isinstance(data, list) else data.values():
-            if item is None: return None
+        for item in data.values() if isinstance(data, dict) else data:
+            if item is None:
+                return None
             elif isinstance(item, (list, dict)):
-                if parseyaml(data=item) is None: return None
+                if parseyaml(data=item) is None:
+                    return None
     return data
 
 def renderyaml(data):
@@ -73,15 +78,15 @@ class SFPreset(yaml.YAMLObject):
 
     @classmethod
     def from_yaml(cls, loader, node):
-		text = loader.construct_scalar(node)
-		try:
-			file, bank, prog = text.split(':')
-			bank = int(bank)
-			prog = int(prog)
-		except TypeError, ValueError:
-			return text
-		else:
-			return cls(file, bank, prog)
+        text = loader.construct_scalar(node)
+        try:
+            file, bank, prog = text.split(':')
+            bank = int(bank)
+            prog = int(prog)
+        except TypeError, ValueError:
+            return text
+        else:
+            return cls(file, bank, prog)
 
     @staticmethod
     def to_yaml(dumper, data):
@@ -100,12 +105,12 @@ class MidiMessage(yaml.YAMLObject):
         self.num = scinote_to_val(num)
         self.val = val
         if yaml == '':
-			if self.type == 'sysex':
-				data = [int(b) for b in self.val]
-				self.yaml = f"sysex:{':'.join(data)}"
-			else:
-				parts = [p for p in (type, chan, num, val) if p != None]
-				self.yaml = ':'.join(parts)
+            if self.type == 'sysex':
+                data = [int(b) for b in self.val]
+                self.yaml = f"sysex:{':'.join(data)}"
+            else:
+                parts = [p for p in (type, chan, num, val) if p != None]
+                self.yaml = ':'.join(parts)
 
     def __str__(self):
         return self.yaml
@@ -115,16 +120,16 @@ class MidiMessage(yaml.YAMLObject):
 
     @classmethod
     def from_yaml(cls, loader, node):
-		text = loader.construct_scalar(node)
-		parts = [sift(p) for p in text.split(':')]
-		if parts[0] == 'sysex':
-			return cls(parts[0], val=parts[1:], yaml=text)
-		elif len(parts) == 3:
-			return cls(parts[0], chan=parts[1], val=parts[2], yaml=text)
-		elif len(parts) == 4:
-			return cls(parts[0], chan=parts[1], num=parts[2], val=parts[3], yaml=text)
-		else:
-			return cls(parts[0], yaml=text)			
+        text = loader.construct_scalar(node)
+        parts = [sift(p) for p in text.split(':')]
+        if parts[0] == 'sysex':
+            return cls(parts[0], val=parts[1:], yaml=text)
+        elif len(parts) == 3:
+            return cls(parts[0], chan=parts[1], val=parts[2], yaml=text)
+        elif len(parts) == 4:
+            return cls(parts[0], chan=parts[1], num=parts[2], val=parts[3], yaml=text)
+        else:
+            return cls(parts[0], yaml=text)            
 
     @staticmethod
     def to_yaml(dumper, data):
@@ -179,8 +184,8 @@ class RouterRule(BankObject):
         self.pars['val'] = ParamSpec(self.pars.get('val', ''))
 
     def add(self, addfunc):
-		for chan in self.chan or [None]:
-			addfunc(self.type, chan, **self.pars)
+        for chan in self.chan or [None]:
+            addfunc(self.type, chan, **self.pars)
 
     @staticmethod
     def to_yaml(dumper, data):

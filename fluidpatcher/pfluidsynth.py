@@ -163,15 +163,15 @@ except AttributeError:
 class FluidMidiEvent:
 
     def __init__(self, event):
-		b = FS.fluid_midi_event_get_type(event)
-		self.type = {v: k for k, v in MIDI_TYPES.items()}.get(b, None)
-		self.chan = fl_midi_event_get_channel(event)
-		if type in ('prog', 'cpress', 'pbend'):
-			self.val = fl_midi_event_get_par1(event)
-			self.num = None
-		elif type in ('noteoff', 'note', 'kpress', 'cc'):
-			self.num = fl_midi_event_get_par1(event)
-			self.val = fl_midi_event_get_par2(event)
+        b = FS.fluid_midi_event_get_type(event)
+        self.type = {v: k for k, v in MIDI_TYPES.items()}.get(b, None)
+        self.chan = fl_midi_event_get_channel(event)
+        if type in ('prog', 'cpress', 'pbend'):
+            self.val = fl_midi_event_get_par1(event)
+            self.num = None
+        elif type in ('noteoff', 'note', 'kpress', 'cc'):
+            self.num = fl_midi_event_get_par1(event)
+            self.val = fl_midi_event_get_par2(event)
 
 
 class SequencerNote:
@@ -449,7 +449,7 @@ class Synth:
         self.fseq = FS.new_fluid_sequencer2(0)
         self.fsynth_id = FS.fluid_sequencer_register_fluidsynth(self.fseq, self.fsynth)
         self.players = {}
-		self.ladspafx = {}
+        self.ladspafx = {}
         if ladspa_available:
             if self['synth.audio-groups'] == 1:
                 hostports = outports = [('Main:L', 'Main:R')]
@@ -528,31 +528,34 @@ class Synth:
     def router_default(self):
         FS.fluid_midi_router_set_default_rules(self.frouter)
 
-    def router_addrule(self, type, chan=None, num=None, val=None):
-		if type in RULE_TYPES:
-            rule = FS.new_fluid_midi_router_rule()
-            if chan:
-				fl_midi_router_rule_set_chan(rule, *chan)
-            if par1:
-				fl_midi_router_rule_set_param1(rule, *par1)
-            if par2:
-				fl_midi_router_rule_set_param2(rule, *par2)
-            FS.fluid_midi_router_add_rule(self.frouter, rule, RULE_TYPES.index(type))
+    def router_addrule(self, type, chan=(), num=(), val=()):
+        rule = FS.new_fluid_midi_router_rule()
+        if chan:
+            fl_midi_router_rule_set_chan(rule, *chan)
+        if type in ('prog', 'cpress', 'pbend'):
+            if val:
+                fl_midi_router_rule_set_param1(rule, *val)
+        elif type in ('noteoff', 'note', 'kpress', 'cc'):
+            if num:
+                fl_midi_router_rule_set_param1(rule, *num)
+            if val:
+                fl_midi_router_rule_set_param2(rule, *val)
+        FS.fluid_midi_router_add_rule(self.frouter, rule, RULE_TYPES.index(type))
 
     def send_event(self, event, route=True):
-		fevent = FS.new_fluid_midi_event()
-		if event.type == 'sysex':
-			syxdata = (c_int * len(event.val))(*event.val)
-			FS.fluid_midi_event_set_sysex(fevent, syxdata, sizeof(syxdata), True)
-		else:
-			FS.fluid_midi_event_set_type(fevent, MIDI_TYPES.get(event.type))
-			if event.type in ('prog', 'cpress', 'pbend'):
-				fl_midi_event_set_channel(fevent, event.chan)
-				fl_midi_event_set_par1(fevent, event.val)
-			elif event.type in ('noteoff', 'note', 'kpress', 'cc'):
-				fl_midi_event_set_channel(fevent, event.chan)
-				fl_midi_event_set_par1(fevent, event.num)
-				fl_midi_event_set_par2(fevent, event.val)
+        fevent = FS.new_fluid_midi_event()
+        if event.type == 'sysex':
+            syxdata = (c_int * len(event.val))(*event.val)
+            FS.fluid_midi_event_set_sysex(fevent, syxdata, sizeof(syxdata), True)
+        else:
+            FS.fluid_midi_event_set_type(fevent, MIDI_TYPES.get(event.type))
+            if event.type in ('prog', 'cpress', 'pbend'):
+                fl_midi_event_set_channel(fevent, event.chan)
+                fl_midi_event_set_par1(fevent, event.val)
+            elif event.type in ('noteoff', 'note', 'kpress', 'cc'):
+                fl_midi_event_set_channel(fevent, event.chan)
+                fl_midi_event_set_par1(fevent, event.num)
+                fl_midi_event_set_par2(fevent, event.val)
         if route:
             FS.fluid_midi_router_handle_midi_event(self.frouter, fevent)
         else:
