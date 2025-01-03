@@ -377,10 +377,6 @@ class LadspaEffect:
         self.lib = str(lib).encode()
         self.plugin = plugin.encode() if plugin else None
         self.groups = group
-        if audio == 'stereo':
-            audio = 'Input L', 'Input R', 'Output L', 'Output R'
-        elif audio == 'mono':
-            audio = 'Input', 'Output'
         self.aports = [port.encode() for port in audio]
         self.fxunits = []
         self.portvals = {}
@@ -446,7 +442,6 @@ class Synth:
             FS.new_fluid_midi_driver(self.st, self.fdriver_callback, self.frouter)
         else:
             FS.new_fluid_midi_driver(self.st, FS.fluid_midi_router_handle_midi_event, self.frouter)
-        self.midi_callback = None
         self.fseq = FS.new_fluid_sequencer2(0)
         self.fsynth_id = FS.fluid_sequencer_register_fluidsynth(self.fseq, self.fsynth)
         self.players = {}
@@ -586,7 +581,7 @@ class Synth:
         FS.fluid_ladspa_reset(self.ladspa)
         self.ladspafx = {}
 
-    def fxchain_add(self, name, lib, plugin=None, group=[], audio='mono', vals={}, **_):
+    def fxchain_add(self, name, lib, plugin=None, group=[], audio=('Input', 'Output'), vals={}, **_):
         if name not in self.ladspafx:
             self.ladspafx[name] = LadspaEffect(self, name, lib, plugin, group, audio)
             self.ladspafx[name].portvals.update(vals)
