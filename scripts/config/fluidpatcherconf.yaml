@@ -1,7 +1,6 @@
-bankdir: config/banks
-plugindir: /usr/lib/ladspa
-currentbank: bank1.yaml
-
+bankpath: config/banks
+pluginpath: /usr/lib/ladspa
+bankfile: testbank.yaml
 fluidsettings:
   midi.autoconnect: 1
   player.reset-synth: 0

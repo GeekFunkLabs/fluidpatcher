@@ -166,12 +166,15 @@ class FluidMidiEvent:
         b = FS.fluid_midi_event_get_type(event)
         self.type = {v: k for k, v in MIDI_TYPES.items()}.get(b, None)
         self.chan = fl_midi_event_get_channel(event)
-        if type in ('prog', 'cpress', 'pbend'):
+        if self.type in ('prog', 'cpress', 'pbend'):
             self.val = fl_midi_event_get_par1(event)
             self.num = None
-        elif type in ('noteoff', 'note', 'kpress', 'cc'):
+        elif self.type in ('noteoff', 'note', 'kpress', 'cc'):
             self.num = fl_midi_event_get_par1(event)
             self.val = fl_midi_event_get_par2(event)
+            
+    def __repr__(self):
+        return ', '.join([f'{k}={v}' for k, v in self.__dict__.items()])
 
 
 class SequencerNote:
@@ -311,7 +314,10 @@ class MidiPlayer:
         self.seek = None
         self.seek_now = False
         self.lasttick = 0
-        frouter = FS.new_fluid_midi_router(synth.st, fl_eventcallback(synth.custom_router), synth.frouter)
+        self.frouter_handler = fl_eventcallback(FS.fluid_synth_handle_midi_event)
+        frouter = FS.new_fluid_midi_router(synth.st, self.frouter_handler, synth.frouter)
+# probably shouldn't trust MIDI files to use the custom router
+#        frouter = FS.new_fluid_midi_router(synth.st, synth.fdriver_handler, synth.frouter)
         FS.fluid_midi_router_clear_rules(frouter)
         for rtype in set(list(MIDI_TYPES)[:6]) - set(mask):
             rule = FS.new_fluid_midi_router_rule()
@@ -412,12 +418,11 @@ class LadspaEffect:
             FS.fluid_ladspa_effect_set_control(self.synth.ladspa, fxunit, port.encode(), c_float(val))
 
 
-class Soundfont:
+class SoundFont:
 
-    def __init__(self, id):
+    def __init__(self, fsfont, id):
         self.id = id
         self.presets = []
-        fsfont = FS.fluid_synth_get_sfont_by_id(self.fsynth, id)
         FS.fluid_sfont_iteration_start(fsfont)
         while True:
             p = FS.fluid_sfont_iteration_next(fsfont)
@@ -436,12 +441,14 @@ class Synth:
             self[name] = val
         self.fsynth = FS.new_fluid_synth(self.st)
         FS.new_fluid_audio_driver(self.st, self.fsynth)
-        self.frouter = FS.new_fluid_midi_router(self.st, FS.fluid_synth_handle_midi_event, self.fsynth)
+        self.frouter_handler = fl_eventcallback(FS.fluid_synth_handle_midi_event)
+        self.frouter = FS.new_fluid_midi_router(self.st, self.frouter_handler, self.fsynth)
         if midi_handler:
-            self.fdriver_callback = fl_eventcallback(lambda _, e: midi_handler(FluidMidiEvent(e)))
-            FS.new_fluid_midi_driver(self.st, self.fdriver_callback, self.frouter)
+            self.fdriver_handler = fl_eventcallback(
+                lambda _, e: midi_handler(FluidMidiEvent(e)) or FLUID_OK)
         else:
-            FS.new_fluid_midi_driver(self.st, FS.fluid_midi_router_handle_midi_event, self.frouter)
+            self.fdriver_handler = fl_eventcallback(FS.fluid_midi_router_handle_midi_event)
+        FS.new_fluid_midi_driver(self.st, self.fdriver_handler, self.frouter)
         self.fseq = FS.new_fluid_sequencer2(0)
         self.fsynth_id = FS.fluid_sequencer_register_fluidsynth(self.fseq, self.fsynth)
         self.players = {}
@@ -494,7 +501,8 @@ class Synth:
         id = FS.fluid_synth_sfload(self.fsynth, str(file).encode(), False)
         if id == FLUID_FAILED:
             raise OSError(f"Unable to load {file}")
-        return SoundFont(id)
+        fsfont = FS.fluid_synth_get_sfont_by_id(self.fsynth, id)
+        return SoundFont(fsfont, id)
 
     def unload_soundfont(self, sfont):
         FS.fluid_synth_sfunload(self.fsynth, sfont.id, False)
@@ -547,11 +555,11 @@ class Synth:
             FS.fluid_midi_event_set_type(fevent, MIDI_TYPES.get(event.type))
             if event.type in ('prog', 'cpress', 'pbend'):
                 fl_midi_event_set_channel(fevent, event.chan)
-                fl_midi_event_set_par1(fevent, event.val)
+                fl_midi_event_set_par1(fevent, int(event.val))
             elif event.type in ('noteoff', 'note', 'kpress', 'cc'):
                 fl_midi_event_set_channel(fevent, event.chan)
                 fl_midi_event_set_par1(fevent, event.num)
-                fl_midi_event_set_par2(fevent, event.val)
+                fl_midi_event_set_par2(fevent, int(event.val))
         if route:
             FS.fluid_midi_router_handle_midi_event(self.frouter, fevent)
         else:

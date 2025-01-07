@@ -1,21 +1,105 @@
-"""YAML extensions for fluidpatcher
-"""
+"""YAML extensions for fluidpatcher"""
 
 import re
 import yaml
 
 
+class BankLoader(yaml.SafeLoader): pass
+
+class BankDumper(yaml.SafeDumper): pass
+
+
+class Bank:
+
+    def __init__(self, text):
+        data = Bank.loadyaml(text)
+        self.patches = data.get('patches', {})
+        self.root = data
+        names = self.root.get('names', {})
+        for zone in self:
+            for rule in zone.get('rules', []):
+                rule._cure(names)
+            for msg in zone.get('messages', []):
+                msg._cure(names)
+            for seq in zone.get('sequencers', {}).values():
+                for msg in seq.notes:
+                    msg._cure(names)
+        for msg in self.root.get('init', {}).get('messages', []):
+            msg._cure(names)
+        
+    def __getitem__(self, name):
+        if name in self.patches:
+            patch = self.patches[name]
+        elif isinstance(name, int):
+            patch = list(self.patches.values())[name % len(self.patches)]
+        return Patch(self.root, patch)
+
+    def __len__(self):
+        return len(self.patches)
+
+    def __iter__(self):
+        return iter([self.root, *self.patches.values()])
+
+    @property
+    def soundfonts(self):
+        """Set of all soundfonts used by patches"""
+        sfonts = set()
+        for zone in self:
+            for item in zone:
+                if isinstance(item, int):
+                    sfonts.add(zone[item].file)
+        return sfonts
+
+    def dump(self):
+        bank = self.root | ({'patches': self.patches} if self.patches else {})
+        return Bank.dumpyaml(bank)
+
+    @staticmethod
+    def loadyaml(text='', data={}):
+        if text:
+            data = yaml.load(text, Loader=BankLoader)
+        """prune branches that contain None instances"""
+        if isinstance(data, (list, dict)):
+            for item in data.values() if isinstance(data, dict) else data:
+                if item is None:
+                    return None
+                elif isinstance(item, (list, dict)):
+                    if Bank.loadyaml(data=item) is None:
+                        return None
+        return data
+
+    @staticmethod
+    def dumpyaml(data):
+        """sort_keys=False preserves dict order"""
+        return yaml.dump(data, Dumper=BankDumper, sort_keys=False)
+
+
+class Patch:
+
+    def __init__(self, root, patch):
+        self.patch = patch
+        self.root = root
+        
+    def __getitem__(self, name):
+        if isinstance(name, int):
+            return self.patch.get(name) or self.root.get(name)
+        elif name in ('rules', 'messages'):
+            return self.root.get(name, []) + self.patch.get(name, [])
+        else:
+            return self.root.get(name, {}) | self.patch.get(name, {})
+
+
 class SFPreset(yaml.YAMLObject):
 
     yaml_tag = '!sfpreset'
-    yaml_loader = yaml.SafeLoader
-    yaml_dumper = yaml.SafeDumper
+    yaml_loader = BankLoader
+    yaml_dumper = BankDumper
 
     def __init__(self, file, bank, prog):
         self.file = file
         self.bank = int(bank)
         self.prog = int(prog)
-        
+
     def __repr__(self):
         return f"{self.file}:{self.bank:03d}:{self.prog:03d}"
 
@@ -28,18 +112,49 @@ class SFPreset(yaml.YAMLObject):
         return dumper.represent_scalar('!sfpreset', str(data))
 
 
-class MidiMessage(yaml.YAMLObject):
+class _Parser:
+    """metaclass for objects that can parse"""
+
+    scinote = re.compile('([+-]?)([A-G])([b#]?)(-?[0-9])')
+
+    @staticmethod
+    def parse(s, names={}):
+        """try to convert strings to numbers
+           after performing name substitutions
+           and/or scientific note name conversion
+        """
+        if s in names:
+            s = names[s]
+        if isinstance(s, str):
+            if sci := _Parser.scinote.match(s):
+                sci = sci.groups('')
+                sign = -1 if sci[0] == '-' else 1
+                note = 'C D EF G A B'.find(sci[1])
+                acc = ['b', '', '#'].index(sci[2]) - 1
+                octave = int(sci[3])
+                s = sign * ((octave + 1) * 12 + note + acc)
+            else:
+                try:
+                    s = float(s)
+                except (ValueError, TypeError):
+                    pass
+                else:
+                    s = int(s) if s.is_integer else s
+        return s
+
+
+class MidiMessage(yaml.YAMLObject, _Parser):
 
     yaml_tag = '!midimsg'
-    yaml_loader = yaml.SafeLoader
-    yaml_dumper = yaml.SafeDumper
+    yaml_loader = BankLoader
+    yaml_dumper = BankDumper
 
     def __init__(self, type='', chan=1, num=0, val=0, text='', cure=True):
+        self._text = text
         self.type = type
         self.chan = chan
         self.num = num
         self.val = val
-        self._text = text
         if b := text.split(':'):
             if b[0] == 'sysex':
                 self.type, self.val = b[0], b[1:]
@@ -62,12 +177,9 @@ class MidiMessage(yaml.YAMLObject):
     def __repr__(self):
         return self._text
 
-#    def __iter__(self):
-#        return iter([self.type, self.chan, self.num, self.val])
-
     def _cure(self, names={}):
         for b in 'chan', 'num', 'val':
-            setattr(self, b, parse(getattr(self, b), names))
+            setattr(self, b, self.parse(getattr(self, b), names))
 
     @classmethod
     def from_yaml(cls, loader, node):
@@ -78,20 +190,20 @@ class MidiMessage(yaml.YAMLObject):
         return dumper.represent_scalar('!midimsg', str(data))
 
 
-class BankObject(yaml.YAMLObject):
-    """Translation layer between YAML representation and bank data
+class _BankObject(yaml.YAMLObject):
+    """metaclass for mapping-type Bank data
     
     Attributes:
       opars: exact parameters as written in bank file, read-only
       pars: copy of opars with elements modified as needed
     """
 
-    yaml_loader = yaml.SafeLoader
-    yaml_dumper = yaml.SafeDumper
+    yaml_loader = BankLoader
+    yaml_dumper = BankDumper
 
     def __init__(self, **pars):
-        self.__dict__.update(pars)
         self._opars = pars
+        self.__dict__.update(pars)
 
     def __contains__(self, k):
         return k in self.__dict__
@@ -108,53 +220,61 @@ class BankObject(yaml.YAMLObject):
         return cls(**loader.construct_mapping(node))
 
 
-class RouterRule(BankObject):
+class RouterRule(_BankObject, _Parser):
 
     yaml_tag = '!rrule'
+    fluidspec = re.compile('^({0})-({0})\*(-?{0})([+-]{0})$'.format('[\w\d\#\.]+'))
+    fromtospec = re.compile('^({0})?-?({0})?=?(-?{0})?-?(-?{0})?$'.format('[\w\d\#\.]+'))
 
     def __init__(self, cure=True, **pars):
         super().__init__(**pars)
         types = self.type.split('=')
         self.type = types[0], types[-1]
-        self.chan = _ChannelSpec(getattr(self, 'chan', ''))
-        self.num = _ParamSpec(getattr(self, 'num', ''))
-        self.val = _ParamSpec(getattr(self, 'val', ''))
         if cure:
             self._cure()
 
-    def add(self, addfunc):
-        for chan in self.chan or [None]:            
-            addfunc(self.type, **self.pars | {'chan': chan})
+    def __repr__(self):
+        return str(self._opars)
+
+    def _add(self, addfunc):
+        for chan in self.chan or [None]:
+            addfunc(**self.pars | {'chan': chan})
 
     def _cure(self, names={}):
-        self.chan = self.chan.cure(names)
-        self.num = self.num.cure(names)
-        self.val = self.val.cure(names)
+        chan = str(getattr(self, 'chan', ''))
+        num = str(getattr(self, 'num', ''))
+        val = str(getattr(self, 'val', ''))
+        self.chan = self.chantuples(chan, names)
+        self.num = self.partuple(num, names)
+        self.val = self.partuple(val, names)
 
-    @classmethod
-    def from_yaml(cls, loader, node):
-        return cls(**loader.construct_mapping(node) | dict(cure=False))
+    def chantuples(self, text, names):
+        spec = []
+        if args := self.fluidspec.match(text):
+            min, max, mul, add = [self.parse(x, names) for x in args.groups()]
+            for fromchan in range(min, max + 1):
+                spec += [(fromchan, fromchan * mul + add)]
+        elif any(args := self.fromtospec.match(text).groups()):
+            min, max, tomin, tomax = [self.parse(x, names) for x in args]
+            if min == None:
+                min, max = 1, 256
+            if max == None:
+                max = min
+            if tomin == None:
+                tomin = min
+            if tomax == None:
+                tomax = max if tomin == None else tomin
+            for fromchan in range(min, max + 1):
+                for tochan in range(tomin, tomax + 1):
+                    spec += [(fromchan, tochan)]
+        return spec
 
-    @staticmethod
-    def to_yaml(dumper, data):
-        return dumper.represent_mapping('!rrule', data, flow_style=True)
-
-
-fluidspec = re.compile('^({0})-({0})\*(-?{0})([+-]{0})$'.format('[\w\d\#\.]+'))
-fromtospec = re.compile('^({0})?-?({0})?=?(-?{0})?-?(-?{0})?$'.format('[\w\d\#\.]+'))
-
-class _ParamSpec:
-    
-    def __init__(self, text):
-        self.text = str(text)
-        self.spec = []
-        
-    def cure(self, names):
-        if spec := fluidspec.match(self.text):
-            min, max, mul, add = [parse(x, names) for x in spec.groups()]
+    def partuple(self, text, names):
+        if args := self.fluidspec.match(text):
+            min, max, mul, add = [self.parse(x, names) for x in args.groups()]
             return min, max, mul, add
-        elif any(spec := fromtospec.match(self.text).groups()):
-            min, max, tomin, tomax = [parse(x, names) for x in spec]
+        elif any(args := self.fromtospec.match(text).groups()):
+            min, max, tomin, tomax = [self.parse(x, names) for x in args]
             if min == None:
                 min, max = 0, 127
             if max == None:
@@ -167,51 +287,18 @@ class _ParamSpec:
             add = tomin - min * mul
             return min, max, mul, add
         else:
-            return None
-
-    def __iter__(self):
-        return iter(self.spec)
-
-    def __repr__(self):
-        return str(self.spec)
-
-    def __bool__(self):
-        return bool(self.spec)
+            return ()
 
     @classmethod
     def from_yaml(cls, loader, node):
-        return cls(loader.construct_scalar(node))
+        return cls(**loader.construct_mapping(node) | dict(cure=False))
 
     @staticmethod
     def to_yaml(dumper, data):
-        return dumper.represent_scalar('!spec', data)
+        return dumper.represent_mapping('!rrule', data, flow_style=True)
+        
 
-
-class _ChannelSpec(_ParamSpec):
-
-    def cure(self, names):
-        if spec := fluidspec.match(self.text):
-            min, max, mul, add = [parse(x, names) for x in spec.groups()]
-            for fromchan in range(min, max + 1):
-                self.spec += [(fromchan, fromchan * mul + add)]
-            return self.spec
-        elif any(spec := fromtospec.match(self.text).groups()):
-            min, max, tomin, tomax = [parse(x, names) for x in spec]
-            if min == None:
-                min, max = 1, 256
-            if max == None:
-                max = min
-            if tomin == None:
-                tomin = min
-            if tomax == None:
-                tomax = max if tomin == None else tomin
-            for fromchan in range(min, max + 1):
-                for tochan in range(tomin, tomax + 1):
-                    self.spec += [(fromchan, tochan)]
-            return self.spec
-
-
-class Arpeggiator(BankObject):
+class Arpeggiator(_BankObject):
 
     yaml_tag = '!arpeggiator'
 
@@ -228,7 +315,7 @@ class Arpeggiator(BankObject):
         return dumper.represent_mapping('!arpeggiator', data)
 
 
-class Sequencer(BankObject):
+class Sequencer(_BankObject):
 
     yaml_tag = '!sequencer'
 
@@ -248,7 +335,7 @@ class Sequencer(BankObject):
         return dumper.represent_mapping('!sequencer', data)
 
 
-class MidiPlayer(BankObject):
+class MidiPlayer(_BankObject):
 
     yaml_tag = '!midiplayer'
 
@@ -266,7 +353,7 @@ class MidiPlayer(BankObject):
         return dumper.represent_mapping('!midiplayer', data)
 
 
-class LadspaEffect(BankObject):
+class LadspaEffect(_BankObject):
 
     yaml_tag = '!ladspafx'
 
@@ -290,124 +377,19 @@ class LadspaEffect(BankObject):
         return dumper.represent_mapping('!ladspafx', data)
 
 
-class Bank:
+def addresolver(tag, path, kind):
+    BankLoader.add_path_resolver(tag, path, kind)
+    BankDumper.add_path_resolver(tag, path, kind)
+    BankLoader.add_path_resolver(tag, ['patches', (dict, None), *path], kind)
+    BankDumper.add_path_resolver(tag, ['patches', (dict, None), *path], kind)
 
-    def __init__(self, text):
-        data = loadyaml(text)
-        self.patches = data.get('patches', {})
-        self.root = data
-        names = self.root.get('names', {})
-        for zone in self:
-            for rule in zone.get('rules', []):
-                rule._cure(names)
-            for msg in zone.get('messages', []):
-                msg._cure(names)
-            for seq in zone.get('sequencers', {}).values():
-                for msg in seq.notes:
-                    msg._cure(names)
-        for msg in self.root.get('init', {}).get('messages', []):
-            msg._cure(names)
-        
-    def __getitem__(self, name):
-        if name in self.patches:
-            patch = self.patches[name]
-        elif isinstance(name, int):
-            patch = self.patches[name % len(patches)]
-        return Patch(self.root, patch)
-
-    def __len__(self):
-        return len(self.patches)
-
-    def __iter__(self):
-        return iter([self.root, *self.patches.values()])
-
-    @property
-    def soundfonts(self):
-        """Set of all soundfonts used by patches"""
-        sfonts = set()
-        for patch in self.patches:
-            for item in self[patch]:
-                if isinstance(item, int):
-                    sfonts.add(patch[item].file)
-        return sfonts
-
-    def dump(self):
-        bank = self.root | ({'patches': self.patches} if self.patches else {})
-        return dumpyaml(bank)
-
-
-class Patch:
-
-    def __init__(self, root, patch):
-        self.patch = patch
-        self.root = root
-        
-    def __getitem__(self, name):
-        if isinstance(name, int):
-            return self.patch.get(name) or self.root.get(name)
-        elif name in ('router_rules', 'messages'):
-            return self.root.get(name, []) + self.patch.get(name, [])
-        else:
-            return self.root.get(name, {}) | self.patch.get(name, {})
-
-    def __setitem__(self, name, item):
-        self.patch[name] = item
-
-
-handlers = dict(Loader=yaml.SafeLoader, Dumper=yaml.SafeDumper)
-
-def add_bankobj_resolver(tag, path, kind):
-    yaml.add_path_resolver(tag, path, kind, **handlers)
-    yaml.add_path_resolver(tag, ['patches', (dict, None), *path], kind, **handlers)
-
-add_bankobj_resolver('!rrule', ['rules', (list, None)], dict)
-add_bankobj_resolver('!midiplayer', ['midiplayers', (dict, None)], dict)
-add_bankobj_resolver('!sequencer', ['sequencers', (dict, None)], dict)
-add_bankobj_resolver('!arpeggiator', ['arpeggiators', (dict, None)], dict)
-add_bankobj_resolver('!ladspafx', ['ladspafx', (dict, None)], dict)
-add_bankobj_resolver('!sfpreset', [(dict, None)], str)
-add_bankobj_resolver('!midimsg', ['messages', (list, None)], str)
-add_bankobj_resolver('!midimsg', ['sequencers', (dict, None), 'notes', (list, None)], str)
-yaml.add_path_resolver('!midimsg', ['init', 'messages', (list, None)], str, **handlers)
-
-def loadyaml(text='', data={}):
-    """prune branches that contain None instances
-    """
-    if text:
-        data = yaml.safe_load(text)
-    if isinstance(data, (list, dict)):
-        for item in data.values() if isinstance(data, dict) else data:
-            if item is None:
-                return None
-            elif isinstance(item, (list, dict)):
-                if loadyaml(data=item) is None:
-                    return None
-    return data
-
-def dumpyaml(data):
-    """sort_keys=False preserves dict order"""
-    return yaml.safe_dump(data, sort_keys=False)
-
-scinote = re.compile('([+-]?)([A-G])([b#]?)(-?[0-9])')
-
-def parse(s, names={}):
-    """try to convert strings to numbers
-       after performing name substitutions
-       and/or scientific note name conversion
-    """
-    if s in names:
-        return names[s]
-    if isinstance(s, str):
-        if sci := scinote.match(s):
-            sci = sci.groups('')
-            sign = -1 if sci[0] == '-' else 1
-            note = 'C D EF G A B'.find(sci[1])
-            acc = ['b', '', '#'].index(sci[2]) - 1
-            octave = int(sci[3])
-            return sign * ((octave + 1) * 12 + note + acc)
-        else:
-            try:
-                s = float(s)
-            except (ValueError, TypeError):
-                return s
-            return int(s) if s.is_integer() else s
+addresolver('!rrule', ['rules', (list, None)], dict)
+addresolver('!midiplayer', ['midiplayers', (dict, None)], dict)
+addresolver('!sequencer', ['sequencers', (dict, None)], dict)
+addresolver('!arpeggiator', ['arpeggiators', (dict, None)], dict)
+addresolver('!ladspafx', ['ladspafx', (dict, None)], dict)
+addresolver('!sfpreset', [(dict, None)], str)
+addresolver('!midimsg', ['messages', (list, None)], str)
+addresolver('!midimsg', ['sequencers', (dict, None), 'notes', (list, None)], str)
+BankLoader.add_path_resolver('!midimsg', ['init', 'messages', (list, None)], str)
+BankDumper.add_path_resolver('!midimsg', ['init', 'messages', (list, None)], str)
