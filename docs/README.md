@@ -1,14 +1,15 @@
 # FluidPatcher
 
-This package provides a python interface for controlling the versatile, cross-platform, and free [FluidSynth](https://www.fluidsynth.org) software synthesizer. Rather than simply wrapping all the C functions in the FluidSynth API, it provides a higher-level interface for loading and switching between *patches* - groups of settings including:
+This package provides a way of controlling the many features of the [FluidSynth](https://www.fluidsynth.org) software synthesizer by creating *patches*. A patch is a group of settings that can be applied all at once, quickly switched between, and easily edited - like instantly rearranging the patch cables on a modular synthesizer. Patches are defined in human-readable YAML-based text files called banks, which can contain an unlimited number of patches. Patches have the capability to: 
 
-* soundfonts and presets per channel
-* effect settings
-* MIDI routing rules
-* sequencers, arpeggiators, MIDI file players
-* LADSPA effect plugins
+* select soundfont presets on any channel
+* define MIDI routing rules
+* send MIDI messages
+* create and control sequencers, arpeggiators, and MIDI file players
+* manage LADSPA effect plugins
+* control internal Fluidsynth settings
 
-Patches are written in YAML format in human-readable and -editable bank files. Bank files can easily be copied and used in FluidPatcher programs written for different platforms and purposes. Two programs are included in the `scripts/` directory of this repository - a command-line synth and a graphical synth/editor. FluidPatcher is the default synth engine used by the [SquishBox](https://geekfunklabs.com/products/squishbox) Raspberry Pi-based sound module.
+FluidPatcher has a simple API that can be used to create different synthesizer front-end programs that use the same bank files. Example programs are  included in the `scripts/` directory of this repository.
 
 See the [official documentation](https://geekfunklabs.github.io/fluidpatcher) for full details.
 
@@ -36,7 +37,7 @@ Copy the `fluidpatcher/` folder from the github [repository](https://github.com/
 │   └── 📄 fluidpatcherconf.yaml
 └── 📁 fluidpatcher/
 ```
-	
+
 In future, a `setup.py` file or [PyPI](https://pypi.org) package may be available.
 
 ## Usage
