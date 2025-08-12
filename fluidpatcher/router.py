@@ -2,202 +2,183 @@
 with extensible custom router rules
 """
 
-class RuleEvent:
 
-    def __init__(self, event, **pars):
-        self.type = event.type
-        self.chan = event.chan
-        self.num = event.num
-        self.val = event.val
-        self.__dict__.update(pars)
+class RouterEvent:
 
-    def __repr__(self):
-        return ', '.join([f'{k}={v}' for k, v in self.__dict__.items()])
-
-class Route:
-
-    def __init__(self, min, max, mul, add):
-        self.min = min
-        self.max = max
-        self.mul = mul
-        self.add = add
-            
-    def __iter__(self):
-        return iter([self.min, self.max, self.mul, self.add])
+    def __init__(self, event, rule=None):
+        self.__dict__.update(event.__dict__)
+        self.rule = rule
+        
+    def copy(self, **pars):
+        e = RouterEvent(self)
+        e.__dict__.update(pars)
+        return e
 
 
-class ChanRoute:
+class RouterRule:
 
-    def __init__(self, fromchan, tochan):
-        self.fromchan = fromchan
-        self.tochan = tochan
-            
-    def __iter__(self):
-        return iter([self.fromchan, self.fromchan, 0, self.tochan])
-
-
-class FluidRule:
-
-    def __init__(self, type, chan=None, num=None, val=None):
-        self.type = type[0]
-        self.chan = ChanRoute(*chan) if chan else None
-        self.num = Route(*num) if num else None
-        self.val = Route(*val) if val else None
-
-
-class CustomRule:
-
-    def __init__(self, types, chan=None, num=None, val=None, **pars):
-        self.fromtype = types[0]
-        self.totype = types[-1]
-        self.chan = ChanRoute(*chan) if chan else None
-        self.num = Route(*num) if num else None
-        self.val = Route(*val) if val else None
-        self.pars = pars
-
-    def __contains__(self, k):
-        return k in self.pars
-
-    def __getattr__(self, k):
-        return self.pars[k]
+    def __init__(self, rule):
+        self.__dict__.update(rule.__dict__)
 
     def applies(self, event):
-        if self.fromtype != event.type:
+        if self.type != event.type:
             return False
-        if self.chan and self.chan.fromchan != event.chan:
-            return False
-        for par in 'num', 'val':
-            if spec := getattr(self, par):
-                epar = getattr(event, par)
-                if spec.min > spec.max:
-                    if spec.min < epar < spec.max:
-                        return False
-                else:
-                    if not (spec.min <= epar <= spec.max):
-                        return False
+        for par in ('chan', 'num', 'val'):
+            if hasattr(self, par) and hasattr(event, par):
+                r = getattr(self, par)
+                if r.min > r.max and r.min < getattr(event, par) < r.max:
+                    return False
+                elif not (r.min <= getattr(event, par) <= r.max):
+                    return False
         return True
 
     def apply(self, event):
-        newevent = RuleEvent(event, **self.pars)
+        newevent = RouterEvent(event, self)
         newevent.type = self.totype
-        if self.fromtype in ('noteoff', 'note', 'kpress', 'cc', 'prog', 'cpress', 'pbend'):
-            if self.chan != None:
-                newevent.chan = self.chan.tochan
-            if self.val != None:
-                if 'inc' in self:
-                    newevent.val = self.val.add
-                    self.val.add += self.inc
-                    if self.val.add > self.val.max:
-                        self.val.add = self.val.min
-                elif 'log' in self:
-                    tomin = self.val.min * self.val.mul + self.val.add
-                    tomax = self.val.max * self.val.mul + self.val.add
+        if hasattr(event, 'chan'):
+            if hasattr(self, 'chan'):
+                newevent.chan = int(event.chan * self.chan.mul + self.chan.add)
+            if hasattr(self, 'val'):
+                if hasattr(self, 'log'):
+                    b = 10 ** self.log
                     x = (event.val - self.val.min) / (self.val.max - self.val.min)
-                    newevent.val = tomin + (tomax - tomin) * (self.log ** x - 1) / (self.log - 1)
+                    newevent.val = self.val.tomin + (self.val.tomax - self.val.tomin) * (b ** x - 1) / (b - 1)
                 else:
                     newevent.val = event.val * self.val.mul + self.val.add
-                if 'lsb' in self:
+                if hasattr(self, 'lsb'):
                     newevent.lsbval = newevent.val % 127
                     newevent.val //= 127
-            if self.num != None:
-                if self.totype in ('noteoff', 'note', 'kpress', 'cc'):
-                    if self.fromtype in ('noteoff', 'note', 'kpress', 'cc'):
+            if hasattr(self, 'num'):
+                if self.totype in ('note', 'cc', 'kpress'):
+                    if hasattr(event, 'num'):
                         newevent.num = round(event.num * self.num.mul + self.num.add)
                     else:
                         newevent.num = self.num.min
         else:
-            if self.chan != None:
+            if hasattr(self, 'chan'):
                 newevent.chan = self.chan.min
-            if self.num != None:
+            if hasattr(self, 'num'):
                 newevent.num = self.num.min
-            if self.val != None:
+            if hasattr(self, 'val'):
                 newevent.val = self.val.min
-            elif self.fromtype == 'clock':
-                newevent.val = 0.041666664
-            elif self.fromtype in ('start', 'continue'):
+            elif event.type == 'clock':
+                newevent.val = 1/24
+            elif event.type in ('start', 'continue'):
                 newevent.val = -1
-            elif self.fromtype == 'stop':
+            elif event.type == 'stop':
                 newevent.val = 0
         return newevent
 
 
+class FluidRule:
+
+    def __init__(self, rule):
+        self.type = rule.type
+        for par in 'chan', 'num', 'val':
+            if route := getattr(rule, par, None):
+                setattr(self, par, route)
+
+
 class Router:
 
-    def __init__(self, fluid_default=True):
+    def __init__(self, fluid_default=True, fluid_router=True):
         self.fluid_default = fluid_default
-        self.customrules = []
+        self.fluid_router = fluid_router
+        self.rules = []
         self.fluidrules = []
+        self.counters = {}
         self.synth = None
-        self.callback = lambda e: None
+        self.callback = lambda event: None
         self.clocks = [0, 0]
 
     def reset(self):
-        self.customrules = []
+        self.rules = []
         self.fluidrules = []
+        self.counters = {}
         self.synth.router_clear()
         if self.fluid_default:
             self.synth.router_default()
 
-    def add(self, type, chan=None, num=None, val=None, **pars):
-        if (not pars and type[0] == type[1]
-            and type[0] in ('note', 'kpress', 'cc', 'prog', 'cpress', 'pbend')):
-            self.fluidrules.append(FluidRule(type, chan, num, val))
+    def add(self, rule):
+        if (
+            self.fluid_router
+            and rule.type == rule.totype
+            and rule.type in ('note', 'kpress', 'cc', 'prog', 'cpress', 'pbend')
+            and not set(rule.__dict__) - {'type', 'totype', 'chan', 'num', 'val', '_pars'}
+            ):
+            if hasattr(rule, 'chan'):
+                for tochan in rule.chan:
+                    self.fluidrules.append(FluidRule(rule.copy(chan=tochan)))
+            else:
+                self.fluidrules.append(FluidRule(rule))
             self.synth.router_clear()
             if self.fluid_default:
                 self.synth_router_default()
             # add rules in reverse order because fluidsynth stores them LIFO-style
             for rule in self.fluidrules[::-1]:
-                self.synth.router_addrule(rule.type, rule.chan, rule.num, rule.val)
+                self.synth.router_addrule(rule)
         else:
-            self.customrules.append(CustomRule(type, chan, num, val, **pars))
+            if hasattr(rule, 'chan'):
+                for tochan in rule.chan:
+                    self.rules.append(RouterRule(rule.copy(chan=tochan)))
+            else:
+                self.rules.append(RouterRule(rule))
 
     def handle_midi(self, event):
         self.synth.send_event(event) # pass it along to the fluidsynth router
         t = self.synth.currenttick
         dt = 0
-        for rule in list(self.customrules):
-            if not rule.applies(event):
-                continue
+        for rule in [r for r in self.rules if r.applies(event)]:
             newevent = rule.apply(event)
-            self.synth.send_event(newevent, route=False) # send routed event directly to synth
-            self.callback(newevent) # forward the routed event for user handling
-            if 'lsb' in rule:
-                lsbevent = RuleEvent(newevent)
-                lsbevent.num, lsbevent.val = rule.lsb, rule.lsbval
+            if hasattr(rule, 'counter'):
+                if rule.counter not in self.counters:
+                    self.counters[rule.counter] = getattr(rule, 'startval', rule.val.tomin)
+                self.counters[rule.counter] += getattr(rule, 'inc', 1)
+                if self.counters[rule.counter] > rule.val.tomax:
+                    self.counters[rule.counter] = rule.val.tomin
+                elif self.counters[rule.counter] < rule.val.tomin:
+                    self.counters[rule.counter] = rule.val.tomax
+                newevent.val = self.counters[rule.counter]
+            if hasattr(rule, 'lsb'):
+                lsbevent = RouterEvent(newevent, rule)
+                lsbevent.num, lsbevent.val = rule.lsb, newevent.lsbval
                 self.synth.send_event(lsbevent, route=False)
-            if 'fluidsetting' in rule:
-                self.synth.setting(rule.fluidsetting, newevent.val)
-            if 'sequencer' in rule:
-                if rule.sequencer in self.synth.players:
-                    if 'step' in rule:
-                        self.synth.players[rule.sequencer].step(res.event, rule.step) # should be rule.event? new event?
-                    self.synth.players[rule.sequencer].play(newevent.val)
-            if 'arpeggiator' in rule:
-                if rule.arpeggiator in self.synth.players:
-                    self.synth.players[rule.arpeggiator].note(newevent.chan, newevent.num, newevent.val)
-            if 'midiplayer' in rule:
-                if rule.midiplayer in self.synth.players:
-                    if 'tick' in rule:
-                        self.synth.players[rule.midiplayer].transport(newevent.val, rule.tick)
-                    else:
-                        self.synth.players[rule.midiplayer].transport(newevent.val)
-            if 'tempo' in rule:
+            if hasattr(rule, 'fluidsetting'):
+                self.synth[rule.fluidsetting] = newevent.val
+            if hasattr(rule, 'play'):
+                if rule.play in self.synth.players:
+                    self.synth.players[rule.play].play(newevent.val)
+            if hasattr(rule, 'record'):
+                if rule.record in self.synth.players:
+                    self.synth.players[rule.record].record(newevent.val)
+            if hasattr(rule, 'arpeggio'):
+                if rule.arpeggio in self.synth.players:
+                    self.synth.players[rule.arpeggio].add(newevent.copy())
+                    newevent.val = 0
+            if hasattr(rule, 'loop'):
+                if rule.loop in self.synth.players:
+                    self.synth.players[rule.loop].add(newevent.copy())
+            if hasattr(rule, 'tempo'):
                 if rule.tempo in self.synth.players:
                     self.synth.players[rule.tempo].set_tempo(newevent.val)
-            if 'swing' in rule:
+            if hasattr(rule, 'swing'):
                 if rule.swing in self.synth.players:
-                    self.synth.players[rule.swing].swing = newevent.val
-            if 'groove' in rule:
+                    self.synth.players[rule.swing].set_swing(newevent.val)
+            if hasattr(rule, 'groove'):
                 if rule.groove in self.synth.players:
-                    self.synth.players[rule.groove].groove = [newevent.val]
-            if 'sync' in rule:
-                if rule.sync in self.synth.players:
+                    self.synth.players[rule.groove].set_groove(newevent.val)
+            if hasattr(rule, 'tap'):
+                if rule.tap in self.synth.players:
                     dt, dt2 = t - self.clocks[0], self.clocks[0] - self.clocks[1]
                     bpm = 1000 * 60 * newevent.val / dt
-                    if dt2/dt > 0.5:
-                        self.synth.players[rule.sync].set_tempo(bpm)
-            if 'ladspafx' in rule:
-                if rule.ladspafx in self.synth.ladspafx:
-                    self.synth.ladspafx[rule.ladspafx].setcontrol(rule.port, newevent.val)
+                    if dt2/dt > 0.5: # wait for three taps of similar spacing
+                        self.synth.players[rule.tap].set_tempo(bpm)
+            if hasattr(rule, 'fx'):
+                fx, port = rule.fx.split('>')
+                if fx in self.synth.ladspafx:
+                    self.synth.ladspafx[fx].setcontrol(port, newevent.val)
+            self.synth.send_event(newevent, route=False) # send routed event directly to synth
+            self.callback(newevent) # forward the routed event for user handling
         if dt > 0:
             self.clocks = t, self.clocks[0]
+

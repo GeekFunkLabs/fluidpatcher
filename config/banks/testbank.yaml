@@ -1,0 +1,190 @@
+names:
+  #include controller_names.yaml
+  volume: 7
+  expression: 11
+  brightness: 74
+  reverb: 91
+  chorus: 93
+  portamento: 65
+  legato: 68
+
+patches:
+  Justpiano:
+    1: defaultGM.sf2:000:001
+    rules:
+    - {type: cc, num: slider1, val: 0-127=0-1, fluidsetting: synth.reverb.room-size}
+
+  Split Decision:
+    2: defaultGM.sf2:000:033
+    3: defaultGM.sf2:000:004
+    rules:
+    - {type: note, num: C0-G3*1-12, chan: 1=2}
+    - {type: note, num: G#3-G9, chan: 1=3}
+    - {type: cc=prog, chan: 1=3, num: pad1, val: 1-127=0-7, counter: prog1, inc: -1}
+    - {type: cc=prog, chan: 1=3, num: pad2, val: 1-127=0-7, counter: prog1}
+
+  Hacksynth:
+    4: ModSynth_R1.sf2:000:000
+    rules:
+    - {type: note, chan: 1=4, val: 0}
+    - {type: note, chan: 1=4, val: 1-127=127}
+    - {type: cc, chan: 1=4}
+    - {type: pbend, chan: 1=4, val: 8192-16383}
+    - {type: pbend=cc, chan: 1=4, num: brightness, val: 0-8192=127-0}
+    - {type: cc, chan: 1=4, num: slider2=5, lsb: 37, val: 0-127=0-6000, log: 2}
+    - {type: cc, num: slider1, val: 0-127=0-1, fx: echo1>Delay}
+    - {type: cc, num: slider1, val: 0-127=0-1, fx: echo2>Delay}
+    - {type: cc, num: slider1, val: 0-127=0-1, fx: echo3>Delay}
+    messages:
+    - cc:4:portamento:127
+    - cc:4:legato:127
+    - cc:4:brightness:0
+
+  Drumbox:
+    1: defaultGM.sf2:000:090
+    3: defaultGM.sf2:000:034
+    10: defaultGM.sf2:128:000
+    sequences:
+      drums:
+        tdiv: 16
+        events:
+        - - note:10:36:100, _,_,_, note:10:36:100, _, _, _
+          - _, _, _, _, note:10:39:100, _, _, _
+          - [note:10:42:100, note:10:42:50, note:10:42:100, note:10:46:100]
+      bass:
+        tdiv: 16
+        events:
+        - - nt:3:A1:100, +, +, nt:3:G2:100, _, _, nt:3:A2:100, _
+    rules:
+    - {type: cc, num: button1, val: 127=1, play: drums}
+    - {type: cc, num: button1, val: 0, play: drums}
+    - {type: cc, num: button2, val: 127=1, play: bass}
+    - {type: cc, num: button2, val: 0, play: bass}
+    - {type: cc, num: pad1, val: 1-127=1, tap: drums}
+    - {type: cc, num: pad1, val: 1-127=1, tap: bass}
+
+  Robojam:
+    5: defaultGM.sf2:000:081
+    6: defaultGM.sf2:000:040
+    7: defaultGM.sf2:000:005
+    10: defaultGM.sf2:128:000
+    sequences:
+      basicwave:
+        order: 1, 1, 2, 2, -4, 3, -1
+        events: |
+          nt:5:F#4:100 nt:6:D2:100  nt:10:36:100
+          +            _            nt:10:42:100
+          +            nt:6:D2:100  nt:10:38:100
+          nt:5:D4:100  _            nt:10:42:100
+          +            nt:6:D2:100  nt:10:36:100
+          +            _            nt:10:42:100
+          +            nt:6:D2:100  nt:10:38:100
+          +            _            nt:10:42:100
+
+          nt:5:C#4:100 nt:6:A2:100  nt:10:36:100
+          +            _            note:10:42:100
+          +            nt:6:A2:100  nt:10:38:100
+          nt:5:A4:100  _            nt:10:42:100
+          +            nt:6:A2:100  nt:10:36:100
+          +            _            nt:10:42:100
+          +            nt:6:A2:100  nt:10:38:100
+          +            _            nt:10:42:100
+
+          nt:5:B4:100  nt:6:B2:100  nt:10:36:100
+          +            _            _
+          +            _            _
+          +            _            _
+          +            nt:6:B2:100  nt:10:46:100
+          +            _            _
+          +            _            _
+          +            _            nt:10:36:100
+
+    rules:
+    - {type: note, chan: 1=7}
+    - {type: cc, num: button2, val: 0, play: basicwave}
+    - {type: cc, num: button2, val: 127=-1, play: basicwave}
+    - {type: cc, num: pad1, val: 127=1, play: basicwave}
+    - {type: cc, num: pad2, val: 127=6, play: basicwave}
+
+  Lazy Hands:
+    3: defaultGM.sf2:000:004
+    5: defaultGM.sf2:000:007
+    6: defaultGM.sf2:000:000
+    arpeggios:
+      mirror:
+        style: both
+      octaves:
+        style: up
+        tdiv: 16
+      chords:
+        style: chord
+        groove: 2,1,1,2,1,1,2,1
+    rules:
+    - {type: note, chan: 1=3, num: 0-59, arpeggio: mirror}
+    - {type: note, chan: 1=5, num: 60-71*1-12, arpeggio: octaves}
+    - {type: note, chan: 1=5, num: 60-71, arpeggio: octaves}
+    - {type: note, chan: 1=5, num: 60-71*1+12, arpeggio: octaves}
+    - {type: note, chan: 1=6, num: 72-127*1-12, arpeggio: chords}
+    - {type: cc, num: slider1, val: 0-127=0.5-0.99, swing: test}
+    - {type: cc, num: slider1, val: 0-127=0.5-0.99, swing: octaves}
+    - {type: cc, num: slider1, val: 0-127=0.5-0.99, swing: chords}
+    - {type: cc, num: slider2, val: 0-127=0.2-4, groove: test}
+    - {type: cc, num: slider2, val: 0-127=0.2-4, groove: octaves}
+    - {type: cc, num: slider2, val: 0-127=0.2-4, groove: chords}
+    - {type: cc, num: slider3, val: 0-127=60-240, tempo: test}
+    - {type: cc, num: slider3, val: 0-127=60-240, tempo: octaves}
+    - {type: cc, num: slider3, val: 0-127=60-240, tempo: chords}
+
+  Funky Tracks:
+    1: defaultGM.sf2:000:067
+    5: defaultGM.sf2:000:004
+    6: defaultGM.sf2:000:034
+    14: defaultGM.sf2:128:032
+    14: defaultGM.sf2:128:000
+    midifiles:
+      funk:
+        file: funkjam2.mid
+        barlength: 1000
+        jumps: 9>2, 17>2
+        shift: 4
+    rules:
+    - {type: cc, num: pad1, val: 1-127=2, play: funk}
+    - {type: cc, num: pad2, val: 1-127=10, play: funk}
+    - {type: cc, num: button2, val: 127=-1, play: funk}
+    - {type: cc, num: button2, val: 0, play: funk}
+    - {type: cc, num: slider3, val: 0-127=60-240, tempo: funk}
+    
+  FluidyLoops:
+    1: defaultGM.sf2:000:005
+    midiloops:
+      test:
+        beats: 0
+    rules:
+    - {type: cc, num: button1, val: 127=1, record: test}
+    - {type: cc, num: button1, val: 0, record: test}
+    - {type: cc, num: button2, val: 127=1, play: test}
+    - {type: cc, num: button2, val: 0, play: test}
+    - {type: cc, num: pad1, val: 1-127=-1, record: test}
+    - {type: note, chan: 1, loop: test}
+    - {type: cc, num: slider3, val: 0-127=60-240, tempo: test}
+
+rules:
+- {type: note}
+- {type: cc}
+- {type: pbend}
+- {type: kpress, chan: =5}
+
+messages:
+- cc:1:reverb:100
+- cc:4:portamento:0
+- cc:4:legato:0
+
+ladspafx:
+  echo1: &echo
+    lib: delay.so
+    audio: mono
+    chan: 4
+    vals: {Delay: 0.3, Dry/Wet: 0.2}
+  echo2: *echo
+  echo3: *echo
+

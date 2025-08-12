@@ -74,49 +74,49 @@ The rule type can be any of those listed above in `messages`. The created event 
 
 Rules can have other parameters, in which case they do not send events to the synth and are used to trigger additional features. A rule with a `fluidsetting` parameter will change the corresponding FluidSynth setting. Rules with a `patch` parameter can be used to select patches - a patch number or name as the parameter value selects that patch, a number followed by `+` or `-` increments the patch number, and `select` sets the patch number according to the message. Patch numbers begin with 1. Other special rules are explained in relevant sections below.
 
-### `midiplayers`
+### `midifiles`
 
 A subsection that contains one or more named midiplayers that can play, loop, and seek within MIDI files.
 
 * `file`(required) - the MIDI file to play
 * `tempo` - tempo at which to play the file, in bpm. If not given, the tempo messages in the file will be obeyed
-* `loops` - a list of pairs of _start, end_ ticks. When the song reaches an _end_ tick, it will seek back to the previous _start_ tick in the list. If the _start_ tick is a negative number the player stops.
-* `barlength` - the number of ticks corresponding to a whole number of musical measures in the song
-* `chan` - same format as for a router rule parameter, can route MIDI messages in the file to different channels
+* `loops` - a list of _from_ and _to_ bar numbers, with 1 being the start of the song. When playback reaches the end of a _from_ bar, it will jump to the start of the _to_ bar. If a _to_ bar is zero, playback stops.
+* `barlength` - the number of ticks corresponding to a full musical measure, defaults to 1 if not specified
+* `shift` - same format as for a router rule parameter, can route MIDI messages in the file to different channels
 * `mask` - a list of MIDI message types to ignore in the file
 
-Router rules for controlling midiplayers have a `midiplayer` parameter with the player name as its value. The file pauses playing if the routed message value is zero, otherwise it plays/resumes. If the rule also has a `tick` parameter, the midiplayer will seek to that tick position in the song. If the value of `tick` has a `+` or `-` suffix the midiplayer will seek forward or backward from the current position. If the routed message value is negative and the midiplayer is currently playing, seeking will be postponed until the song reaches the end of a measure as specified by `barlength`.
+Router rules for controlling midifile playback have a `midifile` parameter with the player name as its value. The file pauses playing if the routed message value is zero, otherwise it plays/resumes. If the rule also has a `seek` parameter, the midiplayer will seek to that bar in the song. If the midifile is currently playing, seeking happens at the end of the current bar.
 
-A rule with a `tempo` parameter and a midiplayer's name as its value will set the playing tempo of the midiplayer. A router rule with a `sync` parameter will set the tempo of the midiplayer by measuring the time between successive MIDI messages matching the rule, allowing a user to set the tempo by tapping a button or key. The value of the routed message sets the number of beats to sync to the time interval. A `sync` rule with type `clock` will synchronize the player with an external device or program that sends MIDI clock signals. Tempo changes to a midiplayer will cause it to stop paying attention to any tempo change messages in the file. This can be canceled by setting the tempo to zero.
+A rule with a `tempo` parameter and a midifile's name as its value will set the playing tempo of the midiplayer. A router rule with a `sync` parameter will set the tempo of the midiplayer by measuring the time between successive MIDI messages matching the rule, allowing a user to set the tempo by tapping a button or key. The value of the routed message sets the number of beats to sync to the time interval. A `sync` rule with type `clock` will synchronize the player with an external device or program that sends MIDI clock signals. Tempo changes to a midiplayer will cause it to stop paying attention to any tempo change messages in the file. This can be canceled by setting the tempo to zero.
 
-### `sequencers`
+### `sequences`
 
-A subsection containing one or more named sequencers that can play a series of looped notes. A sequencer can have the following attributes:
+A subsection containing one or more named sequencers that can play patterns of looped midi messages. A sequencer can have the following attributes:
 
-* `notes`(required) - a list of note messages the sequencer will play. There must be a soundfont preset assigned to the MIDI channel of the notes in order to hear them.
+* `events`(required) - the list of MIDI messages to send, organized as a nested list of patterns, with each pattern being a list of simultaneously-played tracks that are each a list of individual MIDI events. A '+' character sustains the previous note, and a '_' indicates no message (a rest). A single-pattern event list can be given as a list of tracks, and a single track can just be given as a list of events. An event list can also be represented as a literal string similar to the formatting seen in mod-tracker software. In this format, each line represents a step in the pattern, with tracks separated by columns, and patterns separated by blank lines.
+* `order` - the order in which to play the patterns in the event list, with 1 being the first pattern. A value of 0 stops playback when it is reached. A negative value jumps back that many places in the order. If playback reaches the end of the order it will loop back to the beginning. If not provided, the default is to loop the first pattern.
 * `tempo` - in beats per minute, defaults to 120
-* `tdiv` - the length of the notes in the pattern expressed as the number of notes in a measure of four beats. Defaults to 8
+* `tdiv` - the length of a step in the sequence expressed as the divisor of a full 4-beat measure. The default is 8, which means each step is an eighth note.
 * `swing` - the ratio by which to stretch the duration of on-beat notes and shorten off-beat notes, producing a "swing" feel. Values range from 0.5 (no swing) to 0.99. Default is 0.5
 * `groove` - an amount by which to multiply the volume of specific notes in a pattern, in order to create a rhythmic feel. Can be a single number, in which case the multiplier is applied to every other note starting with the first, or a list of values. Default is 1
   
-A router rule with a `sequencer` parameter and the sequencer's name as the value controls the playing of the sequencer. The value of the routed MIDI message controls how many times the sequence will loop. A value of 0 stops the sequencer, and negative values will cause it to loop indefinitely. A rule with a `swing` or `groove` parameter with the sequencer's name will adjust the corresponding sequencer values. Sequencers also respond to `tempo` and `sync` rules in the same way as midiplayers.
-  
-### `arpeggiators`
+A router rule with a `sequence` parameter and the sequencer's name as the value controls the playing of the sequencer. If the value of the routed MIDI message is positive, it sets the position in the pattern order at which to begin playing. If the sequence is currently playing, the jump to the new sequence happens at the end of the current one. A negative value will start playing the current pattern, and a value of 0 stops playback. A rule with a `swing` or `groove` parameter with the sequencer's name will adjust the corresponding sequencer values. Sequences also respond to `tempo` and `sync` rules in the same way as midifiles.
+
+### `arpeggios`
 
 This subsection contains one or more named arpeggiators that capture any notes and repeat them in a pattern as long as the notes are held.
 
 * `tempo`, `tdiv`, `swing`, `groove` - same as for sequencers
-* `octaves` - number of octaves over which to repeat the pattern. Defaults to 1
-* `style` - can be `up`, `down`, `both`, or `chord`. The first three options loop the held notes in ascending sequence, descending, or ascending followed by descending. The `chord` option plays all held notes at once repeatedly. If not given, the notes are looped in the order they were played.
+* `style`(required) - can be `up`, `down`, `both`, `chord`, or `manual`. The first three options loop the held notes in ascending sequence, descending, or ascending followed by descending. The `chord` option plays all held notes at once repeatedly. The last option loops notes in the order they were played.
   
-To make the arpeggiator work, create a `note` type router rule with an `arpeggiator` parameter that has the arpeggiator's name as its value. There must be a soundfont preset assigned on the MIDI channel to which the notes are routed in order to hear them. Like sequencers, arpeggiators can also be modified by `swing`, `groove`, `tempo`, and `sync` rules.
+To make the arpeggiator work, create a `note` type router rule with an `arpeggio` parameter that has the arpeggiator's name as its value. There must be a soundfont preset assigned on the MIDI channel to which the notes are routed in order to hear them. Like sequencers, arpeggiators can also be modified by `swing`, `groove`, `tempo`, and `sync` rules.
 
 ### `ladspafx`
 Contains one or more named units that activate and control external LADSPA effect plugins. See the [Plugins](ladspa_plugins.md) section for details.
 
 * `lib`(required) - the effect plugin file
 * `plugin` - the name of the plugin within the file, required if there's more than one
-* `group` - a list of audio group numbers on which to send the effects
+* `chan` - a list of midi channels that should send to the plugin
 * `audio` - a list of the audio input and output ports in the plugin
 * `vals` - a mapping of control port names and initial values
 

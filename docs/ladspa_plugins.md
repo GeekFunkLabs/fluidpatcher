@@ -26,9 +26,9 @@ plugindir: /usr/lib/ladspa
 fluidsettings:
   midi.autoconnect: 1
   player.reset-synth: 0
-  synth.audio.groups: 16
+  synth.audio-groups: 16
   synth.ladspa.active: 1
-currentbank: bank1.yaml
+currentbank: testbank.yaml
 ```
 
 ## Usage

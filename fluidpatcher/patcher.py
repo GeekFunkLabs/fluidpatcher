@@ -17,11 +17,10 @@ Requires:
 """
 
 from pathlib import Path
-from copy import deepcopy
 
 from yaml import safe_load, safe_dump
 
-from .bankfiles import Bank, SFPreset, MidiMessage, RouterRule
+from .bankfiles import Bank, SFPreset, MidiMessage, LadspaEffect
 from .router import Router
 from .pfluidsynth import Synth
 
@@ -39,8 +38,6 @@ class FluidPatcher:
     Attributes:
       cfg: Config object providing access to settings in the config file
       bank: Bank object providing access to the active bank
-      router_callback: a function to which the router echoes
-        events for optional further processing
     """
 
     def __init__(self, cfgfile, **fluidsettings):
@@ -58,14 +55,12 @@ class FluidPatcher:
         """
         self.cfg = Config(cfgfile)
         self.bank = None
-        self._router = Router(fluid_default=False)
-        self.router_callback = self._router.callback
+        self._router = Router(fluid_default=False, fluid_router=False)
         self._synth = Synth(self._router.handle_midi, **self.cfg.fluidsettings | fluidsettings)
         self._router.synth = self._synth
         self._soundfonts = {}
-        self._patchcord = {'_patchcord': {'lib': self.cfg.pluginpath / 'patchcord'}}
 
-    def read_bank(self, bankfile='', raw=''):
+    def load_bank(self, file='', raw=''):
         """Load bank from a file or text
 
         Parses a yaml stream from a string or file and stores as a
@@ -75,27 +70,40 @@ class FluidPatcher:
         of the bank.
 
         Args:
-          bankfile: Path or str, absolute or relative to 'bankpath'
+          file: Path or str, absolute or relative to 'bankpath'
           raw: string to parse directly
         """
-        if bankfile:
-            raw = (self.cfg.bankpath / bankfile).read_text()
-            self.cfg.bankfile = bankfile
-        self.bank = Bank(raw)
+        def read_bank(files, raw='', indent=0):
+            text = ''
+            if files:
+                raw = (self.cfg.bankpath / files[-1]).read_text()
+            for line in raw.splitlines(keepends=True):
+                if '#include' in line:
+                    i = line.index('#include')
+                    f = line[i + 9:].rstrip()
+                    if f not in files:
+                        if line[:i].isspace():
+                            line = read_bank(files + [f], indent=i)
+                        else:
+                            line = line[:i] + read_bank(files + [f])
+                text += ' ' * indent + line
+            return text
+
+        self.bank = Bank(read_bank([file], raw))
 
         self._synth.reset()
         for zone in self.bank:
-            for midi in zone.get('midiplayers', {}).values():
-                midi.file = self.mfilesdir / midi.file
+            for midi in zone.get('midifiles', {}).values():
+                midi.file = self.cfg.midipath / midi.file
             for fx in zone.get('ladspafx', {}).values():
-                fx.lib = self.plugindir / fx.lib
+                fx.lib = self.cfg.pluginpath / fx.lib
         init = self.bank.root.get('init', {})
         for name, val in (_SYNTH_DEFAULTS | init.get('fluidsettings', {})).items():
             self._synth[name] = val
         for msg in init.get('messages', []):
-            self.send_event(msg)
+            self.send_midimessage(msg)
 
-    def write_bank(self, bankfile, raw=''):
+    def save_bank(self, bankfile, raw=''):
         """Save a bank file
         
         Saves the active bank to `bankfile`. If `raw` is provided,
@@ -111,7 +119,6 @@ class FluidPatcher:
         else:
             raw = self.bank.dump()
         (self.cfg.bankpath / bankfile).write_text(raw)
-        self.cfg.bankfile = bankfile
 
     def apply_patch(self, patch):
         """Apply the settings in a patch to the synth
@@ -140,33 +147,38 @@ class FluidPatcher:
                 self._synth.program_unset(channel)
         # fluidsettings
         for name, val in self.bank[patch]['fluidsettings'].items():
-            self._synth[opt] = val
-        # sequencers, arpeggiators, midiplayers
-        for name in self._synth.players:
-            if name not in [*self.bank[patch]['sequencers'],
-                            *self.bank[patch]['arpeggiators'],
-                            *self.bank[patch]['midiplayers']]:
+            self._synth[name] = val
+        # sequences, arpeggios, midifiles
+        for name in list(self._synth.players):
+            if name not in [*self.bank[patch]['sequences'],
+                            *self.bank[patch]['arpeggios'],
+                            *self.bank[patch]['midiloops'],
+                            *self.bank[patch]['midifiles']]:
                 self._synth.player_remove(name)
-        for name, seq in self.bank[patch]['sequencers'].items():
-            self._synth.sequencer_add(name, **seq.pars)
-        for name, arp in self.bank[patch]['arpeggiators'].items():
-            self._synth.arpeggiator_add(name, **arp.pars)
-        for name, midi in self.bank[patch]['midiplayers'].items():
-            self._synth.midiplayer_add(name, **midi.pars)
+        for name, seq in self.bank[patch]['sequences'].items():
+            self._synth.sequence_add(name, seq)
+        for name, arp in self.bank[patch]['arpeggios'].items():
+            self._synth.arpeggio_add(name, arp)
+        for name, loop in self.bank[patch]['midiloops'].items():
+            self._synth.midiloop_add(name, loop)
+        for name, mfile in self.bank[patch]['midifiles'].items():
+            self._synth.midifile_add(name, mfile)
         # ladspa effects
-        if self._synth.ladspafx != self.bank[patch]['ladspafx']:
+        curfx = set(self._synth.ladspafx) - {'_patchcord'}
+        if set(self.bank[patch]['ladspafx']) != curfx:
             self._synth.fxchain_clear()
-            for name, fx in (self.bank[patch]['ladspafx'] | self._patchcord).items():
-                self._synth.fxchain_add(name, **fx.pars)
+            for name, fx in (self.bank[patch]['ladspafx']).items():
+                self._synth.fxchain_add(name, fx)
             if self._synth.ladspafx:
+                self._synth.fxchain_add('_patchcord', LadspaEffect(lib=self.cfg.pluginpath / 'patchcord'))
                 self._synth.fxchain_connect()
-        # router rules -- invert b/c fluidsynth applies rules last-first
+        # midi rules
         self._router.reset()
         for rule in self.bank[patch]['rules']:
-            rule._add(self._router.add)
+            self.add_midirule(rule)
         # midi messages
         for msg in self.bank[patch]['messages']:
-            self._router.handle_midi(msg)
+            self.send_midimessage(msg)
 
     def update_patch(self, patch):
         """Update a patch from the current synth state
@@ -193,46 +205,25 @@ class FluidPatcher:
             else:
                 patch[channel] = SFPreset(sfonts[id], bank, prog)
 
-    def copy_patch(self, src, dest):
-        """Copy settings from one patch to another
-        
-        Args:
-          src (required): index or name of source patch
-          dest (required): index or name of destination patch, if it exists
-            it is overwritten
-        """
-        self.bank.patches[dest] = deepcopy(self.bank.patches[src])
+    def add_midirule(self, rule):
+        """Add a midi rule to the Synth
 
-    def delete_patch(self, patch):
-        """Delete a patch from the active bank
-
-        Args:
-          patch (required): index or name of the patch to delete
-        """
-        del self.bank[patch]
-
-    def add_router_rule(self, **pars):
-        """Add a router rule to the Synth
-
-        Directly add a router rule to the Synth. This rule is applied
+        Directly add a midi rule to the Synth. This rule is applied
         after the patch rules. The rule is not added to the bank, and
         disappears if a new patch is applied.
 
         Args:
-          pars: router rule parameters passed as keyword arguments
+          rule: midi rule object
         """
-        RouterRule(**pars)._add(self._router.addrule)
+        self._router.add(rule)
 
-    def send_event(self, type, chan=1, num=0, val=0):
-        """Send a MIDI event to the router
+    def send_midimessage(self, msg):
+        """Send a MIDI message to the synth, following MIDI rules
 
         Args:
-          type (required): event type as string
-          chan: MIDI channel
-          num: note or controller number
-          val: value
+          msg: midi message object
         """
-        self._router.handle_midi(MidiMessage(type, chan, num, val))
+        self._router.handle_midi(msg)
 
     def fluidsetting(self, name):
         """Get the value of a fluidsynth setting
@@ -253,6 +244,9 @@ class FluidPatcher:
         """
         if name.startswith('synth.'):
             self._synth[name] = val
+
+    def set_callback(self, func):
+        self._router.callback = func
 
 
 class Config:
@@ -310,3 +304,4 @@ _SYNTH_DEFAULTS = {'synth.chorus.active': 1, 'synth.reverb.active': 1,
                   'synth.reverb.damp': 0.0, 'synth.reverb.level': 0.9,
                   'synth.reverb.room-size': 0.2, 'synth.reverb.width': 0.5,
                   'synth.gain': 0.2}
+

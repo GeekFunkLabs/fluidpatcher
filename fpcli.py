@@ -10,7 +10,15 @@ from fluidpatcher import FluidPatcher
 
 
 try:
-    import termios # Windows fails to import this
+    import termios
+except ImportError:
+    import msvcrt
+    EDITOR = 'notepad'
+    def pollkeyb():
+        if msvcrt.kbhit():
+            return msvcrt.getch().decode('latin-1').lower()
+        return None
+else:
     import atexit
     import select
     EDITOR = 'vi'
@@ -27,13 +35,6 @@ try:
         if not dr == []:
             return sys.stdin.read(1).lower()
         return None
-except ImportError: # probably on Windows
-    import msvcrt
-    EDITOR = 'notepad'
-    def pollkeyb():
-        if msvcrt.kbhit():
-            return msvcrt.getch().decode('latin-1').lower()
-        return None
 
 
 POLL_TIME = 0.025
@@ -43,10 +44,14 @@ KEYS = "N)ext patch P)rev patch L)oad next bank M)idi debug E)dit bank Q)uit"
 def load_bank(f):
     print(f"Loading bank {f} .. ", end="")
     try:
-        fp.read_bank(f)
+        fp.load_bank(f)
     except Exception as e:
-        sys.exit(f"Unable to load {f}\n{str(e)}")
-    print("done")
+        print()
+        e.add_note(f"Unable to load {f}")
+        raise
+    else:
+        fp.cfg.bankfile = f
+        print("done")
 
 
 def choose_patch(p):
@@ -71,7 +76,7 @@ else:
     sys.exit(f"Unable to locate configuration file {Path(cfgfile).name}")
 
 debug_on = False
-fp.router_callback = midi_debug
+fp.set_callback(midi_debug)
 
 bankfile = fp.cfg.bankfile
 load_bank(bankfile)

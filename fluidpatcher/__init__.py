@@ -14,4 +14,4 @@ Requires:
 __version__ = '1.0.0'
 
 from .patcher import FluidPatcher
-from .bankfiles import SFPreset, MidiMessage, RouterRule
+from .bankfiles import SFPreset, MidiMessage, MidiRule

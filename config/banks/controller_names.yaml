@@ -1,0 +1,12 @@
+# modify this with values for your MIDI controller
+# then include it in the names: section of your banks
+# this way you won't have to edit all your banks if you change controllers
+slider1: 13
+slider2: 14
+slider3: 15
+slider4: 16
+pad1: 50
+pad2: 51
+button1: 52
+button2: 53
+
