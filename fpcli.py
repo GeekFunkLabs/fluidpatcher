@@ -38,7 +38,7 @@ else:
 
 
 POLL_TIME = 0.025
-KEYS = "N)ext patch P)rev patch L)oad next bank M)idi debug E)dit bank Q)uit"
+KEYS_INFO = "N)ext patch P)rev patch L)oad next bank M)idi debug E)dit bank Q)uit"
 
 
 def load_bank(f):
@@ -73,7 +73,7 @@ for path in (Path(cfgfile).parent,
         fp = FluidPatcher(Path(path, cfgfile))
         break
 else:
-    sys.exit(f"Unable to locate configuration file {Path(cfgfile).name}")
+    sys.exit(f"Unable to locate configuration file {cfgfile}")
 
 debug_on = False
 fp.set_callback(midi_debug)
@@ -84,16 +84,16 @@ load_bank(bankfile)
 pno = 0
 choose_patch(pno)
 
-print(KEYS)
+print(KEYS_INFO)
 while True:
-    if c := pollkeyb():
-        if c in 'np':
-            if c == 'n':
-                pno = (pno + 1) % len(fp.bank)
-            elif c == 'p':
-                pno = (pno - 1) % len(fp.bank)
+    match pollkeyb().lower():
+        case 'n':
+            pno = (pno + 1) % len(fp.bank)
             choose_patch(pno)
-        elif c == 'l':
+        case 'p':
+            pno = (pno - 1) % len(fp.bank)
+            choose_patch(pno)
+        case 'l':
             banks = sorted([b.relative_to(fp.cfg.bankpath)
                            for b in fp.cfg.bankpath.rglob('*.yaml')])
             if bankfile in banks:
@@ -102,15 +102,16 @@ while True:
             else:
                 bankfile = banks[0]
             load_bank(bankfile)
-        elif c == 'm':
+        case 'm':
             debug_on = False if debug_on else True
             print("Midi debug", "ON" if debug_on else "OFF")
-        elif c == 'e':
+        case 'e':
             subprocess.run([EDITOR, fp.cfg.bankpath / bankfile])
             load_bank(bankfile)
             choose_patch(pno)
-        elif c == 'q':
+        case 'q':
             sys.exit()
-        else:
-            print(KEYS)
+        case _:
+            print(KEYS_INFO)
     time.sleep(POLL_TIME)
+
