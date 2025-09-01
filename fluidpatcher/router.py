@@ -126,6 +126,7 @@ class Router:
 
     def handle_midi(self, event):
         self.synth.send_event(event) # pass it along to the fluidsynth router
+        self.callback(event) # forward it to the callback
         t = self.synth.currenttick
         dt = 0
         for rule in [r for r in self.rules if r.applies(event)]:
