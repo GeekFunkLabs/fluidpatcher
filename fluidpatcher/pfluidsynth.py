@@ -325,9 +325,11 @@ class MidiFile:
         self.lasttick = 0
         self.seektick = None
         if getattr(mfile, 'route', 0):
+            # route events directly to the fluidsynth router (default)
             self.frouter_handler = fl_eventcallback(FS.fluid_midi_router_handle_midi_event)
             frouter = FS.new_fluid_midi_router(synth.st, self.frouter_handler, synth.frouter)
         else:
+            # apply custom routing and callbacks to all events (experimental)
             self.frouter_handler = fl_eventcallback(FS.fluid_synth_handle_midi_event)
             frouter = FS.new_fluid_midi_router(synth.st, self.frouter_handler, synth.fsynth)
         FS.fluid_midi_router_clear_rules(frouter)
@@ -351,10 +353,9 @@ class MidiFile:
             FS.fluid_player_play(self.fplayer)
         elif pos > 0:
             self.seektick = int((pos - 1) * self.barlength)
-
-    def stop(self):
-        self.seektick = None
-        FS.fluid_player_stop(self.fplayer)
+        elif pos == 0:
+            self.seektick = None
+            FS.fluid_player_stop(self.fplayer)
 
     def direct(self, tick):
         if self.seektick != None:
@@ -435,7 +436,7 @@ class SoundFont:
 
     def __init__(self, fsfont, id):
         self.id = id
-        self.presets = []
+        self._presets = {}
         FS.fluid_sfont_iteration_start(fsfont)
         while True:
             p = FS.fluid_sfont_iteration_next(fsfont)
@@ -443,7 +444,16 @@ class SoundFont:
             bank = FS.fluid_preset_get_banknum(p)
             prog = FS.fluid_preset_get_num(p)
             name = FS.fluid_preset_get_name(p).decode()
-            self.presets.append((bank, prog, name))
+            self._presets[bank, prog] = name
+
+    def __getitem__(self, p):
+        return self._presets[p] if p in self._presets else ""
+
+    def index(self, p):
+        return list(self._presets).index(p)
+
+    def __iter__(self):
+        return iter(self._presets)
 
 
 class Synth:
@@ -509,7 +519,7 @@ class Synth:
         elif stype == FLUID_INT_TYPE:
             FS.fluid_settings_setint(self.st, name.encode(), int(val))
         elif stype == FLUID_NUM_TYPE:
-            FS.fluid_settings_setnum(self.st, name.encode(), c_double(val))
+            FS.fluid_settings_setnum(self.st, name.encode(), c_double(float(val)))
 
     def load_soundfont(self, file):
         id = FS.fluid_synth_sfload(self.fsynth, str(file).encode(), False)
