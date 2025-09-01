@@ -164,7 +164,7 @@ patches:
     - {type: cc, num: button1, val: 0, record: test}
     - {type: cc, num: button2, val: 127=1, play: test}
     - {type: cc, num: button2, val: 0, play: test}
-    - {type: cc, num: pad1, val: 1-127=-1, record: test}
+    - {type: cc, num: pad1, val: 127=-1, record: test}
     - {type: note, chan: 1, loop: test}
     - {type: cc, num: slider3, val: 0-127=60-240, tempo: test}
 
@@ -175,7 +175,6 @@ rules:
 - {type: kpress, chan: =5}
 
 messages:
-- cc:1:reverb:100
 - cc:4:portamento:0
 - cc:4:legato:0
 
@@ -187,4 +186,10 @@ ladspafx:
     vals: {Delay: 0.3, Dry/Wet: 0.2}
   echo2: *echo
   echo3: *echo
+
+init:
+  messages:
+  - cc:1:reverb:100
+  fluidsettings:
+    synth.reverb.room-size: 1.00
 
