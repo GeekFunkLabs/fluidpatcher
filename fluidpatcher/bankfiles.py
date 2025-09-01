@@ -46,32 +46,11 @@ class Bank:
                         return None
             return node
         self.root = walk(data)
-        self.patches = self.root.get('patches', {})
+        self.patch = self.root.get('patches', {})
         
-    def __getitem__(self, name):
-        if name in self.patches:
-            patch = self.patches[name]
-        elif isinstance(name, int):
-            patch = list(self.patches.values())[name % len(self.patches)]
-        elif not name:
-            patch = {}
-        return Patch(self.root, patch)
-
-    def __setitem__(self, name, patch):
-        self.patches[name] = deepcopy(patch)
-
-    def __delitem__(self, name):
-        if name in self.patches:
-            patch = self.patches[name]
-        elif isinstance(name, int):
-            patch = list(self.patches.values())[name % len(self.patches)]
-        del self.patches[name]
-
-    def __len__(self):
-        return len(self.patches)
-
-    def __iter__(self):
-        return iter([self.root, *self.patches.values()])
+    @property
+    def patches(self):
+        return list(self.patch)
 
     @property
     def soundfonts(self):
@@ -83,48 +62,49 @@ class Bank:
                     sfonts.add(item.file)
         return sfonts
 
+    def __getitem__(self, name):
+        return _Patch(self.root, self.patch[name])
+
+    def __setitem__(self, name, p):
+        self.patch[name] = p
+
+    def __delitem__(self, name):
+        del self.patch[name]
+
+    def __contains__(self, name):
+        return name in self.patch
+
+    def __len__(self):
+        return len(self.patches)
+
+    def __iter__(self):
+        return iter([self.root, *self.patch.values()])
+
+    def index(self, name):
+        return self.patches.index(name)
+
     def dump(self):
-        bank = self.root | ({'patches': self.patches} if self.patches else {})
+        bank = self.root | {'patches': self.patch}
         return yaml.dump(bank, Dumper=BankDumper, sort_keys=False)
 
 
-class Patch:
+class _Patch:
 
     def __init__(self, root, patch):
-        self.patch = patch
-        self.root = root
+        self._patch = patch
+        self._root = root
         
-    def __getitem__(self, name):
+    def __getitem__(self, name):    
         if isinstance(name, int):
-            return self.patch.get(name) or self.root.get(name)
+            return self._patch.get(name) or self._root.get(name)
         elif name in ('rules', 'messages'):
-            return self.root.get(name, []) + self.patch.get(name, [])
+            return self._root.get(name, []) + self._patch.get(name, [])
         else:
-            return self.root.get(name, {}) | self.patch.get(name, {})
-            
-    def add(self, obj, name=''):
-        if isinstance(obj, MidiMessage):
-            zone = 'messages'
-        elif isinstance(obj, MidiRule):
-            zone = 'rules'
-        elif isinstance(obj, Sequence):
-            zone = 'sequences'
-        elif isinstance(obj, Arpeggio):
-            zone = 'arpeggios'
-        elif isinstance(obj, MidiLoop):
-            zone = 'midiloops'
-        elif isinstance(obj, MidiFile):
-            zone = 'midifiles'
-        elif isinstance(obj, LadspaEffect):
-            zone = 'ladspafx'
-        if isinstance(obj, (MidiMessage, MidiRule)):
-            if zone not in self.patch:
-                self.patch[zone]=[]
-            self.patch[zone].append(obj)
-        else:
-            if zone not in self.patch:
-                self.patch[zone]={}
-            self.patch[zone][name] = obj
+            return self._root.get(name, {}) | self._patch.get(name, {})
+
+    def copy(self, **pars):
+        return deepcopy(self._patch | pars)
+
 
 class SFPreset(yaml.YAMLObject):
 
@@ -132,6 +112,7 @@ class SFPreset(yaml.YAMLObject):
     yaml_loader = BankLoader
     yaml_dumper = BankDumper
     yaml_regex = re.compile('^(.+\.sf2):(\d+):(\d+)$', flags=re.I)
+    zone = None
 
     def __init__(self, file, bank, prog):
         self.file = file
@@ -189,6 +170,8 @@ class MidiMessage(yaml.YAMLObject, _Parser):
     yaml_loader = BankLoader
     yaml_dumper = BankDumper
     yaml_regex = re.compile(f'^({"|".join(TYPE_ALIAS)}):\S*$')
+    zone = 'messages'
+    zone_type = list
 
     def __init__(self, **pars):
         """Creates a MIDI message
@@ -232,7 +215,7 @@ class MidiMessage(yaml.YAMLObject, _Parser):
         text = loader.construct_scalar(node)
         match text.split(':'):
             case ['sysex', *data]:
-                return cls(type='sysex' val=data)
+                return cls(type='sysex', val=data)
             case [type, chan, num, val]:
                 return cls(type=type, chan=chan, num=num, val=val, _text=text)
             case [type, chan, val]:
@@ -273,6 +256,7 @@ class _BankObject(yaml.YAMLObject):
         return iter([v for k, v in self.__dict__.items() if k[0] != '_'])
 
     def copy(self, **pars):
+        pars['_pars'] = self._pars | pars
         return self.__class__(**self.__dict__ | pars)
 
     @classmethod
@@ -316,15 +300,20 @@ class MidiRule(_BankObject, _Parser):
         modify the parameter in the result.
       arbitrary additional parameters can be given as keyword arguments
     """
-    yaml_tag = '!midirule'
-    yaml_flow_style = True
     ftroute = re.compile('^({0})?-?({0})?=?(-?{0})?-?(-?{0})?$'.format('[\w\d\#\.]+'))
     maroute = re.compile('^({0})-({0})\*(-?{0})([+-]{0})$'.format('[\w\d\#\.]+'))
+    yaml_tag = '!midirule'
+    yaml_flow_style = True
+    zone = 'rules'
+    zone_type = list
 
     def __init__(self, _cure=True, **pars):
         super().__init__(**pars)
         if _cure:
             self._cure()
+
+    def __str__(self):
+        return ', '.join([f"{k}: {v}" for k, v in self._pars.items()])
 
     def _cure(self, names={}):
         if not hasattr(self, 'totype'):
@@ -391,6 +380,8 @@ class _FlowList(list, yaml.YAMLObject):
 class Sequence(_BankObject):
 
     yaml_tag = '!sequence'
+    zone = 'sequences'
+    zone_type = dict
 
     def __init__(self, **pars):
         super().__init__(**pars)
@@ -409,6 +400,8 @@ class Sequence(_BankObject):
 class Arpeggio(_BankObject):
 
     yaml_tag = '!arpeggio'
+    zone = 'arpeggios'
+    zone_type = dict
 
     def __init__(self, **pars):
         super().__init__(**pars)
@@ -418,6 +411,8 @@ class Arpeggio(_BankObject):
 class MidiLoop(_BankObject):
 
     yaml_tag = '!midiloop'
+    zone = 'midiloops'
+    zone_type = dict
 
     def __init__(self, **pars):
         super().__init__(**pars)
@@ -427,17 +422,22 @@ class MidiLoop(_BankObject):
 class MidiFile(_BankObject):
 
     yaml_tag = '!midifile'
+    zone = 'midifiles'
+    zone_type = dict
 
     def __init__(self, **pars):
         super().__init__(**pars)
         self.file = pars['file']
         if 'jumps' in pars:
-            self.jumps = [s.split('>') for s in pars['jumps']]
+            self.jumps = [[int(t) for t in s.split('>')]
+                          for s in pars['jumps']]
 
 
 class LadspaEffect(_BankObject):
 
     yaml_tag = '!ladspafx'
+    zone = 'ladspafx'
+    zone_type = dict
 
     def __init__(self, **pars):
         super().__init__(**pars)
@@ -452,18 +452,12 @@ class LadspaEffect(_BankObject):
                 self.audio = 'Input', 'Output'
 
 
-def addresolver(cls, path, kind):
-    BankLoader.add_path_resolver(cls.yaml_tag, path, kind)
-    BankLoader.add_path_resolver(cls.yaml_tag, ['patches', (dict, None), *path], kind)
-    BankDumper.add_path_resolver(cls.yaml_tag, path, kind)
-    BankDumper.add_path_resolver(cls.yaml_tag, ['patches', (dict, None), *path], kind)
-
-addresolver(MidiRule, ['rules', (list, None)], dict)
-addresolver(Sequence, ['sequences', (dict, None)], dict)
-addresolver(Arpeggio, ['arpeggios', (dict, None)], dict)
-addresolver(MidiLoop, ['midiloops', (dict, None)], dict)
-addresolver(MidiFile, ['midifiles', (dict, None)], dict)
-addresolver(LadspaEffect, ['ladspafx', (dict, None)], dict)
+for cls in _BankObject.__subclasses__():
+    path = ['patches', (dict, None), cls.zone, (cls.zone_type, None)]
+    BankLoader.add_path_resolver(cls.yaml_tag, path, dict)
+    BankDumper.add_path_resolver(cls.yaml_tag, path, dict)
+    BankLoader.add_path_resolver(cls.yaml_tag, path[-2:], dict)
+    BankDumper.add_path_resolver(cls.yaml_tag, path[-2:], dict)
 
 for cls in (SFPreset, MidiMessage, _FlowList):
     BankLoader.add_implicit_resolver(cls.yaml_tag, cls.yaml_regex, None)
