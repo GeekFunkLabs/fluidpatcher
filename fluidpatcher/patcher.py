@@ -58,7 +58,7 @@ class FluidPatcher:
         self._router = Router(fluid_default=False, fluid_router=False)
         self._synth = Synth(self._router.handle_midi, **self.cfg.fluidsettings | fluidsettings)
         self._router.synth = self._synth
-        self._soundfonts = {}
+        self.soundfonts = {}
 
     def load_bank(self, file='', raw=''):
         """Load bank from a file or text
@@ -120,7 +120,7 @@ class FluidPatcher:
             raw = self.bank.dump()
         (self.cfg.bankpath / bankfile).write_text(raw)
 
-    def apply_patch(self, patch):
+    def apply_patch(self, name):
         """Apply the settings in a patch to the synth
 
         First checks that all soundfonts required by the bank are
@@ -130,57 +130,57 @@ class FluidPatcher:
         by those specified in the patch.
 
         Args:
-          patch (required): patch index or name
+          name (required): name of the patch to apply
         """
         # load all needed soundfonts at once to speed up patches
         # free memory of unneeded soundfonts
-        for file in set(self._soundfonts) - self.bank.soundfonts:
-            self._synth.unload_soundfont(self._soundfonts[file])
-            del self._soundfonts[file]
-        for file in self.bank.soundfonts - set(self._soundfonts):
-            self._soundfonts[file] = self._synth.load_soundfont(self.cfg.sfpath / file)
+        for file in set(self.soundfonts) - self.bank.soundfonts:
+            self._synth.unload_soundfont(self.soundfonts[file])
+            del self.soundfonts[file]
+        for file in self.bank.soundfonts - set(self.soundfonts):
+            self.soundfonts[file] = self._synth.load_soundfont(self.cfg.sfpath / file)
         # select presets
         for channel in range(1, self._synth['synth.midi-channels'] + 1):
-            if p := self.bank[patch][channel]:
-                self._synth.program_select(channel, self._soundfonts[p.file], p.bank, p.prog)
+            if p := self.bank[name][channel]:
+                self._synth.program_select(channel, self.soundfonts[p.file], p.bank, p.prog)
             else:
                 self._synth.program_unset(channel)
         # fluidsettings
-        for name, val in self.bank[patch]['fluidsettings'].items():
+        for name, val in self.bank[name]['fluidsettings'].items():
             self._synth[name] = val
         # sequences, arpeggios, midifiles
         for name in list(self._synth.players):
-            if name not in [*self.bank[patch]['sequences'],
-                            *self.bank[patch]['arpeggios'],
-                            *self.bank[patch]['midiloops'],
-                            *self.bank[patch]['midifiles']]:
+            if name not in [*self.bank[name]['sequences'],
+                            *self.bank[name]['arpeggios'],
+                            *self.bank[name]['midiloops'],
+                            *self.bank[name]['midifiles']]:
                 self._synth.player_remove(name)
-        for name, seq in self.bank[patch]['sequences'].items():
+        for name, seq in self.bank[name]['sequences'].items():
             self._synth.sequence_add(name, seq)
-        for name, arp in self.bank[patch]['arpeggios'].items():
+        for name, arp in self.bank[name]['arpeggios'].items():
             self._synth.arpeggio_add(name, arp)
-        for name, loop in self.bank[patch]['midiloops'].items():
+        for name, loop in self.bank[name]['midiloops'].items():
             self._synth.midiloop_add(name, loop)
-        for name, mfile in self.bank[patch]['midifiles'].items():
+        for name, mfile in self.bank[name]['midifiles'].items():
             self._synth.midifile_add(name, mfile)
         # ladspa effects
         curfx = set(self._synth.ladspafx) - {'_patchcord'}
-        if set(self.bank[patch]['ladspafx']) != curfx:
+        if set(self.bank[name]['ladspafx']) != curfx:
             self._synth.fxchain_clear()
-            for name, fx in (self.bank[patch]['ladspafx']).items():
+            for name, fx in (self.bank[name]['ladspafx']).items():
                 self._synth.fxchain_add(name, fx)
             if self._synth.ladspafx:
                 self._synth.fxchain_add('_patchcord', LadspaEffect(lib=self.cfg.pluginpath / 'patchcord'))
                 self._synth.fxchain_connect()
         # midi rules
         self._router.reset()
-        for rule in self.bank[patch]['rules']:
+        for rule in self.bank[name]['rules']:
             self.add_midirule(rule)
         # midi messages
-        for msg in self.bank[patch]['messages']:
+        for msg in self.bank[name]['messages']:
             self.send_midimessage(msg)
 
-    def update_patch(self, patch):
+    def update_patch(self, name):
         """Update a patch from the current synth state
 
         Instruments and controller values can be changed by program
@@ -190,18 +190,18 @@ class FluidPatcher:
         those values.
 
         Args:
-          patch (required): index or name of the patch to update
+          name (required): name of the patch to update
         """
-        self.bank.patches[patch]['messages'] = []
-        sfonts = {self._soundfonts[file].id: file for file in self._soundfonts}
+        self.bank.patch[name]['messages'] = []
+        sfonts = {self.soundfonts[sf].id: sf for sf in self.soundfonts}
         for channel in range(1, self._synth['synth.midi-channels'] + 1):
             for cc, default in enumerate(_CC_DEFAULTS):
                 val = self._synth.get_cc(channel, cc)
                 if val != default and default != -1 :
-                    self.bank.patches[patch]['messages'] += [MidiMessage('cc', channel, cc, val)]
+                    self.bank.patch[name]['messages'] += [MidiMessage('cc', channel, cc, val)]
             id, bank, prog = self._synth.program_info(channel)
             if id not in sfonts:
-                del self.bank[patch][channel]
+                del self.bank.patch[name][channel]
             else:
                 patch[channel] = SFPreset(sfonts[id], bank, prog)
 
