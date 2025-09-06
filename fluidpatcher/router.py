@@ -26,8 +26,9 @@ class RouterRule:
         for par in ('chan', 'num', 'val'):
             if hasattr(self, par) and hasattr(event, par):
                 r = getattr(self, par)
-                if r.min > r.max and r.min < getattr(event, par) < r.max:
-                    return False
+                if r.max < r.min:
+                    if r.max < getattr(event, par) < r.min:
+                        return False
                 elif not (r.min <= getattr(event, par) <= r.max):
                     return False
         return True
@@ -105,7 +106,7 @@ class Router:
             and rule.type == rule.totype
             and rule.type in ('note', 'kpress', 'cc', 'prog', 'cpress', 'pbend')
             and not set(rule.__dict__) - {'type', 'totype', 'chan', 'num', 'val', '_pars'}
-            ):
+           ):
             if hasattr(rule, 'chan'):
                 for tochan in rule.chan:
                     self.fluidrules.append(FluidRule(rule.copy(chan=tochan)))
