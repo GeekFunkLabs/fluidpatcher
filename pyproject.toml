@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fluidpatcher"
+version = "0.4.0"
+description = "FluidSynth patch manager and performance toolkit"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Bill Peterson", email = "bill@geekfunklabs.com" }
+]
+requires-python = ">=3.9"
+dependencies = [
+    "PyYAML",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"fluidpatcher.data" = ["*.sf2", "*.yaml", "patches/*.yaml", "midi/*.mid"]
+"fluidpatcher._ladspa" = ["prebuilt/*/*.so"]
+
+# 👇 Inline extension definition
+[tool.setuptools.ext_modules]
+# module name as exposed to Python
+fluidpatcher._ladspa.fluidfx = { 
+    sources = ["src/fluidpatcher/_ladspa/fluidfx.c"], 
+    libraries = ["m"], 
+    optional = true,
+}
+define_macros = [["USE_FAST_MATH", "1"]]
+include_dirs = ["include"]
+extra_compile_args = ["-O2", "-Wall"]
+
