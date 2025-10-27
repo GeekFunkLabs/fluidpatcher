@@ -6,22 +6,22 @@ import shutil
 import yaml
 
 
-CONFIG_FILE = Path(os.getenv(
+CONFIG_PATH = Path(os.getenv(
     "FLUIDPATCHER_CONFIG",
     "~/.config/fluidpatcher/fluidpatcherconf.yaml"
 )).expanduser()
 
 LADSPA_PATH = Path(os.getenv("LADSPA_PATH"))
 
-if not CONFIG_FILE.exists():
-    CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy(res.files("fluidpatcher.data") / "fluidpatcherconf.yaml", CONFIG_FILE)
+if not CONFIG_PATH.exists():
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(res.files("fluidpatcher.data") / "fluidpatcherconf.yaml", CONFIG_PATH)
 
 def load_config():
     CONFIG = yaml.safe_load(CONFIG_PATH.read_text())
-    CONFIG.setdefault("banks_path", CONFIG_FILE.parent / "banks")
-    CONFIG.setdefault("sounds_path", CONFIG["bank_path"].parent / "sounds")
-    CONFIG.setdefault("midi_path", CONFIG["bank_path"].parent / "midi")
+    CONFIG.setdefault("banks_path", CONFIG_PATH.parent / "banks")
+    CONFIG.setdefault("sounds_path", CONFIG["banks_path"].parent / "sounds")
+    CONFIG.setdefault("midi_path", CONFIG["banks_path"].parent / "midi")
     if LADSPA_PATH:
         CONFIG.setdefault("ladspa_path", LADSPA_PATH)
     return CONFIG
