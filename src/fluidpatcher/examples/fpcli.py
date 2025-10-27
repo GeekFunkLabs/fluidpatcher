@@ -6,7 +6,7 @@ import subprocess
 import sys
 import time
 
-from fluidpatcher import FluidPatcher
+from fluidpatcher import FluidPatcher, CONFIG, save_state
 
 
 try:
@@ -50,7 +50,8 @@ def load_bank(f):
         e.add_note(f"Unable to load {f}")
         raise
     else:
-        fp.cfg.bankfile = f
+        CONFIG["current_bank"] = f
+        save_state(CONFIG)
         print("done")
 
 
@@ -65,21 +66,13 @@ def midi_debug(event):
 
 
 # main
-cfgfile = [*sys.argv, ''][1] or 'fluidpatcherconf.yaml'
-for path in (Path(cfgfile).parent,
-             Path('./config'),
-             Path.home() / '.config'):
-    if (path / cfgfile).exists():
-        fp = FluidPatcher(Path(path, cfgfile))
-        break
-else:
-    sys.exit(f"Unable to locate configuration file {cfgfile}")
+fp = FluidPatcher()
 
 debug_on = False
 fp.set_callback(midi_debug)
 
 bankfile = fp.cfg.bankfile
-load_bank(bankfile)
+load_bank(CONFIG["current_bank"])
 
 pno = 0
 choose_patch(pno)
@@ -94,8 +87,8 @@ while True:
             pno = (pno - 1) % len(fp.bank)
             choose_patch(pno)
         case 'l':
-            banks = sorted([b.relative_to(fp.cfg.bankpath)
-                           for b in fp.cfg.bankpath.rglob('*.yaml')])
+            banks = sorted([b.relative_to(CONFIG["banks_path"])
+                           for b in CONFIG["banks_path"].rglob('*.yaml')])
             if bankfile in banks:
                 i = banks.index(bankfile) + 1
                 bankfile = banks[i % len(banks)]
@@ -106,7 +99,7 @@ while True:
             debug_on = False if debug_on else True
             print("Midi debug", "ON" if debug_on else "OFF")
         case 'e':
-            subprocess.run([EDITOR, fp.cfg.bankpath / bankfile])
+            subprocess.run([EDITOR, CONFIG["banks_path"] / CONFIG["current_bank"]])
             load_bank(bankfile)
             choose_patch(pno)
         case 'q':
