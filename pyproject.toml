@@ -21,5 +21,6 @@ dependencies = ["PyYAML"]
 [[tool.setuptools.ext-modules]]
 name = "fluidpatcher._ladspa.patchcord"
 sources = ["src/fluidpatcher/_ladspa/patchcord.c"]
+extra-link-args = ["-o", "src/fluidpatcher/_ladspa/patchcord.so"]
 optional = true
 
