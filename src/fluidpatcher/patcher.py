@@ -21,8 +21,14 @@ from pathlib import Path
 from yaml import safe_load, safe_dump
 
 from .bankfiles import Bank, SFPreset, MidiMessage, LadspaEffect
-from .router import Router
+from .config import CONFIG
 from .pfluidsynth import Synth
+from .router import Router
+
+
+PATCHCORD = CONFIG["ladspa_path"] / 'patchcord.so'
+if not PATCHCORD.exists():
+    PATCHCORD = None
 
 
 class FluidPatcher:
@@ -40,7 +46,7 @@ class FluidPatcher:
       bank: Bank object providing access to the active bank
     """
 
-    def __init__(self, cfgfile, **fluidsettings):
+    def __init__(self, fluidsettings={}):
         """Creates FluidPatcher and starts FluidSynth
         
         Starts fluidsynth using settings found in yaml-formatted `cfgfile`.
@@ -53,12 +59,12 @@ class FluidPatcher:
           cfgfile (required): Path object pointing to config file
           fluidsettings: dictionary of additional fluidsettings
         """
-        self.cfg = Config(cfgfile)
         self.bank = None
-        self._router = Router(fluid_default=False, fluid_router=False)
-        self._synth = Synth(self._router.handle_midi, **self.cfg.fluidsettings | fluidsettings)
-        self._router.synth = self._synth
         self.soundfonts = {}
+        self._router = Router(fluid_default=False, fluid_router=False)
+        self._synth = Synth(self._router.handle_midi,
+                            CONFIG["fluidsettings"] | fluidsettings)
+        self._router.synth = self._synth
 
     def load_bank(self, file='', raw=''):
         """Load bank from a file or text
@@ -76,7 +82,7 @@ class FluidPatcher:
         def read_bank(files, raw='', indent=0):
             text = ''
             if files:
-                raw = (self.cfg.bankpath / files[-1]).read_text()
+                raw = (CONFIG["banks_path"] / files[-1]).read_text()
             for line in raw.splitlines(keepends=True):
                 if '#include' in line:
                     i = line.index('#include')
@@ -94,16 +100,16 @@ class FluidPatcher:
         self._synth.reset()
         for zone in self.bank:
             for midi in zone.get('midifiles', {}).values():
-                midi.file = self.cfg.midipath / midi.file
+                midi.file = CONFIG["midi_path"] / midi.file
             for fx in zone.get('ladspafx', {}).values():
-                fx.lib = self.cfg.pluginpath / fx.lib
+                fx.lib = CONFIG["ladspa_path"] / fx.lib
         init = self.bank.root.get('init', {})
         for name, val in (_SYNTH_DEFAULTS | init.get('fluidsettings', {})).items():
             self._synth[name] = val
         for msg in init.get('messages', []):
             self.send_midimessage(msg)
 
-    def save_bank(self, bankfile, raw=''):
+    def save_bank(self, file, raw=''):
         """Save a bank file
         
         Saves the active bank to `bankfile`. If `raw` is provided,
@@ -111,14 +117,14 @@ class FluidPatcher:
         written to the file.
 
         Args:
-          bankfile (required): Path or str, absolute or relative to `bankdir`
+          file (required): Path or str, absolute or relative to `bankdir`
           raw: exact text to save
         """
         if raw:
             self.bank = Bank(raw)
         else:
             raw = self.bank.dump()
-        (self.cfg.bankpath / bankfile).write_text(raw)
+        (CONFIG["banks_path"] / file).write_text(raw)
 
     def apply_patch(self, patch):
         """Apply the settings in a patch to the synth
@@ -138,7 +144,7 @@ class FluidPatcher:
             self._synth.unload_soundfont(self.soundfonts[sf])
             del self.soundfonts[sf]
         for sf in self.bank.soundfonts - set(self.soundfonts):
-            self.soundfonts[sf] = self._synth.load_soundfont(self.cfg.sfpath / sf)
+            self.soundfonts[sf] = self._synth.load_soundfont(CONFIG["sounds_path"] / sf)
         # select presets
         for chan in range(1, self._synth['synth.midi-channels'] + 1):
             if p := self.bank[patch][chan]:
@@ -169,8 +175,11 @@ class FluidPatcher:
             self._synth.fxchain_clear()
             for name, fx in (self.bank[patch]['ladspafx']).items():
                 self._synth.fxchain_add(name, fx)
-            if self._synth.ladspafx:
-                self._synth.fxchain_add('_patchcord', LadspaEffect(lib=self.cfg.pluginpath / 'patchcord'))
+            if self._synth.ladspafx and PATCHCORD:
+                self._synth.fxchain_add(
+                    '_patchcord',
+                    LadspaEffect(lib=PATCHCORD)
+                )
                 self._synth.fxchain_connect()
         # midi rules
         self._router.reset()
@@ -245,8 +254,7 @@ class FluidPatcher:
           name (required): the fluidsynth setting
           val (required): the value to set
         """
-        if name.startswith('synth.'):
-            self._synth[name] = val
+        self._synth[name] = val
 
     def set_callback(self, func):
         if func:

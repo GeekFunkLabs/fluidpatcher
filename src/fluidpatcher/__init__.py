@@ -11,7 +11,19 @@ Requires:
 - libfluidsynth
 """
 
-__version__ = '1.0.0'
+from importlib.metadata import version, PackageNotFoundError
 
+from .bankfiles import MidiMessage, MidiRule, SFPreset
+from .config import CONFIG, save_state
 from .patcher import FluidPatcher
-from .bankfiles import SFPreset, MidiMessage, MidiRule
+from .pfluidsynth import FluidMidiEvent
+
+
+__all__ = ["MidiMessage", "MidiRule", "SFPreset", "CONFIG",
+           "save_state", "FluidPatcher", "FluidMidiEvent"]
+
+try:
+    __version__ = version("squishbox")
+except PackageNotFoundError:
+    __version__ = "0.0.0-dev"
+
