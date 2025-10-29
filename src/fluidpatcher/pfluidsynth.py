@@ -458,7 +458,7 @@ class SoundFont:
 
 class Synth:
 
-    def __init__(self, midi_handler=None, **fluidsettings):
+    def __init__(self, midi_handler=None, fluidsettings={}):
         self.st = FS.new_fluid_settings()
         for name, val in fluidsettings.items():
             self[name] = val
