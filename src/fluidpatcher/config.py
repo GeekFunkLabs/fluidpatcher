@@ -8,26 +8,29 @@ import yaml
 
 
 def load_config():
-    CONFIG = yaml.safe_load(CONFIG_PATH.read_text())
-    CONFIG["banks_path"] = Path(
-        CONFIG.get("banks_path", CONFIG_PATH.parent / "banks")
+    cfg = yaml.safe_load(CONFIG_PATH.read_text())
+    cfg.setdefault("banks_path", CONFIG_PATH.parent / "banks")
+    cfg.setdefault("sounds_path", cfg["banks_path"].parent / "sounds")
+    cfg.setdefault("midi_path", cfg["banks_path"].parent / "midi")
+    cfg.setdefault("ladspa_path", Path(
+        os.getenv("LADSPA_PATH", "/usr/bin/ladspa"))
     )
-    CONFIG["sounds_path"] = Path(
-        CONFIG.get("sounds_path", CONFIG["banks_path"].parent / "sounds")
-    )
-    CONFIG["midi_path"] = Path(
-        CONFIG.get("midi_path", CONFIG["banks_path"].parent / "midi")
-    )
-    CONFIG["ladspa_path"] = Path(
-        CONFIG.get("ladspa_path", Path(os.getenv("LADSPA_PATH"))
-    )
-    return CONFIG
+    for k in (
+        "banks_path",
+        "sounds_path",
+        "midi_path",
+        "ladspa_path",
+        "current_bank",
+    ):
+        if k in cfg:
+            cfg[k] = Path(cfg[k])
+    return cfg
 
 
-def save_state(config):
-    config_posix = {k: v.as_posix() if isinstance(v, Path) else v
-                    for k, v in config.items()}
-    CONFIG_PATH.write_text(yaml.safe_dump(config_posix, sort_keys=False))
+def save_state(cfg):
+    cfg_posix = {k: v.as_posix() if isinstance(v, Path) else v
+                 for k, v in cfg.items()}
+    CONFIG_PATH.write_text(yaml.safe_dump(cfg_posix, sort_keys=False))
 
 
 CONFIG_PATH = Path(os.getenv(
