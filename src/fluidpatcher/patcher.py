@@ -21,14 +21,9 @@ from pathlib import Path
 from yaml import safe_load, safe_dump
 
 from .bankfiles import Bank, SFPreset, MidiMessage, LadspaEffect
-from .config import CONFIG
+from .config import CONFIG, PATCHCORD
 from .pfluidsynth import Synth
 from .router import Router
-
-
-PATCHCORD = CONFIG["ladspa_path"] / 'patchcord.so'
-if not PATCHCORD.exists():
-    PATCHCORD = None
 
 
 class FluidPatcher:
