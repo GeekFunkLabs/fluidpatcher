@@ -15,7 +15,7 @@ requires-python = ">=3.10"
 dependencies = ["PyYAML"]
 
 [tool.setuptools.package-data]
-"fluidpatcher.data" = ["*.yaml", "patches/*.yaml", "midi/*.mid", "sounds/*.sf2"]
+"fluidpatcher.data" = ["*.yaml", "banks/*", "midi/*.mid", "sounds/*.sf2"]
 "fluidpatcher._ladspa" = ["prebuilt/*/*.so"]
 
 [[tool.setuptools.ext-modules]]

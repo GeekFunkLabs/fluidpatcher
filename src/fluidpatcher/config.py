@@ -43,6 +43,12 @@ if not CONFIG_PATH.exists():
     shutil.copy(res.files("fluidpatcher.data") / "fluidpatcherconf.yaml", CONFIG_PATH)
 
 CONFIG = load_config()
+if not CONFIG["banks_path"].exists():
+    shutil.copytree(res.files("fluidpatcher.data") / "banks", CONFIG["banks_path"])
+if not CONFIG["sounds_path"].exists():
+    shutil.copytree(res.files("fluidpatcher.data") / "sounds", CONFIG["sounds_path"])
+if not CONFIG["midi_path"].exists():
+    shutil.copytree(res.files("fluidpatcher.data") / "midi", CONFIG["midi_path"])
 
 patchcord = res.files("fluidpatcher._ladspa") / "patchcord.so" 
 arch = platform.machine()
