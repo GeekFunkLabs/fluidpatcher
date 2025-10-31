@@ -126,7 +126,7 @@ class Router:
                 self.rules.append(RouterRule(rule))
 
     def handle_midi(self, event):
-        self.synth.send_event(event) # pass it along to the fluidsynth router
+        self.synth.send_midievent(event) # pass it along to the fluidsynth router
         self.callback(event) # forward it to the callback
         t = self.synth.currenttick
         dt = 0
@@ -144,7 +144,7 @@ class Router:
             if hasattr(rule, 'lsb'):
                 lsbevent = RouterEvent(newevent, rule)
                 lsbevent.num, lsbevent.val = rule.lsb, newevent.lsbval
-                self.synth.send_event(lsbevent, route=False)
+                self.synth.send_midievent(lsbevent, route=False)
             if hasattr(rule, 'fluidsetting'):
                 self.synth[rule.fluidsetting] = newevent.val
             if hasattr(rule, 'play'):
@@ -179,7 +179,7 @@ class Router:
                 fx, port = rule.fx.split('>')
                 if fx in self.synth.ladspafx:
                     self.synth.ladspafx[fx].setcontrol(port, newevent.val)
-            self.synth.send_event(newevent, route=False) # send routed event directly to synth
+            self.synth.send_midievent(newevent, route=False) # send routed event directly to synth
             self.callback(newevent) # forward the routed event for user handling
         if dt > 0:
             self.clocks = t, self.clocks[0]

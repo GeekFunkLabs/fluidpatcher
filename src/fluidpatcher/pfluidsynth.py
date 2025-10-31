@@ -491,7 +491,7 @@ class Synth:
         return FS.fluid_sequencer_get_tick(self.fseq)
 
     def reset(self):
-        for name in self.players:
+        for name in list(self.players):
             self.player_remove(name)
         self.fxchain_clear()
         FS.fluid_synth_system_reset(self.fsynth)
@@ -560,25 +560,29 @@ class Synth:
         frule = FS.new_fluid_midi_router_rule()
         if chan := getattr(rule, 'chan', None):
             FS.fluid_midi_router_rule_set_chan(
-                    frule, int(chan.min - 1), int(chan.max - 1),
-                    c_float(chan.mul), int(chan.add + chan.mul - 1))
+                frule, int(chan.min - 1), int(chan.max - 1),
+                c_float(chan.mul), int(chan.add + chan.mul - 1)
+            )
         if rule.type in ('prog', 'cpress', 'pbend'):
             if val := getattr(rule, 'val', None):
                 FS.fluid_midi_router_rule_set_param1(
-                        frule, int(val.min), int(val.max),
-                        c_float(val.mul), int(val.add))
+                    frule, int(val.min), int(val.max),
+                    c_float(val.mul), int(val.add)
+                )
         else:
             if num := getattr(rule, 'num', None):
                 FS.fluid_midi_router_rule_set_param1(
-                        frule, int(num.min), int(num.max),
-                        c_float(num.mul), int(num.add))
+                    frule, int(num.min), int(num.max),
+                    c_float(num.mul), int(num.add)
+                )
             if val := getattr(rule, 'val', None):
                 FS.fluid_midi_router_rule_set_param2(
-                        frule, int(val.min), int(val.max),
-                        c_float(val.mul), int(val.add))
+                    frule, int(val.min), int(val.max),
+                    c_float(val.mul), int(val.add)
+                )
         FS.fluid_midi_router_add_rule(self.frouter, frule, RULE_TYPES.index(rule.type))
 
-    def send_event(self, event, route=True):
+    def send_midievent(self, event, route=True):
         fmevent = FS.new_fluid_midi_event()
         if event.type == 'sysex':
             syxdata = (c_int * len(event.val))(*event.val)
