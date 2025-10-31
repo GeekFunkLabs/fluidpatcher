@@ -63,7 +63,8 @@ class SeqClient:
     def __init__(self, synth):
         self.synth = synth
         self.callback = CFUNCTYPE(None, c_uint, c_void_p, c_void_p, c_void_p)(
-                lambda _, __, ___, ____: self.scheduler())
+            lambda _, __, ___, ____: self.scheduler()
+        )
         self.id = FS.fluid_sequencer_register_client(synth.fseq, b'', self.callback, None)
         self.ticksperbeat = 500 # default 120bpm at 1000 ticks/sec
         self.pos = 0
@@ -88,8 +89,9 @@ class SeqClient:
     def dismiss(self):
         self.playing = False
         FS.fluid_sequencer_remove_events(
-                c_void_p(self.synth.fseq), c_short(-1),
-                c_short(self.id), FLUID_SEQ_TIMER)
+            c_void_p(self.synth.fseq), c_short(-1),
+            c_short(self.id), FLUID_SEQ_TIMER
+        )
         FS.fluid_sequencer_unregister_client(self.synth.fseq, self.id)
 
 
