@@ -9,21 +9,22 @@ import yaml
 
 def load_config():
     cfg = yaml.safe_load(CONFIG_PATH.read_text())
-    cfg.setdefault("banks_path", CONFIG_PATH.parent / "banks")
-    cfg.setdefault("sounds_path", cfg["banks_path"].parent / "sounds")
-    cfg.setdefault("midi_path", cfg["banks_path"].parent / "midi")
-    cfg.setdefault("ladspa_path", Path(
-        os.getenv("LADSPA_PATH", "/usr/bin/ladspa"))
+    cfg["banks_path"] = Path(
+        cfg.get("banks_path", CONFIG_PATH.parent / "banks")
     )
-    for k in (
-        "banks_path",
-        "sounds_path",
-        "midi_path",
-        "ladspa_path",
-        "current_bank",
-    ):
-        if k in cfg:
-            cfg[k] = Path(cfg[k])
+    cfg["sounds_path"] = Path(
+        cfg.get("sounds_path", cfg["banks_path"].parent / "sounds")
+    )
+    cfg["midi_path"] = Path(
+        cfg.get("midi_path", cfg["banks_path"].parent / "midi")
+    )
+    cfg["ladspa_path"] = Path(
+        cfg.get("ladspa_path", Path(
+            os.getenv("LADSPA_PATH", "/usr/lib/ladspa"))
+        )
+    )
+    if "current_bank" in cfg:
+        cfg["current_bank"] = Path(cfg["current_bank"])
     return cfg
 
 
