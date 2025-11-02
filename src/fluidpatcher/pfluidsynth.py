@@ -660,15 +660,18 @@ class Synth:
             elif ptype == "arpeggios":
                 self.players[ptype][name] = MidiFile(self, player)
     
-    def player_remove(self, name):
-        self.players[ptype][name].dismiss()
-        del self.players[ptype][name]
+    def player_remove(self, ptype, name):
+        if name in self.players[ptype]:
+            self.players[ptype][name].dismiss()
+            del self.players[ptype][name]
 
     def fxchain_clear(self):
         FS.fluid_ladspa_reset(self.ladspa)
         self.ladspafx = {}
 
     def fxchain_add(self, name, fx):
+        if fx not in self.ladspafx:
+            self.ladspafx[fx] = LadspaEffect(self, name, fx)
         if name not in self.ladspafx:
             self.ladspafx[name] = LadspaEffect(self, name, fx)
 

@@ -26,6 +26,26 @@ from .pfluidsynth import Synth, PLAYER_TYPES
 from .router import Router
 
 
+CC_DEFAULTS = [0] * 120
+CC_DEFAULTS[0] = -1             # bank select
+CC_DEFAULTS[7] = 100            # volume
+CC_DEFAULTS[8] = 64             # balance
+CC_DEFAULTS[10] = 64            # pan
+CC_DEFAULTS[11] = 127           # expression
+CC_DEFAULTS[32] = -1            # bank select LSB
+CC_DEFAULTS[43] = 127           # expression LSB
+CC_DEFAULTS[70:80] = [64] * 10  # sound controls
+CC_DEFAULTS[84] = 255           # portamento control
+CC_DEFAULTS[96:102] = [-1] * 6  # RPN/NRPN controls
+
+SYNTH_DEFAULTS = {'synth.chorus.active': 1, 'synth.reverb.active': 1,
+                  'synth.chorus.depth': 8.0, 'synth.chorus.level': 2.0,
+                  'synth.chorus.nr': 3, 'synth.chorus.speed': 0.3,
+                  'synth.reverb.damp': 0.0, 'synth.reverb.level': 0.9,
+                  'synth.reverb.room-size': 0.2, 'synth.reverb.width': 0.5,
+                  'synth.gain': 0.2}
+
+
 class FluidPatcher:
     """An interface for running FluidSynth using patches
     
@@ -56,6 +76,8 @@ class FluidPatcher:
         """
         self.bank = None
         self.soundfonts = {}
+        self._players = {ptype: {} for ptype in PLAYER_TYPES}
+        self._ladspafx = set()
         self._router = Router(fluid_default=False, fluid_router=False)
         self._synth = Synth(self._router.handle_midi,
                             CONFIG["fluidsettings"] | fluidsettings)
@@ -151,22 +173,22 @@ class FluidPatcher:
             self._synth[name] = val
         # players (e.g. sequences, arpeggios, midiloops, midifiles)
         for ptype in PLAYER_TYPES:
-            for name in self._synth.players[ptype]:
-                if name not in self.bank.root.get(ptype, {}):
+            for name, player in self._players[ptype]:
+                if player not in self.bank[patch][ptype]:
                     self._synth.player_remove(ptype, name)
-            for name, player in self.bank.root.get(ptype, {}).items():
-                self._synth.player_add(ptype, name, player)
-            for name, player in self.bank.patch[patch].get(ptype, {}).items():
-                if name in self._synth.players[ptype]:
-                    self._synth.player_remove(ptype, name)
-                self._synth.player_add(ptype, name, player)
+                    del self._players[ptype][name]
+            for name, player in self.bank[patch][ptype]:
+                if player not in self._players[ptype].values():
+                    self._synth.player_add(ptype, name, player)
+                    self._players[ptype][name] = player
         # ladspa effects
-        curfx = set(self._synth.ladspafx) - {'_patchcord'}
-        if set(self.bank[patch]['ladspafx']) != curfx:
+        if set(self.bank[patch]['ladspafx'].values()) != self._ladspafx:
+            self._ladspafx = set()
             self._synth.fxchain_clear()
             for name, fx in (self.bank[patch]['ladspafx']).items():
+                self._ladspafx.add(fx)
                 self._synth.fxchain_add(name, fx)
-            if self._synth.ladspafx and PATCHCORD:
+            if self._ladspafx and PATCHCORD:
                 self._synth.fxchain_add(
                     '_patchcord',
                     LadspaEffect(lib=PATCHCORD)
@@ -289,24 +311,4 @@ class Config:
     def bankfile(self, file):
         self._cfg['bankfile'] = Path(file).as_posix()
         self._file.write_text(safe_dump(self._cfg, sort_keys=False))
-
-
-CC_DEFAULTS = [0] * 120
-CC_DEFAULTS[0] = -1             # bank select
-CC_DEFAULTS[7] = 100            # volume
-CC_DEFAULTS[8] = 64             # balance
-CC_DEFAULTS[10] = 64            # pan
-CC_DEFAULTS[11] = 127           # expression
-CC_DEFAULTS[32] = -1            # bank select LSB
-CC_DEFAULTS[43] = 127           # expression LSB
-CC_DEFAULTS[70:80] = [64] * 10  # sound controls
-CC_DEFAULTS[84] = 255           # portamento control
-CC_DEFAULTS[96:102] = [-1] * 6  # RPN/NRPN controls
-
-SYNTH_DEFAULTS = {'synth.chorus.active': 1, 'synth.reverb.active': 1,
-                  'synth.chorus.depth': 8.0, 'synth.chorus.level': 2.0,
-                  'synth.chorus.nr': 3, 'synth.chorus.speed': 0.3,
-                  'synth.reverb.damp': 0.0, 'synth.reverb.level': 0.9,
-                  'synth.reverb.room-size': 0.2, 'synth.reverb.width': 0.5,
-                  'synth.gain': 0.2}
 
