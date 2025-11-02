@@ -152,11 +152,11 @@ class FluidPatcher:
         # players (e.g. sequences, arpeggios, midiloops, midifiles)
         for ptype in PLAYER_TYPES:
             for name in self._synth.players[ptype]:
-                if name not in self.bank.root[ptype]:
+                if name not in self.bank.root.get(ptype, {}):
                     self._synth.player_remove(ptype, name)
-            for name, player in self.bank.root[ptype].items():
+            for name, player in self.bank.root.get(ptype, {}).items():
                 self._synth.player_add(ptype, name, player)
-            for name, player in self.bank.patch[patch][ptype].items():
+            for name, player in self.bank.patch[patch].get(ptype, {}).items():
                 if name in self._synth.players[ptype]:
                     self._synth.player_remove(ptype, name)
                 self._synth.player_add(ptype, name, player)

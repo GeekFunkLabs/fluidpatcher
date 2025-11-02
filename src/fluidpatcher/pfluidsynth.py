@@ -24,7 +24,7 @@ SEQ_LAG = 10
 
 fslib = find_library("fluidsynth") or find_library("libfluidsynth-3")
 if fslib is None:
-    raise ImportError("Couldn"t find the FluidSynth library.")
+    raise ImportError("Couldn't find the FluidSynth library.")
 FS = CDLL(fslib)
 ladspa_available = hasattr(FS, "fluid_ladspa_reset")
 
@@ -104,7 +104,7 @@ class Sequence(SeqClient):
         self.events = getattr(seq, "events")
         self.order = getattr(seq, "order", [1])
         self.tdiv = getattr(seq, "tdiv", 8)
-        self.set_tempo(getattr(seq, "tempo", 120)
+        self.set_tempo(getattr(seq, "tempo", 120))
         self.set_swing(getattr(seq, "swing", 0.5))
         self.set_groove(getattr(seq, "groove", 1))
 
@@ -172,7 +172,7 @@ class Arpeggio(SeqClient):
         super().__init__(synth)
         self.style = getattr(arp, "style")
         self.tdiv = getattr(arp, "tdiv", 8)
-        self.set_tempo(getattr(arp, "tempo", 120)
+        self.set_tempo(getattr(arp, "tempo", 120))
         self.set_swing(getattr(arp, "swing", 0.5))
         self.set_groove(getattr(arp, "groove", 1))
         self.keysdown = set()
@@ -236,7 +236,7 @@ class MidiLoop(SeqClient):
     def __init__(self, synth, loop):
         super().__init__(synth)
         self.beats = getattr(loop, "beats")
-        self.set_tempo(getattr(loop, "tempo", 120)
+        self.set_tempo(getattr(loop, "tempo", 120))
         self.fixedbeats = bool(self.beats)
         self.recording = False
         self.events = []
