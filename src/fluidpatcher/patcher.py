@@ -22,7 +22,7 @@ from yaml import safe_load, safe_dump
 
 from .bankfiles import Bank, SFPreset, MidiMessage, LadspaEffect
 from .config import CONFIG, PATCHCORD
-from .pfluidsynth import Synth
+from .pfluidsynth import Synth, PLAYER_TYPES
 from .router import Router
 
 
@@ -99,7 +99,7 @@ class FluidPatcher:
             for fx in zone.get('ladspafx', {}).values():
                 fx.lib = CONFIG["ladspa_path"] / fx.lib
         init = self.bank.root.get('init', {})
-        for name, val in (_SYNTH_DEFAULTS | init.get('fluidsettings', {})).items():
+        for name, val in (SYNTH_DEFAULTS | init.get('fluidsettings', {})).items():
             self._synth[name] = val
         for msg in init.get('messages', []):
             self.send_midimessage(msg)
@@ -149,21 +149,17 @@ class FluidPatcher:
         # fluidsettings
         for name, val in self.bank[patch]['fluidsettings'].items():
             self._synth[name] = val
-        # sequences, arpeggios, midifiles
-        for name in list(self._synth.players):
-            if name not in [*self.bank[patch]['sequences'],
-                            *self.bank[patch]['arpeggios'],
-                            *self.bank[patch]['midiloops'],
-                            *self.bank[patch]['midifiles']]:
-                self._synth.player_remove(name)
-        for name, seq in self.bank[patch]['sequences'].items():
-            self._synth.sequence_add(name, seq)
-        for name, arp in self.bank[patch]['arpeggios'].items():
-            self._synth.arpeggio_add(name, arp)
-        for name, loop in self.bank[patch]['midiloops'].items():
-            self._synth.midiloop_add(name, loop)
-        for name, mfile in self.bank[patch]['midifiles'].items():
-            self._synth.midifile_add(name, mfile)
+        # players (e.g. sequences, arpeggios, midiloops, midifiles)
+        for ptype in PLAYER_TYPES:
+            for name in self._synth.players[ptype]:
+                if name not in self.bank.root[ptype]:
+                    self._synth.player_remove(ptype, name)
+            for name, player in self.bank.root[ptype].items():
+                self._synth.player_add(ptype, name, player)
+            for name, player in self.bank.patch[patch][ptype].items():
+                if name in self._synth.players[ptype]:
+                    self._synth.player_remove(ptype, name)
+                self._synth.player_add(ptype, name, player)
         # ladspa effects
         curfx = set(self._synth.ladspafx) - {'_patchcord'}
         if set(self.bank[patch]['ladspafx']) != curfx:
@@ -199,12 +195,12 @@ class FluidPatcher:
         self.bank.patch[name]['messages'] = []
         sfonts = {self.soundfonts[sf].id: sf for sf in self.soundfonts}
         for chan in range(1, self._synth['synth.midi-channels'] + 1):
-            for cc, default in enumerate(_CC_DEFAULTS):
+            for cc, default in enumerate(CC_DEFAULTS):
                 val = self._synth.get_cc(chan, cc)
                 if val != default and default != -1 :
                     self.bank.patch[name]['messages'].append(
                         MidiMessage(type='cc', chan=chan, num=cc, val=val)
-                    )                    	
+                    )
             id, bank, prog = self._synth.program_info(chan)
             if id not in sfonts:
                 if chan in self.bank.patch[name]:
@@ -295,19 +291,19 @@ class Config:
         self._file.write_text(safe_dump(self._cfg, sort_keys=False))
 
 
-_CC_DEFAULTS = [0] * 120
-_CC_DEFAULTS[0] = -1             # bank select
-_CC_DEFAULTS[7] = 100            # volume
-_CC_DEFAULTS[8] = 64             # balance
-_CC_DEFAULTS[10] = 64            # pan
-_CC_DEFAULTS[11] = 127           # expression
-_CC_DEFAULTS[32] = -1            # bank select LSB
-_CC_DEFAULTS[43] = 127           # expression LSB
-_CC_DEFAULTS[70:80] = [64] * 10  # sound controls
-_CC_DEFAULTS[84] = 255           # portamento control
-_CC_DEFAULTS[96:102] = [-1] * 6  # RPN/NRPN controls
+CC_DEFAULTS = [0] * 120
+CC_DEFAULTS[0] = -1             # bank select
+CC_DEFAULTS[7] = 100            # volume
+CC_DEFAULTS[8] = 64             # balance
+CC_DEFAULTS[10] = 64            # pan
+CC_DEFAULTS[11] = 127           # expression
+CC_DEFAULTS[32] = -1            # bank select LSB
+CC_DEFAULTS[43] = 127           # expression LSB
+CC_DEFAULTS[70:80] = [64] * 10  # sound controls
+CC_DEFAULTS[84] = 255           # portamento control
+CC_DEFAULTS[96:102] = [-1] * 6  # RPN/NRPN controls
 
-_SYNTH_DEFAULTS = {'synth.chorus.active': 1, 'synth.reverb.active': 1,
+SYNTH_DEFAULTS = {'synth.chorus.active': 1, 'synth.reverb.active': 1,
                   'synth.chorus.depth': 8.0, 'synth.chorus.level': 2.0,
                   'synth.chorus.nr': 3, 'synth.chorus.speed': 0.3,
                   'synth.reverb.damp': 0.0, 'synth.reverb.level': 0.9,
