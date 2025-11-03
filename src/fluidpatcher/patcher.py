@@ -173,11 +173,11 @@ class FluidPatcher:
             self._synth[name] = val
         # players (e.g. sequences, arpeggios, midiloops, midifiles)
         for ptype in PLAYER_TYPES:
-            for name, player in self._players[ptype]:
-                if player not in self.bank[patch][ptype]:
+            for name, player in list(self._players[ptype].items()):
+                if player not in self.bank[patch][ptype].values():
                     self._synth.player_remove(ptype, name)
                     del self._players[ptype][name]
-            for name, player in self.bank[patch][ptype]:
+            for name, player in self.bank[patch][ptype].items():
                 if player not in self._players[ptype].values():
                     self._synth.player_add(ptype, name, player)
                     self._players[ptype][name] = player

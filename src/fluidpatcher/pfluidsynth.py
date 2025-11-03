@@ -670,8 +670,6 @@ class Synth:
         self.ladspafx = {}
 
     def fxchain_add(self, name, fx):
-        if fx not in self.ladspafx:
-            self.ladspafx[fx] = LadspaEffect(self, name, fx)
         if name not in self.ladspafx:
             self.ladspafx[name] = LadspaEffect(self, name, fx)
 
