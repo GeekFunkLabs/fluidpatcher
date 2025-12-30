@@ -14,16 +14,16 @@ Requires:
 from importlib.metadata import version, PackageNotFoundError
 
 from .bankfiles import MidiMessage, MidiRule, SFPreset
-from .config import CONFIG, save_state
+from .config import CONFIG, save_config
 from .patcher import FluidPatcher
 from .pfluidsynth import FluidMidiEvent
 
 
 __all__ = ["MidiMessage", "MidiRule", "SFPreset", "CONFIG",
-           "save_state", "FluidPatcher", "FluidMidiEvent"]
+           "save_config", "FluidPatcher", "FluidMidiEvent"]
 
 try:
-    __version__ = version("squishbox")
+    __version__ = version("fluidpatcher")
 except PackageNotFoundError:
     __version__ = "0.0.0-dev"
 
