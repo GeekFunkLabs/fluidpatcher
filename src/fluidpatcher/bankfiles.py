@@ -46,7 +46,7 @@ class Bank:
                         return None
             return node
         self.root = walk(data)
-        self.patch = self.root.get('patches', {})
+        self.patch = self.root.setdefault('patches', {})
         
     @property
     def patches(self):
@@ -81,7 +81,7 @@ class Bank:
         return iter([self.root, *self.patch.values()])
 
     def index(self, name):
-        return self.patches.index(name)
+        return list(self.patch).index(name)
 
     def dump(self):
         bank = self.root | {'patches': self.patch}
