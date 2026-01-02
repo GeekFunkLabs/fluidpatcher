@@ -61,7 +61,7 @@ class FluidPatcher:
       bank: Bank object providing access to the active bank
     """
 
-    def __init__(self, fluidsettings={}):
+    def __init__(self, fluidsettings={}, fluidlog=None):
         """Creates FluidPatcher and starts FluidSynth
         
         Starts fluidsynth using settings found in yaml-formatted `cfgfile`.
@@ -74,16 +74,44 @@ class FluidPatcher:
           cfgfile (required): Path object pointing to config file
           fluidsettings: dictionary of additional fluidsettings
         """
-        self.bank = None
-        self.soundfonts = {}
+        self.bank = Bank("patches: {}")
+        self._sfonts = {}
         self._players = {ptype: {} for ptype in PLAYER_TYPES}
         self._ladspafx = set()
         self._router = Router(fluid_default=False, fluid_router=False)
-        self._synth = Synth(self._router.handle_midi,
-                            CONFIG["fluidsettings"] | fluidsettings)
+        if fluidlog == -1:
+            fluidlog = lambda lev, msg: None
+        self._synth = Synth(
+            fluidsettings=CONFIG["fluidsettings"] | fluidsettings,
+            logfunc=fluidlog,
+            midi_handler=self._router.handle_midi,
+        )
         self._router.synth = self._synth
 
-    def load_bank(self, file='', raw=''):
+    @property
+    def soundfonts(self):
+        """Dict of path: Soundfont for loaded soundfonts"""
+        return dict(self._sfonts)
+
+    def load_soundfont(self, path):
+        """Load a soundfont
+        
+        Not usually called by the user - apply_patch() automatically
+        loads/unloads all soundfonts needed for the current bank.
+        Returns a SoundFont object that can be iterated to discover
+        presets, and uses (bank, prog) indexing to return preset names.        
+        """
+        path = CONFIG["sounds_path"] / path
+        if path.is_relative_to(CONFIG["sounds_path"]):
+            sf = path.relative_to(CONFIG["sounds_path"]).as_posix()
+        else:
+            sf = path.as_posix()
+        if sf not in self._sfonts:
+            self._sfonts[sf] = self._synth.load_soundfont(path)
+            self._sfonts[sf].file = sf
+        return self._sfonts[sf]
+
+    def load_bank(self, bankfile='', raw=''):
         """Load bank from a file or text
 
         Parses a yaml stream from a string or file and stores as a
@@ -112,7 +140,7 @@ class FluidPatcher:
                 text += ' ' * indent + line
             return text
 
-        self.bank = Bank(read_bank([file], raw))
+        self.bank = Bank(read_bank([bankfile], raw))
 
         self._synth.reset()
         for zone in self.bank:
@@ -157,15 +185,15 @@ class FluidPatcher:
         """
         # load all needed soundfonts at once to speed up patches
         # free memory of unneeded soundfonts
-        for sf in set(self.soundfonts) - self.bank.soundfonts:
-            self._synth.unload_soundfont(self.soundfonts[sf])
-            del self.soundfonts[sf]
-        for sf in self.bank.soundfonts - set(self.soundfonts):
-            self.soundfonts[sf] = self._synth.load_soundfont(CONFIG["sounds_path"] / sf)
+        for sf in set(self._sfonts) - self.bank.soundfonts:
+            self._synth.unload_soundfont(self._sfonts[sf])
+            del self._sfonts[sf]
+        for sf in self.bank.soundfonts - set(self._sfonts):
+            self.load_soundfont(sf)
         # select presets
         for chan in range(1, self._synth['synth.midi-channels'] + 1):
             if p := self.bank[patch][chan]:
-                self._synth.program_select(chan, self.soundfonts[p.file], p.bank, p.prog)
+                self._synth.program_select(chan, self._sfonts[p.file], p.bank, p.prog)
             else:
                 self._synth.program_unset(chan)
         # fluidsettings
@@ -215,7 +243,7 @@ class FluidPatcher:
           name (required): name of the patch to update
         """
         self.bank.patch[name]['messages'] = []
-        sfonts = {self.soundfonts[sf].id: sf for sf in self.soundfonts}
+        sfonts = {self._sfonts[sf].id: sf for sf in self._sfonts}
         for chan in range(1, self._synth['synth.midi-channels'] + 1):
             for cc, default in enumerate(CC_DEFAULTS):
                 val = self._synth.get_cc(chan, cc)
