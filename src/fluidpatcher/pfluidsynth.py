@@ -65,7 +65,7 @@ class SeqClient:
     def __init__(self, synth):
         self.synth = synth
         self.callback = CFUNCTYPE(None, c_uint, c_void_p, c_void_p, c_void_p)(
-            lambda _, __, ___, ____: self.scheduler()
+            lambda t, evt, seq, _: self.scheduler()
         )
         self.id = FS.fluid_sequencer_register_client(synth.fseq, b"", self.callback, None)
         self.ticksperbeat = 500 # default 120bpm at 1000 ticks/sec
@@ -349,7 +349,7 @@ class MidiFile:
             FS.fluid_midi_router_add_rule(frouter, rule, RULE_TYPES.index(rtype))
         self.playback_callback = fl_eventcallback(FS.fluid_midi_router_handle_midi_event)
         FS.fluid_player_set_playback_callback(self.fplayer, self.playback_callback, frouter)
-        self.tickcallback = CFUNCTYPE(None, c_void_p, c_uint)(lambda _, t: self.direct(t))
+        self.tickcallback = CFUNCTYPE(None, c_void_p, c_uint)(lambda _, t: self.conduct(t))
         FS.fluid_player_set_tick_callback(self.fplayer, self.tickcallback, None)
         FS.fluid_player_seek(self.fplayer, 0) # prevent skipping first note due to ?bug
 
@@ -366,7 +366,7 @@ class MidiFile:
             self.seektick = None
             FS.fluid_player_stop(self.fplayer)
 
-    def direct(self, tick):
+    def conduct(self, tick):
         if self.seektick != None:
             if tick % self.barlength < (tick - self.lasttick):
                 FS.fluid_player_seek(self.fplayer, self.seektick)
@@ -443,8 +443,8 @@ class LadspaEffect:
 
 class SoundFont:
 
-    def __init__(self, fsfont, id):
-        self.id = id
+    def __init__(self, fsfont, sfid):
+        self.id = sfid
         self._presets = {}
         FS.fluid_sfont_iteration_start(fsfont)
         while True:
@@ -464,13 +464,22 @@ class SoundFont:
     def __iter__(self):
         return iter(self._presets)
 
+    def __len__(self):
+        return len(self._presets)
+
 
 class Synth:
 
-    def __init__(self, midi_handler=None, fluidsettings={}):
+    def __init__(self, fluidsettings={}, logfunc=None, midi_handler=None):
         self.st = FS.new_fluid_settings()
         for name, val in fluidsettings.items():
             self[name] = val
+        if logfunc:
+            self.logfunc = CFUNCTYPE(None, c_int, c_char_p, c_void_p)(
+                lambda lev, msg, _: logfunc(lev, msg)
+            )
+            for lev in range(5):
+                FS.fluid_set_log_function(lev, self.logfunc)
         self.fsynth = FS.new_fluid_synth(self.st)
         FS.new_fluid_audio_driver(self.st, self.fsynth)
         self.frouter_handler = fl_eventcallback(FS.fluid_synth_handle_midi_event)
@@ -531,12 +540,12 @@ class Synth:
         elif stype == FLUID_NUM_TYPE:
             FS.fluid_settings_setnum(self.st, name.encode(), c_double(float(val)))
 
-    def load_soundfont(self, file):
-        id = FS.fluid_synth_sfload(self.fsynth, str(file).encode(), False)
-        if id == FLUID_FAILED:
+    def load_soundfont(self, path):
+        sfid = FS.fluid_synth_sfload(self.fsynth, str(path).encode(), False)
+        if sfid == FLUID_FAILED:
             raise OSError(f"Unable to load {file}")
-        fsfont = FS.fluid_synth_get_sfont_by_id(self.fsynth, id)
-        return SoundFont(fsfont, id)
+        fsfont = FS.fluid_synth_get_sfont_by_id(self.fsynth, sfid)
+        return SoundFont(fsfont, sfid)
 
     def unload_soundfont(self, sfont):
         FS.fluid_synth_sfunload(self.fsynth, sfont.id, False)
