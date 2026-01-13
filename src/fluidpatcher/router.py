@@ -1,4 +1,5 @@
-"""Python handler for fluidsynth midi events
+"""
+Python handler for fluidsynth midi events
 with extensible custom router rules
 """
 

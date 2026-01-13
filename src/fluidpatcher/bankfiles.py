@@ -1,4 +1,16 @@
-"""YAML extensions for fluidpatcher"""
+"""
+Bank file parsing and validation utilities for FluidPatcher.
+
+This module defines:
+  - Custom YAML tags for expressing patches, rules, sequences, and other objects
+  - Loader and dumper wrappers for FluidPatcher’s extended YAML dialect
+  - Structured exceptions distinguishing syntax vs. semantic errors
+  - A Bank class that represents a parsed, validated bank file
+  - Helper functions for name resolution and tree walking
+
+It enables FluidPatcher to treat YAML as a rich declarative language for
+describing patches, MIDI routing, sequencing, and effects.
+"""
 
 from copy import deepcopy
 import re
@@ -27,9 +39,22 @@ scinote = re.compile(r"([+-]?)([A-G])([b#]?)(-?[0-9])")
 
 def resolve(s, names={}):
     """
-    convert scientific note names to numbers
-    perform name resolution
-    convert strings to float, int
+    Resolve a YAML scalar into a usable numeric value.
+
+    Resolution rules:
+      - Replace symbolic names using the ``names`` mapping
+      - Convert scientific pitch notation (e.g. ``C#4`` → MIDI note 61)
+      - Parse strings to integers or floats
+
+    Args:
+      s: String, integer, float, or name reference
+      names (dict): Optional mapping of symbolic names to values
+
+    Returns:
+      int | float
+
+    Raises:
+      BankValidationError: if ``s`` cannot be interpreted or resolved
     """
     if s in names:
         s = names[s]
@@ -73,12 +98,16 @@ def _walk(node, path=(), names={}):
 
 
 class BankError(Exception):
+    """Base class for all bank parsing and validation errors."""
     pass
     
 
 class BankSyntaxError(BankError):
     """
-    Raised when YAML can't be parsed
+    Error raised when the YAML text is malformed and cannot be parsed.
+
+    Wraps YAML parser failures and retains line/column information when
+    available, so users can locate the exact point of failure.
     """
     def __init__(self, msg):
         self.msg = msg
@@ -113,8 +142,18 @@ class BankSyntaxError(BankError):
 
 class BankValidationError(BankError):
     """
-    Raised when a bank file is structurally valid YAML
-    but contains invalid or unsupported data.
+    Raised when a bank file is valid YAML but contains incorrect or
+    unsupported values.
+
+    Typical causes:
+      - Missing required keys
+      - Invalid parameter ranges
+      - Unrecognized message or rule types
+      - Semantic errors in nested objects
+
+    Attributes:
+      msg (str): Reason for failure
+      path (tuple): Hierarchical path to the failing node
     """
     def __init__(self, msg, path=()):
         self.msg = msg
@@ -129,25 +168,46 @@ class BankValidationError(BankError):
 
 
 class BankLoader(yaml.SafeLoader):
+    """
+    YAML loader extended with:
+      - Custom tags for bank object types
+      - Path and implicit resolvers
+      - Construction helpers used by Bank()
+    """
     pass
 
 
 class BankDumper(yaml.SafeDumper):
+    """
+    YAML dumper that emits FluidPatcher’s extended object syntax and
+    preserves key order and structure wherever possible.
+    """
     pass
 
 
 class Bank:
     """
-    Parsed representation of a bank YAML file.
+    Parsed representation of a FluidPatcher bank YAML document.
 
-    Behaves like a mapping of patch names to fully-resolved data.
+    Provides:
+      - Access to raw root-level configuration
+      - Per-patch configuration with root inheritance
+      - Validation over the complete parsed structure
 
-    Attributes and access patterns:
-      - self[patch_name] – merged view combining root-level defaults with
-        the patch’s own data.
-      - self.root – raw root-level settings shared by all patches.
-      - self.patch – raw per-patch data without root merging.
-      - self.patches – sequence of defined patch names in declaration order.
+    Behaves like a mapping where keys are patch names and values are
+    merged views combining root defaults and per-patch overrides.
+
+    Attributes:
+      root (dict):
+        Raw root-level configuration data.
+      patch (dict):
+        Raw patch definitions (unmerged).
+      patches (list[str]):
+        Patch names in declaration order.
+
+    Notes:
+      Raises BankSyntaxError if raw YAML parsing fails.
+      Raises BankValidationError if semantic validation fails.
     """
     def __init__(self, text):
         try:
@@ -199,6 +259,16 @@ class Bank:
 
 
 class _Patch:
+    """
+    Lightweight merged view over root and per-patch data.
+
+    Lookup rules:
+      - Scalar fields fall back to root when absent in patch
+      - Lists (rules, messages) concatenate root + patch values
+      - Dict-like structures merge root defaults with overrides
+
+    Created automatically via Bank.__getitem__.
+    """
 
     def __init__(self, root, patch):
         self._patch = patch
@@ -217,7 +287,17 @@ class _Patch:
 
 
 class SFPreset(yaml.YAMLObject):
+    """
+    SoundFont preset reference (``!sfpreset``).
 
+    Encodes a triplet ``file.sf2:bank:prog`` representing a single
+    SoundFont program selection.
+
+    Attributes:
+      file (str): Path to the .sf2 file
+      bank (int): SoundFont bank index
+      prog (int): Program index
+    """
     yaml_tag = "!sfpreset"
     yaml_loader = BankLoader
     yaml_dumper = BankDumper
@@ -242,9 +322,18 @@ class SFPreset(yaml.YAMLObject):
 
 
 class MidiMessage(yaml.YAMLObject):
-    """Class for describing and storing MIDI messages
     """
-    
+    Description of a single MIDI message (``!midimsg``).
+
+    Supports channel messages, controller messages, aftertouch,
+    sysex payloads, and several shorthand forms.
+
+    Attributes:
+      type (str): Message type (“note”, “cc”, “sysex”, ...)
+      chan (int): Channel number (where applicable)
+      num (int): Note/controller number (where applicable)
+      val (int): Value (velocity, CC value, pitch bend, etc.)
+    """
     yaml_tag = "!midimsg"
     yaml_loader = BankLoader
     yaml_dumper = BankDumper
@@ -253,17 +342,6 @@ class MidiMessage(yaml.YAMLObject):
     zone_type = list
 
     def __init__(self, **pars):
-        """Creates a MIDI message
-
-        Args:
-          type (required): MIDI message type
-          chan: MIDI channel for voice messages
-          num: note or controller number for note-on, note-off,
-            control change, and key pressure message types
-          val: value of the MIDI message, i.e. note velocity,
-            controller value, pitch bend amount, pressure, or
-            program number
-        """
         self.__dict__.update(pars)
         if "_text" not in pars:
             match pars:
@@ -315,13 +393,18 @@ class MidiMessage(yaml.YAMLObject):
 
 
 class _BankObject(yaml.YAMLObject):
-    """metaclass for mapping-type Bank data
-    
-    Attributes:
-      _pars: exact parameters as written in bank file, read-only
-      pars: copy of opars with elements modified as needed
     """
+    Base class for tagged structured YAML objects inside a patch.
 
+    Provides:
+      - Storage for raw parameters as written in YAML (``_pars``)
+      - Automatic deep construction of nested data
+      - Validation via ``_validate``
+      - Common copy/duplication support
+
+    Subclasses define meaning, required keys, and placement
+    (e.g., rules, sequences, arpeggios, etc.).
+    """
     yaml_loader = BankLoader
     yaml_dumper = BankDumper
 
@@ -390,15 +473,19 @@ class _Route:
 
 
 class MidiRule(_BankObject):
-    """Class that describes responses to MIDI messages
-    
+    """
+    Routing rule describing how incoming MIDI messages are filtered,
+    transformed, or mapped (``!midirule``).
+
+    Features:
+      - Match message type and numeric ranges
+      - Map parameters to new ranges
+      - Produce transformed output messages
+
     Attributes:
-      type: MIDI message types to match
-      totype: MIDI event type to produce
-      chan, num, val: expressions describing the range of the
-        corresponding message parameter to accept, and how to
-        modify the parameter in the result.
-      arbitrary additional parameters can be given as keyword arguments
+      type, totype: Input and output message types
+      chan, num, val: Range specifications or transforms
+      arbitrary additional parameters for custom objects
     """
     ftroute = re.compile(r"^({0})?-?({0})?=?(-?{0})?-?(-?{0})?$".format(r"[\w\d\#\.]+"))
     maroute = re.compile(r"^({0})-({0})\*(-?{0})([+-]{0})$".format(r"[\w\d\#\.]+"))
@@ -444,7 +531,11 @@ class MidiRule(_BankObject):
 
 
 class _FlowList(list, yaml.YAMLObject):
+    """
+    Inline comma-separated list of YAML-embedded objects (``!flowlist``).
 
+    Useful for compact rule/message declaration syntax.
+    """
     yaml_tag = "!flowlist"
     yaml_loader = BankLoader
     yaml_dumper = BankDumper
@@ -466,7 +557,15 @@ class _FlowList(list, yaml.YAMLObject):
 
 
 class Sequence(_BankObject):
+    """
+    Step-sequenced event container (``!sequence``).
 
+    May represent one or more parallel rhythm or message streams.
+
+    Attributes:
+      events (list): Parsed events grouped by pattern
+      groove (int|list): Optional timing subdivision data
+    """
     yaml_tag = "!sequence"
     zone = "sequences"
     zone_type = dict
@@ -491,7 +590,12 @@ class Sequence(_BankObject):
 
 
 class Arpeggio(_BankObject):
+    """
+    Patterned arpeggiation definition (``!arpeggio``).
 
+    Attributes:
+      style (str): Pattern name or algorithm key
+    """
     yaml_tag = "!arpeggio"
     zone = "arpeggios"
     zone_type = dict
@@ -503,7 +607,13 @@ class Arpeggio(_BankObject):
 
 
 class MidiLoop(_BankObject):
+    """
+    Looping MIDI event generator (``!midiloop``).
 
+    Attributes:
+      beats (int): Loop length in beats
+      optional transformations or nested events
+    """
     yaml_tag = "!midiloop"
     zone = "midiloops"
     zone_type = dict
@@ -515,7 +625,13 @@ class MidiLoop(_BankObject):
 
 
 class MidiFile(_BankObject):
+    """
+    MIDI file playback directive (``!midifile``).
 
+    Attributes:
+      file (str): Path to a .mid file
+      jumps (list[list[int]]): Optional programmatic redirection rules
+    """
     yaml_tag = "!midifile"
     zone = "midifiles"
     zone_type = dict
@@ -531,7 +647,14 @@ class MidiFile(_BankObject):
 
 
 class LadspaEffect(_BankObject):
+    """
+    LADSPA audio effect declaration (``!ladspafx``).
 
+    Attributes:
+      lib (str): LADSPA library basename
+      chan (list[int]): Input channel routing
+      audio: Logical/expanded port naming (“mono”, “stereo”, or explicit)
+    """
     yaml_tag = "!ladspafx"
     zone = "ladspafx"
     zone_type = dict

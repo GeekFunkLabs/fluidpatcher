@@ -1,19 +1,13 @@
-"""A performance-oriented patch interface for FluidSynth
+"""
+High-level API for live patch control.
 
-A Python interface for the FluidSynth software synthesizer that
-allows combination of instrument settings, effects, sequences,
-midi file players, etc. into performance patches that can be
-quickly switched while playing. Patches are written in a rich,
-human-readable YAML-based bank file format.
+This module coordinates interaction between the synth
+engine and Bank files. It handles:
 
-Includes:
-- pfluidsynth.py: ctypes bindings to libfluidsynth and wrapper classes
-    for FluidSynth's features/functions
-- bankfiles.py: extensions to YAML and functions for parsing bank files
-
-Requires:
-- yaml
-- libfluidsynth
+  - loading and saving of banks
+  - applying patch parameters (programs, controllers, volumes, etc.)
+  - direct interaction with the synth and router
+  - optional notification hooks for UI or CLI environments
 """
 
 from pathlib import Path
@@ -21,6 +15,7 @@ from pathlib import Path
 from yaml import safe_load, safe_dump
 
 from .bankfiles import Bank, SFPreset, MidiMessage, LadspaEffect
+from .bankfiles import BankValidationError
 from .config import CONFIG, PATCHCORD
 from .pfluidsynth import Synth, PLAYER_TYPES
 from .router import Router
@@ -38,41 +33,54 @@ CC_DEFAULTS[70:80] = [64] * 10  # sound controls
 CC_DEFAULTS[84] = 255           # portamento control
 CC_DEFAULTS[96:102] = [-1] * 6  # RPN/NRPN controls
 
-SYNTH_DEFAULTS = {'synth.chorus.active': 1, 'synth.reverb.active': 1,
-                  'synth.chorus.depth': 8.0, 'synth.chorus.level': 2.0,
-                  'synth.chorus.nr': 3, 'synth.chorus.speed': 0.3,
-                  'synth.reverb.damp': 0.0, 'synth.reverb.level': 0.9,
-                  'synth.reverb.room-size': 0.2, 'synth.reverb.width': 0.5,
-                  'synth.gain': 0.2}
+SYNTH_DEFAULTS = {"synth.chorus.active": 1, "synth.reverb.active": 1,
+                  "synth.chorus.depth": 8.0, "synth.chorus.level": 2.0,
+                  "synth.chorus.nr": 3, "synth.chorus.speed": 0.3,
+                  "synth.reverb.damp": 0.0, "synth.reverb.level": 0.9,
+                  "synth.reverb.room-size": 0.2, "synth.reverb.width": 0.5,
+                  "synth.gain": 0.2}
 
 
 class FluidPatcher:
-    """An interface for running FluidSynth using patches
-    
-    Provides methods for:
+    """
+    High-level controller for FluidSynth based on YAML patches.
 
-    - reading YAML-based bank files
-    - managing patches (apply, update, copy, delete)
-    - directly controlling the Synth by modifying fluidsettings,
-      manually adding router rules, and sending MIDI events
-    
+    FluidPatcher maintains a running FluidSynth instance, loads
+    YAML-defined banks, applies patches, and provides direct access
+    to MIDI routing, soundfonts, players, and synth settings.
+
+    Primary features:
+      - load and save YAML bank files
+      - apply or update patches on the fly
+      - load/unload soundfonts automatically
+      - add MIDI rules and send MIDI messages
+      - access FluidSynth settings directly
+
     Attributes:
-      cfg: Config object providing access to settings in the config file
-      bank: Bank object providing access to the active bank
+      bank (Bank):
+          Parsed representation of the currently loaded bank.
+
+      soundfonts (dict[path, SoundFont]):
+          Mapping of loaded soundfonts, keyed by file path.
     """
 
     def __init__(self, fluidsettings={}, fluidlog=None):
-        """Creates FluidPatcher and starts FluidSynth
-        
-        Starts fluidsynth using settings found in yaml-formatted `cfgfile`.
-        Settings passed via `fluidsettings` will override those in config file.
-        See https://www.fluidsynth.org/api/fluidsettings.xml for a
-        full list and explanation of settings. See documentation
-        for config file format.
-        
+        """
+        Create a FluidPatcher and start FluidSynth.
+
+        Initializes FluidSynth using default settings from
+        CONFIG["fluidsettings"], optionally overridden with values
+        supplied in `fluidsettings`.
+
+        If `fluidlog` is provided, it is passed to FluidSynth's
+        logging system. A value of -1 disables logging entirely.
+
         Args:
-          cfgfile (required): Path object pointing to config file
-          fluidsettings: dictionary of additional fluidsettings
+          fluidsettings (dict):
+              Additional FluidSynth settings that override defaults.
+
+          fluidlog (callable | -1 | None):
+              Callback accepting (level, message) or -1 to suppress logs.
         """
         self.bank = Bank("patches: {}")
         self._sfonts = {}
@@ -90,16 +98,24 @@ class FluidPatcher:
 
     @property
     def soundfonts(self):
-        """Dict of path: Soundfont for loaded soundfonts"""
-        return dict(self._sfonts)
+        """dict[path, SoundFont]: A snapshot of the loaded soundfonts."""
+        return self._sfonts
 
     def load_soundfont(self, path):
-        """Load a soundfont
-        
-        Not usually called by the user - apply_patch() automatically
-        loads/unloads all soundfonts needed for the current bank.
-        Returns a SoundFont object that can be iterated to discover
-        presets, and uses (bank, prog) indexing to return preset names.        
+        """
+        Load a soundfont if not already loaded.
+
+        Automatically resolves paths relative to CONFIG["sounds_path"].
+        Returns an existing SoundFont object if previously loaded.
+
+        Normally users do not call this directly - patches reference
+        soundfonts by filename and FluidPatcher loads them as needed.
+
+        Args:
+          path (str or Path): Filename or absolute path.
+
+        Returns:
+          SoundFont: iterable of presets, indexable by (bank, prog).
         """
         path = CONFIG["sounds_path"] / path
         if path.is_relative_to(CONFIG["sounds_path"]):
@@ -111,59 +127,73 @@ class FluidPatcher:
             self._sfonts[sf].file = sf
         return self._sfonts[sf]
 
-    def load_bank(self, bankfile='', raw=''):
-        """Load bank from a file or text
+    def load_bank(self, bankfile="", raw=""):
+        """
+        Load a bank from a YAML file or raw text.
 
-        Parses a yaml stream from a string or file and stores as a
-        Bank object. If successfully loaded from a file, updates
-        'bankfile' in the config file. Resets the synth, updates paths
-        in the Bank object, and applies values from the 'init' section
-        of the bank.
+        Parses YAML into a Bank object, resolves #include directives,
+        resets the synth, and applies initialization data defined in
+        the bank's root section (init.fluidsettings, init.messages, etc).
 
         Args:
-          file: Path or str, absolute or relative to 'bankpath'
-          raw: string to parse directly
+          bankfile (str or Path):
+              Filename relative to CONFIG["banks_path"], or absolute.
+
+          raw (str):
+              YAML text to load directly, bypassing disk I/O.
+
+        Raises:
+          BankValidationError: if a referenced include file is missing
+                               or other semantic validation fails.
         """
-        def read_bank(files, raw='', indent=0):
-            text = ''
+        def read_bank(files, raw="", indent=0):
+            text = ""
             if files:
-                raw = (CONFIG["banks_path"] / files[-1]).read_text()
+                try:
+                    raw = (CONFIG["banks_path"] / files[-1]).read_text()
+                except FileNotFoundError as e:
+                    raise BankValidationError(
+                        f"No such file {files[-1]}"
+                    )
             for line in raw.splitlines(keepends=True):
-                if '#include' in line:
-                    i = line.index('#include')
+                if "#include" in line:
+                    i = line.index("#include")
                     f = line[i + 9:].rstrip()
                     if f not in files:
                         if line[:i].isspace():
                             line = read_bank(files + [f], indent=i)
                         else:
                             line = line[:i] + read_bank(files + [f])
-                text += ' ' * indent + line
+                text += " " * indent + line
             return text
-
-        self.bank = Bank(read_bank([bankfile], raw))
-
+        self.bank = Bank(read_bank(
+            [bankfile] if bankfile else [], raw
+        ))
         self._synth.reset()
         for zone in self.bank:
-            for midi in zone.get('midifiles', {}).values():
+            for midi in zone.get("midifiles", {}).values():
                 midi.file = CONFIG["midi_path"] / midi.file
-            for fx in zone.get('ladspafx', {}).values():
+            for fx in zone.get("ladspafx", {}).values():
                 fx.lib = CONFIG["ladspa_path"] / fx.lib
-        init = self.bank.root.get('init', {})
-        for name, val in (SYNTH_DEFAULTS | init.get('fluidsettings', {})).items():
+        init = self.bank.root.get("init", {})
+        for name, val in (SYNTH_DEFAULTS | init.get("fluidsettings", {})).items():
             self._synth[name] = val
-        for msg in init.get('messages', []):
+        for msg in init.get("messages", []):
             self.send_midimessage(msg)
 
-    def save_bank(self, file, raw=''):
-        """Save a bank file
-        
-        Saves the active bank to `bankfile`. If `raw` is provided,
-        it is parsed as the new bank and its exact contents are
-        written to the file.
+    def save_bank(self, file, raw=""):
+        """
+        Write the current bank contents to disk.
+
+        If `raw` is supplied, it is parsed as YAML and stored before
+        saving, ensuring that text is written back unchanged.
 
         Args:
-          file (required): Path or str, absolute or relative to `bankdir`
-          raw: exact text to save
+          file (str or Path):
+              Output filename relative to CONFIG["banks_path"].
+
+          raw (str):
+              Exact YAML text to store.
         """
         if raw:
             self.bank = Bank(raw)
@@ -172,16 +202,20 @@ class FluidPatcher:
         (CONFIG["banks_path"] / file).write_text(raw)
 
     def apply_patch(self, patch):
-        """Apply the settings in a patch to the synth
+        """
+        Apply a named patch from the loaded bank.
 
-        First checks that all soundfonts required by the bank are
-        loaded. This should only happen when the bank is loaded, or
-        possibly when patches are modified, added, or deleted. Next,
-        applies all settings in the root level of the bank, followed
-        by those specified in the patch.
+        This method:
+          - loads and unloads soundfonts to match bank requirements
+          - selects programs for every MIDI channel
+          - applies FluidSynth settings
+          - configures sequence/file/arpeggio players
+          - rebuilds the LADSPA FX chain as needed
+          - installs MIDI router rules
+          - emits any startup MIDI messages
 
         Args:
-          patch (required): name of the patch to apply
+          patch (str): The patch name to activate.
         """
         # load all needed soundfonts at once to speed up patches
         # free memory of unneeded soundfonts
@@ -191,13 +225,13 @@ class FluidPatcher:
         for sf in self.bank.soundfonts - set(self._sfonts):
             self.load_soundfont(sf)
         # select presets
-        for chan in range(1, self._synth['synth.midi-channels'] + 1):
+        for chan in range(1, self._synth["synth.midi-channels"] + 1):
             if p := self.bank[patch][chan]:
                 self._synth.program_select(chan, self._sfonts[p.file], p.bank, p.prog)
             else:
                 self._synth.program_unset(chan)
         # fluidsettings
-        for name, val in self.bank[patch]['fluidsettings'].items():
+        for name, val in self.bank[patch]["fluidsettings"].items():
             self._synth[name] = val
         # players (e.g. sequences, arpeggios, midiloops, midifiles)
         for ptype in PLAYER_TYPES:
@@ -210,46 +244,47 @@ class FluidPatcher:
                     self._synth.player_add(ptype, name, player)
                     self._players[ptype][name] = player
         # ladspa effects
-        if set(self.bank[patch]['ladspafx'].values()) != self._ladspafx:
+        if set(self.bank[patch]["ladspafx"].values()) != self._ladspafx:
             self._ladspafx = set()
             self._synth.fxchain_clear()
-            for name, fx in (self.bank[patch]['ladspafx']).items():
+            for name, fx in (self.bank[patch]["ladspafx"]).items():
                 self._ladspafx.add(fx)
                 self._synth.fxchain_add(name, fx)
             if self._ladspafx and PATCHCORD:
                 self._synth.fxchain_add(
-                    '_patchcord',
+                    "_patchcord",
                     LadspaEffect(lib=PATCHCORD)
                 )
                 self._synth.fxchain_connect()
         # midi rules
         self._router.reset()
-        for rule in self.bank[patch]['rules']:
+        for rule in self.bank[patch]["rules"]:
             self.add_midirule(rule)
         # midi messages
-        for msg in self.bank[patch]['messages']:
+        for msg in self.bank[patch]["messages"]:
             self.send_midimessage(msg)
 
     def update_patch(self, name):
-        """Update a patch from the current synth state
+        """
+        Write current synth state back into a patch.
 
-        Instruments and controller values can be changed by program
-        change (PC) and continuous controller (CC) messages. This
-        function reads the current value of all CCs and and presets
-        on all MIDI channels and updates the indicated patch with
-        those values.
+        Reads all active MIDI CCs and program selections on every
+        channel, and stores any non-default values into the patch’s
+        'messages' section and program slots.
+
+        Useful for building patches interactively from a controller.
 
         Args:
-          name (required): name of the patch to update
+          name (str): Patch name to modify in-place.
         """
-        self.bank.patch[name]['messages'] = []
+        self.bank.patch[name]["messages"] = []
         sfonts = {self._sfonts[sf].id: sf for sf in self._sfonts}
-        for chan in range(1, self._synth['synth.midi-channels'] + 1):
+        for chan in range(1, self._synth["synth.midi-channels"] + 1):
             for cc, default in enumerate(CC_DEFAULTS):
                 val = self._synth.get_cc(chan, cc)
                 if val != default and default != -1 :
-                    self.bank.patch[name]['messages'].append(
-                        MidiMessage(type='cc', chan=chan, num=cc, val=val)
+                    self.bank.patch[name]["messages"].append(
+                        MidiMessage(type="cc", chan=chan, num=cc, val=val)
                     )
             id, bank, prog = self._synth.program_info(chan)
             if id not in sfonts:
@@ -259,45 +294,63 @@ class FluidPatcher:
                 self.bank.patch[name][chan] = SFPreset(sfonts[id], bank, prog)
 
     def add_midirule(self, rule):
-        """Add a midi rule to the Synth
+        """
+        Install a live router rule.
 
-        Directly add a midi rule to the Synth. This rule is applied
-        after the patch rules. The rule is not added to the bank, and
-        disappears if a new patch is applied.
+        Adds a MIDI rule directly to the router. These rules are
+        not stored in the active bank and disappear when patches
+        are re-applied.
 
         Args:
-          rule: midi rule object
+          rule (MidiRule): A routing/transformation rule.
         """
         self._router.add(rule)
 
     def send_midimessage(self, msg):
-        """Send a MIDI message to the synth, following MIDI rules
+        """
+        Send a MIDI message through the router and into the synth.
 
         Args:
-          msg: midi message object
+          msg (MidiMessage):
+              MIDI message object.
         """
         self._router.handle_midi(msg)
 
     def fluidsetting(self, name):
-        """Get the value of a fluidsynth setting
+        """
+        Retrieve a FluidSynth setting.
 
         Args:
-          name (required): the fluidsynth setting
+          name (str): A FluidSynth setting name (e.g. 'synth.gain').
+
+        Returns:
+          Any: Current value of the setting.
         """
         return self._synth[name]
         
     def fluidsetting_set(self, name, val):
-        """Set a fluidsynth setting
-        
-        Only settings with a 'synth' prefix are allowed
-        
+        """
+        Modify a FluidSynth setting.
+
+        Only settings whose name begins with 'synth.' are allowed.
+
         Args:
-          name (required): the fluidsynth setting
-          val (required): the value to set
+          name (str): Setting name.
+          val (Any): Desired value.
         """
         self._synth[name] = val
 
     def set_callback(self, func):
+        """
+        Install a callback to observe MIDI events.
+
+        The callback is invoked with decoded MIDI events after
+        routing but before they reach the synth.
+
+        Args:
+          func (callable | None):
+              Function taking a single event, or None to disable.
+        """
         if func:
             self._router.callback = func
         else:

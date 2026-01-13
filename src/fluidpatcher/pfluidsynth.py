@@ -1,4 +1,5 @@
-"""ctypes bindings and interface classes for fluidsynth
+"""
+ctypes bindings and interface classes for fluidsynth
 """
 from ctypes.util import find_library
 from ctypes import *
