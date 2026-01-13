@@ -154,9 +154,13 @@ class BankEditorApp(tk.Tk):
     def set_status(self, msg: str):
         self.status_left.config(text=msg.replace("\n", " "))
 
-
 fp = fluidpatcher.FluidPatcher()
 
-app = BankEditorApp()
-app.mainloop()
+def main():
+    app = BankEditorApp()
+    app.mainloop()
+
+if __name__ == "main":
+    main()
+
 
