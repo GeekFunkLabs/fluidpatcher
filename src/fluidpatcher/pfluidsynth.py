@@ -334,11 +334,11 @@ class MidiFile:
         self.lasttick = 0
         self.seektick = None
         if getattr(mfile, "route", 0):
-            # route events directly to the fluidsynth router (default)
+            # send midifile events to the router first (experimental)
             self.frouter_handler = fl_eventcallback(FS.fluid_midi_router_handle_midi_event)
             frouter = FS.new_fluid_midi_router(synth.st, self.frouter_handler, synth.frouter)
         else:
-            # apply custom routing and callbacks to all events (experimental)
+            # send midifile events directly to the synth (default)
             self.frouter_handler = fl_eventcallback(FS.fluid_synth_handle_midi_event)
             frouter = FS.new_fluid_midi_router(synth.st, self.frouter_handler, synth.fsynth)
         FS.fluid_midi_router_clear_rules(frouter)
@@ -666,7 +666,7 @@ class Synth:
                 self.players[ptype][name] = Arpeggio(self, player)
             elif ptype == "midiloops":
                 self.players[ptype][name] = MidiLoop(self, player)
-            elif ptype == "arpeggios":
+            elif ptype == "midifiles":
                 self.players[ptype][name] = MidiFile(self, player)
     
     def player_remove(self, ptype, name):
