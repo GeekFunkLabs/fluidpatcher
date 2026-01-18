@@ -21,7 +21,7 @@ import yaml
 TYPE_ALIAS = {}
 for alts in [
     ["note", "note_on", "nt"],
-    ["cc", "control_change"],
+    ["ctrl", "control_change", "cc"],
     ["prog", "program_change", "pc"],
     ["pbend", "pitchwheel", "pb"],
     ["cpress", "aftertouch", "cp"],
@@ -204,6 +204,8 @@ class Bank:
         Raw patch definitions (unmerged).
       patches (list[str]):
         Patch names in declaration order.
+      soundfonts (list[SFPreset]):
+        Dynamic list of soundfont files required by patches.
 
     Notes:
       Raises BankSyntaxError if raw YAML parsing fails.
@@ -224,7 +226,6 @@ class Bank:
 
     @property
     def soundfonts(self):
-        """Set of all soundfonts used by patches"""
         sfonts = set()
         for zone in self:
             for item in zone.values():
@@ -329,7 +330,7 @@ class MidiMessage(yaml.YAMLObject):
     sysex payloads, and several shorthand forms.
 
     Attributes:
-      type (str): Message type (“note”, “cc”, “sysex”, ...)
+      type (str): Message type (“note”, “ctrl”, “sysex”, ...)
       chan (int): Channel number (where applicable)
       num (int): Note/controller number (where applicable)
       val (int): Value (velocity, CC value, pitch bend, etc.)
@@ -390,6 +391,32 @@ class MidiMessage(yaml.YAMLObject):
 
     def __repr__(self):
         return self._text
+
+
+class _FlowList(list, yaml.YAMLObject):
+    """
+    Inline comma-separated list of YAML-embedded objects (``!flowlist``).
+
+    Useful for compact rule/message declaration syntax.
+    """
+    yaml_tag = "!flowlist"
+    yaml_loader = BankLoader
+    yaml_dumper = BankDumper
+    yaml_regex = re.compile(r".*?,")
+
+    @classmethod
+    def from_yaml(cls, loader, node):
+        text = loader.construct_scalar(node)
+        obj = cls([yaml.load(e, Loader=BankLoader) for e in text.split(",")])
+        obj.text = text
+        return obj
+
+    @classmethod
+    def to_yaml(cls, dumper, data):
+        return dumper.represent_scalar(cls.yaml_tag, str(data))
+
+    def __repr__(self):
+        return self.text
 
 
 class _BankObject(yaml.YAMLObject):
@@ -530,32 +557,6 @@ class MidiRule(_BankObject):
         return ", ".join([f"{k}: {v}" for k, v in self._pars.items()])
 
 
-class _FlowList(list, yaml.YAMLObject):
-    """
-    Inline comma-separated list of YAML-embedded objects (``!flowlist``).
-
-    Useful for compact rule/message declaration syntax.
-    """
-    yaml_tag = "!flowlist"
-    yaml_loader = BankLoader
-    yaml_dumper = BankDumper
-    yaml_regex = re.compile(r".*?,")
-
-    @classmethod
-    def from_yaml(cls, loader, node):
-        text = loader.construct_scalar(node)
-        obj = cls([yaml.load(e, Loader=BankLoader) for e in text.split(",")])
-        obj.text = text
-        return obj
-
-    @classmethod
-    def to_yaml(cls, dumper, data):
-        return dumper.represent_scalar(cls.yaml_tag, str(data))
-
-    def __repr__(self):
-        return self.text
-
-
 class Sequence(_BankObject):
     """
     Step-sequenced event container (``!sequence``).
@@ -680,14 +681,14 @@ def str_presenter(dumper, data):
 
 yaml.add_representer(str, str_presenter, Dumper=BankDumper)
 
+for cls in (SFPreset, MidiMessage, _FlowList):
+    BankLoader.add_implicit_resolver(cls.yaml_tag, cls.yaml_regex, None)
+    BankDumper.add_implicit_resolver(cls.yaml_tag, cls.yaml_regex, None)
+
 for cls in _BankObject.__subclasses__():
     path = ["patches", (dict, None), cls.zone, (cls.zone_type, None)]
     BankLoader.add_path_resolver(cls.yaml_tag, path, dict)
     BankDumper.add_path_resolver(cls.yaml_tag, path, dict)
-    BankLoader.add_path_resolver(cls.yaml_tag, path[-2:], dict)
-    BankDumper.add_path_resolver(cls.yaml_tag, path[-2:], dict)
-
-for cls in (SFPreset, MidiMessage, _FlowList):
-    BankLoader.add_implicit_resolver(cls.yaml_tag, cls.yaml_regex, None)
-    BankDumper.add_implicit_resolver(cls.yaml_tag, cls.yaml_regex, None)
+    BankLoader.add_path_resolver(cls.yaml_tag, path[2:], dict)
+    BankDumper.add_path_resolver(cls.yaml_tag, path[2:], dict)
 

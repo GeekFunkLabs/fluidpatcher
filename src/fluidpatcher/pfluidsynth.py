@@ -16,8 +16,8 @@ FLUID_PLAYER_TEMPO_EXTERNAL_MIDI = 2
 FLUID_PLAYER_PLAYING = 1
 FLUID_PLAYER_DONE = 3
 
-RULE_TYPES = "note", "cc", "prog", "pbend", "cpress", "kpress"
-MIDI_TYPES = {"noteoff": 0x80, "note": 0x90, "kpress": 0xa0, "cc": 0xb0,
+RULE_TYPES = "note", "ctrl", "prog", "pbend", "cpress", "kpress"
+MIDI_TYPES = {"noteoff": 0x80, "note": 0x90, "kpress": 0xa0, "ctrl": 0xb0,
     "prog": 0xc0, "cpress": 0xd0, "pbend": 0xe0, "sysex": 0xf0,
     "clock": 0xf8, "start": 0xfa, "continue": 0xfb, "stop": 0xfc}
 PLAYER_TYPES = "sequences", "arpeggios", "midiloops", "midifiles"
@@ -49,7 +49,7 @@ class FluidMidiEvent:
             self.chan = FS.fluid_midi_event_get_channel(c_void_p(e)) + 1
             self.num = FS.fluid_midi_event_get_control(c_void_p(e))
             self.val = 0
-        elif self.type in ("note", "kpress", "cc"):
+        elif self.type in ("note", "kpress", "ctrl"):
             self.chan = FS.fluid_midi_event_get_channel(c_void_p(e)) + 1
             self.num = FS.fluid_midi_event_get_control(c_void_p(e))
             self.val = FS.fluid_midi_event_get_value(c_void_p(e))
@@ -565,9 +565,9 @@ class Synth:
         FS.fluid_synth_get_program(self.fsynth, chan - 1, byref(i), byref(bank), byref(prog))
         return i.value, bank.value, prog.value
 
-    def get_cc(self, chan, ctrl):
+    def get_cc(self, chan, num):
         val = c_int()
-        FS.fluid_synth_get_cc(self.fsynth, chan - 1, ctrl, byref(val))
+        FS.fluid_synth_get_cc(self.fsynth, chan - 1, num, byref(val))
         return val.value
 
     def router_clear(self):
@@ -612,7 +612,7 @@ class Synth:
             if event.type in ("prog", "cpress", "pbend"):
                 FS.fluid_midi_event_set_channel(c_void_p(fmevent), int(event.chan - 1))
                 FS.fluid_midi_event_set_control(c_void_p(fmevent), int(event.val))
-            elif event.type in ("note", "kpress", "cc"):
+            elif event.type in ("note", "kpress", "ctrl"):
                 FS.fluid_midi_event_set_channel(c_void_p(fmevent), int(event.chan - 1))
                 FS.fluid_midi_event_set_control(c_void_p(fmevent), int(event.num))
                 FS.fluid_midi_event_set_value(c_void_p(fmevent), int(event.val))
@@ -628,11 +628,11 @@ class Synth:
         FS.fluid_event_set_source(c_void_p(fevent), c_short(id))
         FS.fluid_event_set_dest(c_void_p(fevent), c_short(self.id))
         chan, val = int(event.chan - 1), int(event.val)
-        if event.type in ("note", "cc", "kpress"):
+        if event.type in ("note", "ctrl", "kpress"):
             num = int(event.num)
         if event.type == "note":
             FS.fluid_event_noteon(c_void_p(fevent), chan, num, val)
-        elif event.type == "cc":
+        elif event.type == "ctrl":
             FS.fluid_event_control_change(c_void_p(fevent), chan, num, val)
         elif event.type == "prog":
             FS.fluid_event_program_change(c_void_p(fevent), chan, val)
