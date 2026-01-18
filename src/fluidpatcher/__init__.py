@@ -17,7 +17,7 @@ Typical usage:
 
     fp = FluidPatcher()
     fp.load_bank("mybank.yaml")
-    fp.apply_patch("warm_pad")
+    fp.apply_patch("Warm Pad")
 
 Requirements:
   - PyYAML

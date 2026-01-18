@@ -9,12 +9,17 @@ names:
   legato: 68
 
 patches:
+
   Justpiano:
+    info: simple piano patch with reverb control
+
     1: test.sf2:000:004
     rules:
     - {type: cc, num: slider1, val: 0-127=0-1, fluidsetting: synth.reverb.room-size}
 
   Split Decision:
+    info: keyboard split with program stepping via CC
+
     2: test.sf2:000:033
     3: test.sf2:000:004
     rules:
@@ -24,6 +29,8 @@ patches:
     - {type: cc=prog, chan: 1=3, num: pad2, val: 1-127=0-7, counter: prog1}
 
   Hacksynth:
+    info: synth with pitch bend > filter cutoff and delay effect
+
     4: ModSynth_R1.sf2:000:000
     rules:
     - {type: note, chan: 1=4, val: 0}
@@ -41,6 +48,8 @@ patches:
     - cc:4:brightness:0
 
   Drumbox:
+    info: separately triggered drum and bass sequences
+
     1: test.sf2:000:090
     3: test.sf2:000:033
     10: test.sf2:128:000
@@ -63,7 +72,9 @@ patches:
     - {type: cc, num: pad1, val: 1-127=1, tap: drums}
     - {type: cc, num: pad1, val: 1-127=1, tap: bass}
 
-  Robojam:
+  Robojam: 
+    info: sequencer with multiple looping patterns
+  
     5: test.sf2:000:081
     6: test.sf2:000:040
     7: test.sf2:000:005
@@ -107,9 +118,11 @@ patches:
     - {type: cc, num: pad2, val: 127=6, play: basicwave}
 
   Lazy Hands:
+    info: mapping arpeggio styles to key ranges
+  
     3: test.sf2:000:004
     5: test.sf2:000:007
-    6: test.sf2:000:000
+    6: test.sf2:000:067
     arpeggios:
       mirror:
         style: both
@@ -136,6 +149,8 @@ patches:
     - {type: cc, num: slider3, val: 0-127=60-240, tempo: chords}
 
   Funky Tracks:
+    info: saxophone with multi-part MIDI file backing tracks
+
     1: test.sf2:000:067
     5: test.sf2:000:004
     6: test.sf2:000:033
@@ -154,6 +169,8 @@ patches:
     - {type: cc, num: slider3, val: 0-127=60-240, tempo: funk}
     
   FluidyLoops:
+    info: electric piano with midi looper
+  
     1: test.sf2:000:005
     midiloops:
       test:

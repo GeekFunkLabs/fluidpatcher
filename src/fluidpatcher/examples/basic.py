@@ -12,10 +12,9 @@ from fluidpatcher import FluidPatcher, CONFIG
 fp = FluidPatcher()
 
 # load a bank
-bank_file = CONFIG["banks_path"] / "testbank.yaml"
-fp.load_bank(bank_file)
+fp.load_bank("testbank.yaml")
 
-print(f"Loaded bank: {bank_file.name}")
+print(f"Loaded bank: testbank.yaml")
 print("Patches:")
 for i, name in enumerate(fp.bank.patches, start=1):
     print(f"{i:>5}) {name}")

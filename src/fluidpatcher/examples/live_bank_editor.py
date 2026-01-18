@@ -69,7 +69,7 @@ class BankEditorApp(tk.Tk):
         self.text.configure(yscrollcommand=yscroll.set,
                             xscrollcommand=xscroll.set)
         bar = ttk.Frame(self)
-        bar.grid(row=1, column=0, sticky="ew")
+        bar.grid(row=2, column=0, columnspan=2, sticky="ew")
         bar.columnconfigure(0, weight=1)
         self.status_left = ttk.Label(bar, text="Ready", anchor="w")
         self.status_right = ttk.Label(bar, text="Ln 1, Col 1", anchor="e")
@@ -93,6 +93,7 @@ class BankEditorApp(tk.Tk):
         content = self.lastfile.read_text()
         self.text.delete("1.0", "end")
         self.text.insert("1.0", content)
+        self._update_cursor_pos()
 
     def save_file(self):
         f = filedialog.asksaveasfilename(
