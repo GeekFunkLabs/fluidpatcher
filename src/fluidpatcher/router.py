@@ -141,13 +141,20 @@ class Router:
         for rule in [r for r in self.rules if r.applies(event)]:
             newevent = rule.apply(event)
             if hasattr(rule, "counter"):
+                wrap = getattr(rule, "wrap", 0)
                 if rule.counter not in self.counters:
                     self.counters[rule.counter] = getattr(rule, "startval", rule.val.tomin)
                 self.counters[rule.counter] += getattr(rule, "inc", 1)
                 if self.counters[rule.counter] > rule.val.tomax:
-                    self.counters[rule.counter] = rule.val.tomin
+                    if wrap:
+                        self.counters[rule.counter] = rule.val.tomin
+                    else:
+                        self.counters[rule.counter] = rule.val.tomax
                 elif self.counters[rule.counter] < rule.val.tomin:
-                    self.counters[rule.counter] = rule.val.tomax
+                    if wrap:
+                        self.counters[rule.counter] = rule.val.tomax
+                    else:
+                        self.counters[rule.counter] = rule.val.tomin
                 newevent.val = self.counters[rule.counter]
             if hasattr(rule, "lsb"):
                 lsbevent = RouterEvent(newevent, rule)
