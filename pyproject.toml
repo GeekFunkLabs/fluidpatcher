@@ -15,7 +15,7 @@ requires-python = ">=3.10"
 dependencies = ["PyYAML"]
 
 [project.scripts]
-fpatcher-editor = "mypkg.examples.live_bank_editor:main"
+fpatcher-editor = "fluidpatcher.examples.live_bank_editor:main"
 
 [tool.setuptools.package-data]
 "fluidpatcher.data" = ["*.yaml", "banks/*", "midi/*.mid", "sounds/*.sf2"]
