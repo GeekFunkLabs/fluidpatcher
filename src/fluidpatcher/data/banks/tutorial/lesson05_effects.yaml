@@ -1,0 +1,20 @@
+names:
+  reverb: 91
+  chorus: 93
+  slider1: 12
+  slider2: 13
+
+init:
+  messages:
+  - cc:1:reverb:0
+
+messages:
+- cc:1:chorus:0
+rules:
+- {type: note}
+- {type: cc, num: slider1=reverb}
+- {type: cc, num: slider2=chorus}
+
+patches:
+  EPiano:
+    1: test.sf2:000:004

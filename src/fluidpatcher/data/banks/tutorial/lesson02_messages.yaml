@@ -1,0 +1,28 @@
+names:
+  # aliases provide clarity/portability
+  reverb: 91
+  chorus: 93
+  slider1: 12
+  slider2: 13
+
+init:
+  # items here are applied once at bank load
+  messages:
+  - cc:1:reverb:110
+
+messages:
+- cc:1:chorus:0
+  # sent before patch messages, each time a patch is applied
+rules:
+- {type: note}
+- {type: cc, num: slider1=reverb}
+- {type: cc, num: slider2=chorus}
+
+patches:
+  EPiano:
+    1: test.sf2:000:004
+  Sax:
+    1: test.sf2:000:006
+    messages:
+    - cc:1:chorus: 99
+      # sends after root-level messages
