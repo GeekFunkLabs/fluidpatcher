@@ -338,7 +338,7 @@ class MidiMessage(yaml.YAMLObject):
     yaml_tag = "!midimsg"
     yaml_loader = BankLoader
     yaml_dumper = BankDumper
-    yaml_regex = re.compile(rf"^({"|".join(TYPE_ALIAS)}):\S*$")
+    yaml_regex = re.compile(rf"^({'|'.join(TYPE_ALIAS)}):\S*$")
     zone = "messages"
     zone_type = list
 
@@ -359,7 +359,7 @@ class MidiMessage(yaml.YAMLObject):
     @classmethod
     def from_yaml(cls, loader, node):
         text = loader.construct_scalar(node)
-        match text.split(":"):
+        match [x for x in text.split(":") if x]:
             case ["sysex", *data]:
                 pars = dict(type="sysex", val=data)
             case [type, chan, num, val]:
@@ -408,7 +408,7 @@ class _FlowList(list, yaml.YAMLObject):
     def from_yaml(cls, loader, node):
         text = loader.construct_scalar(node)
         obj = cls([yaml.load(e, Loader=BankLoader) for e in text.split(",")])
-        obj.text = text
+        obj._text = text
         return obj
 
     @classmethod
@@ -416,7 +416,7 @@ class _FlowList(list, yaml.YAMLObject):
         return dumper.represent_scalar(cls.yaml_tag, str(data))
 
     def __repr__(self):
-        return self.text
+        return self._text
 
 
 class _BankObject(yaml.YAMLObject):
@@ -512,7 +512,7 @@ class MidiRule(_BankObject):
     Attributes:
       type, totype: Input and output message types
       chan, num, val: Range specifications or transforms
-      arbitrary additional parameters for custom objects
+      arbitrary additional parameters for custom functionality
     """
     ftroute = re.compile(r"^({0})?-?({0})?=?(-?{0})?-?(-?{0})?$".format(r"[\w\d\#\.]+"))
     maroute = re.compile(r"^({0})-({0})\*(-?{0})([+-]{0})$".format(r"[\w\d\#\.]+"))
@@ -552,6 +552,8 @@ class MidiRule(_BankObject):
                 tomin = min * mul + add
                 tomax = max * mul + add
                 setattr(self, par, _Route(min, max, tomin, tomax, mul, add))
+        if hasattr(self, "lsb"):
+            self.lsb = resolve(self.lsb, names)
 
     def __str__(self):
         return ", ".join([f"{k}: {v}" for k, v in self._pars.items()])
@@ -642,6 +644,8 @@ class MidiFile(_BankObject):
         if not hasattr(self, "file"):
             raise BankValidationError("MidiFile missing file")
         if hasattr(self, "jumps"):
+            if isinstance(self.jumps, str):
+                self.jumps = [self.jumps]
             self.jumps = [
                 [int(t) for t in s.split(">")] for s in self.jumps
             ]

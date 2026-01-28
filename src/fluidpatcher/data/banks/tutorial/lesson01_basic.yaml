@@ -1,3 +1,7 @@
+rules:
+# these apply to all patches
+- {type: note}
+- {type: ctrl, chan: 1-16=1-16}
 patches:
   Single:
     1: test.sf2:000:004
@@ -13,10 +17,6 @@ patches:
     3: test.sf2:000:033
     # channel 1 would be triggered by all notes due to root rule
     rules:
-    - {type: note, chan: 1=2, num: F4-G9}
-    - {type: note, chan: 1=3, num: A0-E4}
-rules:
-# these apply to all patches
-- {type: note}
-  # omitted parameters assume defaults
+    - {type: note, chan: 1=2, num: F4-127}
+    - {type: note, chan: 1=3, num: E1-E4=E0-E3}
 

@@ -28,22 +28,23 @@ fp.bank.root["rules"] = [
     MidiRule(type="note", chan=MIDI_CHANNEL)
 ]
 
-patch_name = ""
+current_patch = ""
 # main loop
 while True:
     print("Patches:")
     for i, name in enumerate(fp.bank.patches, start=1):
-        print(">" if name == patch_name else " ", end="")
+        print(">" if name == current_patch else " ", end="")
         print(f"{i:>5}) {name}")
 
     cmd = input(
-        "# = select patch | a = add patch | d = delete patch | q = quit: "
+        "# = select patch | a = add patch | c = change preset | "
+        "d = delete patch | q = quit: "
     ).lower()
 
     if cmd.isdigit():
         if 0 < int(cmd) <= len(fp.bank.patches):
-            patch_name = fp.bank.patches[int(cmd) - 1]
-            fp.apply_patch(patch_name)
+            current_patch = fp.bank.patches[int(cmd) - 1]
+            fp.apply_patch(current_patch)
         else:
             print("Patch number out of range")
 
@@ -54,7 +55,10 @@ while True:
         elif name in fp.bank.patches:
             print(f"Patch {name} already exists")
             continue
+        # add the patch
+        fp.bank.patch[name] = {}
 
+        # list available presets
         print("preset bank:prog name")
         print("====== ========= ====")
         for i, (bank, prog) in enumerate(soundfont, start=1):
@@ -65,15 +69,17 @@ while True:
             i = int(p) - 1
             if 0 <= i < len(soundfont):
                 bank, prog = list(soundfont)[i]
-                fp.bank.patch[name] = {
-                    MIDI_CHANNEL: SFPreset(soundfont.file, bank, prog)
-                }
+                # modify the patch
+                fp.bank.patch[name][MIDI_CHANNEL] = SFPreset(
+                    soundfont.file, bank, prog
+                )
             else:
                 print("Preset number out of range")
 
     elif cmd == "d":
         name = input("Enter name of patch delete: ")
         if name in fp.bank.patches:
+            # delete the patch
             del fp.bank.patch[name]
         else:
             print(f"Patch name '{name}' not found")

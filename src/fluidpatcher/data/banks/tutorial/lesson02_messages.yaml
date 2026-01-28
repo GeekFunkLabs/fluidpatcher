@@ -13,8 +13,11 @@ init:
 messages:
 - cc:1:chorus:0
   # sent before patch messages, each time a patch is applied
+
 rules:
 - {type: note}
+- {type: cc, num: reverb}
+- {type: cc, num: chorus}
 - {type: cc, num: slider1=reverb}
 - {type: cc, num: slider2=chorus}
 
@@ -24,5 +27,5 @@ patches:
   Sax:
     1: test.sf2:000:006
     messages:
-    - cc:1:chorus: 99
+    - cc:1:chorus:99
       # sends after root-level messages

@@ -20,6 +20,8 @@ import shutil
 
 import yaml
 
+from .bankfiles import LadspaEffect
+
 
 def load_config():
     """
@@ -89,9 +91,10 @@ arch = platform.machine()
 prebuilt_path = res.files("fluidpatcher._ladspa") / f"prebuilt/linux-{arch}/patchcord.so"
 
 if patchcord.exists():
-    PATCHCORD = patchcord
+    PATCHCORD = {"_patchcord": LadspaEffect(lib=patchcord)}
 elif prebuilt_path.exists():
-    PATCHCORD = prebuilt_path
+    PATCHCORD = {"_patchcord": LadspaEffect(lib=prebuilt_path)}
 else:
-    PATCHCORD = None
+    PATCHCORD = {}
+    CONFIG["fluidsettings"]["synth.audio-groups"] = 1
 

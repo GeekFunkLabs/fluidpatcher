@@ -1,7 +1,6 @@
-current_bank: testbank.yaml
 fluidsettings:
   midi.autoconnect: 1
   player.reset-synth: 0
   synth.ladspa.active: 1
-  synth.audio-groups: 4
+  synth.audio-groups: 16
 

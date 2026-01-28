@@ -14,7 +14,7 @@ from pathlib import Path
 
 from yaml import safe_load, safe_dump
 
-from .bankfiles import Bank, SFPreset, MidiMessage, LadspaEffect
+from .bankfiles import Bank, SFPreset, MidiMessage
 from .bankfiles import BankValidationError
 from .config import CONFIG, PATCHCORD
 from .pfluidsynth import Synth, PLAYER_TYPES
@@ -85,7 +85,6 @@ class FluidPatcher:
         self.bank = Bank("patches: {}")
         self._sfonts = {}
         self._players = {ptype: {} for ptype in PLAYER_TYPES}
-        self._ladspafx = set()
         self._router = Router(fluid_default=False, fluid_router=False)
         if fluidlog == -1:
             fluidlog = lambda lev, msg: None
@@ -244,18 +243,12 @@ class FluidPatcher:
                     self._synth.player_add(ptype, name, player)
                     self._players[ptype][name] = player
         # ladspa effects
-        if set(self.bank[patch]["ladspafx"].values()) != self._ladspafx:
-            self._ladspafx = set()
+        wanted = self.bank[patch]["ladspafx"] | PATCHCORD
+        if set(wanted) != set(self._synth.ladspafx):
             self._synth.fxchain_clear()
-            for name, fx in (self.bank[patch]["ladspafx"]).items():
-                self._ladspafx.add(fx)
+            for name, fx in wanted.items():
                 self._synth.fxchain_add(name, fx)
-            if self._ladspafx and PATCHCORD:
-                self._synth.fxchain_add(
-                    "_patchcord",
-                    LadspaEffect(lib=PATCHCORD)
-                )
-                self._synth.fxchain_connect()
+            self._synth.fxchain_connect()
         # midi rules
         self._router.reset()
         for rule in self.bank[patch]["rules"]:
@@ -308,13 +301,13 @@ class FluidPatcher:
 
     def send_midimessage(self, msg):
         """
-        Send a MIDI message through the router and into the synth.
+        Send a MIDI message directly to the synth.
 
         Args:
           msg (MidiMessage):
               MIDI message object.
         """
-        self._router.handle_midi(msg)
+        self._synth.send_midievent(msg)
 
     def fluidsetting(self, name):
         """

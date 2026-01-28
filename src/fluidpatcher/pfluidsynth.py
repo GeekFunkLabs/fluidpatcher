@@ -152,10 +152,10 @@ class Sequence(SeqClient):
                         c_void_p(self.synth.fseq), c_short(-1),
                         c_short(self.id), FLUID_SEQ_TIMER)
             elif pos > 0:
-                self.next = (pos - 1) % len(self.order)
+                self.next = (int(pos) - 1) % len(self.order)
         else:
             if pos > 0:
-                self.pos = (pos - 1) % len(self.order)                    
+                self.pos = (int(pos) - 1) % len(self.order)                    
             elif self.order[self.pos] == 0:
                 self.pos = (self.pos + 1) % len(self.order)
             self.next = (self.pos + 1) % len(self.order)
@@ -243,33 +243,39 @@ class MidiLoop(SeqClient):
         self.events = []
         self.layers = [[]]
 
+    def layers_to_events(self):
+        self.events = [event for layer in self.layers for event in layer]
+        self.events.sort(key=lambda e: e[0])
+
     def scheduler(self):
         if not self.playing:
             return
         if self.pos < 0:
+            # finished a loop, restart
             self.starttick += self.beats * self.ticksperbeat
-            self.events = [event for layer in self.layers for event in layer]
-            self.events.sort(key=lambda e: e[0])
+            self.layers_to_events()
             self.pos = 0
         if self.events[self.pos:]:
+            # schedule the current event
             b, event = self.events[self.pos]
             t = self.starttick + b * self.ticksperbeat
             self.synth.schedule_event(event, self.id, t)
             self.pos += 1
         if self.events[self.pos:]:
+            # schedule a callback for the next event
             t = self.starttick + self.events[self.pos][0] * self.ticksperbeat
             self.synth.schedule_callback(self.id, t - SEQ_LAG)            
         else:
+            # no more events, schedule the next loop
             self.pos = -1
             nextloop = self.starttick + self.beats * self.ticksperbeat
-            self.synth.schedule_callback(self.id, nextloop)
+            self.synth.schedule_callback(self.id, nextloop) # - SEQ_LAG?
 
     def play(self, p=1):
         self.playing = p
         if p:
             self.starttick = self.synth.currenttick
-            self.events = [event for layer in self.layers for event in layer]
-            self.events.sort(key=lambda e: e[0])
+            self.layers_to_events()
             if self.beats:
                 self.pos = 0
                 self.scheduler()
@@ -282,19 +288,20 @@ class MidiLoop(SeqClient):
 
     def record(self, r=1):
         if r >= 0:
-            if self.recording:
-                if self.layers[-1]:
-                    self.layers.append([])
+            if self.layers[-1]: # events were captured
+                self.layers.append([])
                 if self.beats == 0:
-                    self.beats = (self.synth.currenttick - self.starttick) / self.ticksperbeat
+                    # set the loop length and start from the top
+                    self.beats = (
+                        self.synth.currenttick - self.starttick
+                    ) / self.ticksperbeat
                     self.play()
-            self.recording = r
+            self.recording = bool(r)
         else:
             if self.layers[-1] == []:
                 r -= 1
             self.layers = self.layers[:int(r)] + [[]]
-            self.events = [event for layer in self.layers for event in layer]
-            self.events.sort(key=lambda e: e[0])
+            self.layers_to_events()
             if not self.events:
                 self.play(0)
                 if not self.fixedbeats:
@@ -313,6 +320,8 @@ class MidiLoop(SeqClient):
         if not self.playing:
             self.play()
         b = (self.synth.currenttick - self.starttick) / self.ticksperbeat
+        if self.beats:
+            b %= self.beats
         self.layers[-1].append((b, event))
 
     def set_tempo(self, bpm):
@@ -602,7 +611,7 @@ class Synth:
                 )
         FS.fluid_midi_router_add_rule(self.frouter, frule, RULE_TYPES.index(rule.type))
 
-    def send_midievent(self, event, route=True):
+    def send_midievent(self, event, route=False):
         fmevent = FS.new_fluid_midi_event()
         if event.type == "sysex":
             syxdata = (c_int * len(event.val))(*event.val)

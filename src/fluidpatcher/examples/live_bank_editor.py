@@ -2,9 +2,10 @@
 """
 Live YAML editor for fluidpatcher banks.
 
-Edits in the text pane are parsed immediately.
-Discovered patches are added to the Patch menu,
-and can be applied to audition changes to the bank.
+Edits in the text pane are parsed immediately. Discovered patches
+are added to the Patch menu, and can be applied to audition changes
+to the bank. Bank errors are shown in the status bar and dumped to
+stdout while editing - this is diagnostic and non-breaking.
 
 Note: this editor can be used alongside a DAW.
 Connect MIDI/audio to fluidsynth.

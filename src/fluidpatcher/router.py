@@ -53,7 +53,7 @@ class RouterRule:
                     newevent.lsbval = newevent.val % 127
                     newevent.val //= 127
             if hasattr(self, "num"):
-                if self.totype in ("note", "cc", "kpress"):
+                if self.totype in ("note", "ctrl", "kpress"):
                     if hasattr(event, "num"):
                         newevent.num = round(event.num * self.num.mul + self.num.add)
                     else:
@@ -85,7 +85,7 @@ class FluidRule:
 
 class Router:
 
-    def __init__(self, fluid_default=True, fluid_router=True):
+    def __init__(self, fluid_default=False, fluid_router=False):
         self.fluid_default = fluid_default
         self.fluid_router = fluid_router
         self.rules = []
@@ -107,7 +107,7 @@ class Router:
         if (
             self.fluid_router
             and rule.type == rule.totype
-            and rule.type in ("note", "kpress", "cc", "prog", "cpress", "pbend")
+            and rule.type in ("note", "kpress", "ctrl", "prog", "cpress", "pbend")
             and not set(rule.__dict__) - {"type", "totype", "chan", "num", "val", "_pars"}
            ):
             if hasattr(rule, "chan"):
@@ -118,7 +118,7 @@ class Router:
             self.synth.router_clear()
             if self.fluid_default:
                 self.synth_router_default()
-            # add rules in reverse order because fluidsynth stores them LIFO-style
+            # add rules in reverse order because fluidsynth handles them LIFO-style
             for rule in self.fluidrules[::-1]:
                 self.synth.router_addrule(rule)
         else:
@@ -134,7 +134,9 @@ class Router:
                 if name in self.synth.players[ptype]]
 
     def handle_midi(self, event):
-        self.synth.send_midievent(event) # pass it along to the fluidsynth router
+        if self.fluid_router:
+            # let fluidsynth route voice events
+            self.synth.send_midievent(event, route=True)
         self.callback(event) # forward it to the callback
         t = self.synth.currenttick
         dt = 0
@@ -159,7 +161,7 @@ class Router:
             if hasattr(rule, "lsb"):
                 lsbevent = RouterEvent(newevent, rule)
                 lsbevent.num, lsbevent.val = rule.lsb, newevent.lsbval
-                self.synth.send_midievent(lsbevent, route=False)
+                self.synth.send_midievent(lsbevent)
             if hasattr(rule, "fluidsetting"):
                 self.synth[rule.fluidsetting] = newevent.val
             if hasattr(rule, "play"):
@@ -199,7 +201,7 @@ class Router:
                 fx, port = rule.fx.split(">")
                 if fx in self.synth.ladspafx:
                     self.synth.ladspafx[fx].setcontrol(port, newevent.val)
-            self.synth.send_midievent(newevent, route=False) # send routed event directly to synth
+            self.synth.send_midievent(newevent) # send routed event to synth
             self.callback(newevent) # forward the routed event for user handling
         if dt > 0:
             self.clocks = t, self.clocks[0]

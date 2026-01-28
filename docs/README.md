@@ -21,18 +21,11 @@ See the [official documentation](
 ## Installation
 
 ### System Requirements
-* Python 3.9+
+* Python 3.10+
 * PyYAML
 * [FluidSynth](
-  https://github.com/FluidSynth/fluidsynth/wiki/Download
-) 2.2.0+
-```bash
-  sudo apt install fluidsynth
-```
-* Optional audio effects:
-```bash
-  sudo apt install ladspa-sdk
-```
+    https://github.com/FluidSynth/fluidsynth/wiki/Download
+  ) 2.2.0+
 
 ### Install FluidPatcher
 
@@ -76,7 +69,8 @@ FluidSynth will automatically connect to MIDI devices.
 
 ## Banks & Patches
 
-Bank files provide a declarative, YAML-based language for describing
+Users access all of FluidPatcher's features primarily by writing bank
+files. Bank files are a declarative, YAML-based format for describing
 synth *patches*. The underlying engine parses bank files and pre-loads
 required soundfonts so that different patches can be applied quickly in
 live performance. View the Tutorials section in the docs and/or example
