@@ -150,16 +150,31 @@ in the *Players* section.
   the ranges for the transform. The parameter specifies the power of 10
   to use (positive values only).
 
-* **`counter`**
-  Replaces `val` with a counter value.
-
-  * `counter` names the counter
-  * `inc` sets the increment
-  * `startval` sets the initial value
-  * `wrap: 1` enables wraparound
-    The `val` parameter’s target range defines the counter limits.
-
 * **`lsb`**
   Sends the lower 7 bits of a 14-bit value to a second controller
   specified by `num`. The upper 7 bits are sent to the primary target.
+
+## Counters
+
+A counter stores values that can be incremented by rules. Counters are
+defined in `counters` items at the root or patch level. Patch-level
+counters are reset each time a patch is applied, while root-level
+counters retain their state across patches.
+
+### Bank File Parameters
+
+* **`min`, `max`** *(required)*
+  Range for the counter
+
+* **`startval`**
+  Initial value (default: `min`)
+
+* **`wrap`**
+  Wraps values if True (default: clamp to range).
+
+### Rule Effects
+
+* **`counter: <counter name>`**
+  Increments the counter by the result of the rule's `val` parameter for
+  the triggering message.
 

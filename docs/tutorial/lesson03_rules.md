@@ -63,34 +63,40 @@ case, the rule must provide the `num` parameter.
 ## Incrementing Parameters with Counters
 
 Rules can maintain internal state using **named counters**, which allows
-buttons to increment or decrement parameters.
+messages to increment or decrement parameters.
+
+A counter named `vol` is created at the root level:
+
+```yaml
+counters:
+  vol: {min: 0, max: 120, startval: 70, wrap: no}
+```
+
+In the `IncVolume` patch, MIDI rules connect two momentary buttons
+to the counter:
 
 ```yaml
 rules:
-- {type: ctrl, chan: mychan=4, num: pad1=7, val: 1-127=0-120,
-   counter: vol, inc: -10, startval: 70, wrap: 0}
-- {type: ctrl, chan: mychan=4, num: pad2=7, val: 1-127=0-120,
-   counter: vol, inc: 10, startval: 70, wrap: 0}
+- {type: ctrl, chan: mychan=4, num: pad1=7, val: 127=-10, counter: vol}
+- {type: ctrl, chan: mychan=4, num: pad2=7, val: 127=10, counter: vol}
 ```
 
-In the `IncVolume` patch:
+The `val` parameter of each rule captures values 1-127 (pressing the pad)
+and ignores value 0 (releasing the pad).
+The result of the `val` parameter increments the counter. Wrapping is
+disabled (the default), so values are clamped at the limits.
 
-* Two momentary buttons adjust volume up or down
-* Both rules reference the same counter (`vol`)
-* The counter starts at 70 and changes in steps of 10
-* Wrapping is disabled, so values clamp at the limits
-
-The `val` parameter captures values 1-127 (pressing the pad) and ignores
-value 0 (releasing the pad). The target range of `val` sets the limits
-for the counter.
-
-The counter is created and the corresponding CC is set the first time
-the rule is triggered. In order for the volume CC to have the correct
-initial value, a message is sent in the `init` block to initialize it:
+The rule sets the `val` of the resulting MIDI message to the current
+value of the counter.
+In order for the volume CC to have the correct initial value,
+a message is sent in the `init` block to initialize it:
 
 ```yaml
 - ctrl:4:volume:70
 ```
+
+If the counter were defined at the patch level, it would reset each
+time the patch was applied.
 
 ## High-Resolution Control with Logarithmic Scaling
 
@@ -148,11 +154,9 @@ patches:
   IncVolume:
     4: test.sf2:000:007
     rules:
+    - {type: ctrl, chan: mychan=4, num: pad1=7, val: 127=-10, counter: vol}
+    - {type: ctrl, chan: mychan=4, num: pad2=7, val: 127=10, counter: vol}
     - {type: note, chan: mychan=4}
-    - {type: ctrl, chan: mychan=4, num: pad1=7, val: 1-127=0-120,
-       counter: vol, inc: -10, startval: 70, wrap: 0}
-    - {type: ctrl, chan: mychan=4, num: pad2=7, val: 1-127=0-120,
-       counter: vol, inc: 10, startval: 70, wrap: 0}
 
   Glide:
     5: test.sf2:000:081
@@ -160,6 +164,9 @@ patches:
     - {type: note, chan: mychan=5}
     - {type: ctrl, chan: mychan=5, num: slider1=glide_msb, lsb: glide_lsb,
        val: 0-127=0-1000, log: 2.5}
+
+counters:
+  vol: {min: 0, max: 120, startval: 70, wrap: no}
 
 init:
     messages:

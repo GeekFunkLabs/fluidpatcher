@@ -1,8 +1,6 @@
 # Tutorial: Players in Practice
 
-```shell
-data/banks/tutorial/lesson_players.yaml
-```
+**File:** `data/banks/tutorial/lesson04_players.yaml`
 
 This tutorial demonstrates **all four player types** supported by
 FluidPatcher:
@@ -15,8 +13,6 @@ FluidPatcher:
 Each player is defined at the **root level**, so it can continue running
 while patches are changed. All players are synchronized to the same
 tempo to make it easy to combine them.
-
----
 
 ## Root-Level Setup
 
@@ -35,8 +31,6 @@ Here we reserve:
 
 * Channel 1–3 for melodic parts
 * Channel 10 and 11 for drums
-
----
 
 ## Sequences
 
@@ -69,8 +63,6 @@ Key ideas demonstrated here:
 
 This format is compact and good for algorithmic or harmonic material.
 
----
-
 ### `disco`: Grid-Style Sequence
 
 ```yaml
@@ -87,8 +79,6 @@ disco:
 This alternate format treats **columns as tracks** and **rows as steps**.
 It’s especially readable for drum patterns and is visually similar to a
 step sequencer or tracker.
-
----
 
 ### Controlling Sequences
 
@@ -107,8 +97,6 @@ The transformed value determines playback:
 
 * `0` → stop
 * `1` → play
-
----
 
 ## Arpeggios
 
@@ -140,8 +128,6 @@ patches:
 
 Any notes you play on channel 1 are captured and replayed by the
 arpeggiator as long as they’re held.
-
----
 
 ## MIDI Loops
 
@@ -178,8 +164,6 @@ This setup allows you to:
 
 Loops can grow organically during performance.
 
----
-
 ## MIDI File Playback
 
 MIDI files are played using `midifiles`.
@@ -211,8 +195,6 @@ patches:
 ```
 
 A negative play value restarts playback; `0` pauses it.
-
----
 
 ## Putting It All Together
 

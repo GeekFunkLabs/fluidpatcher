@@ -57,9 +57,10 @@ To address this, FluidPatcher includes a lightweight LADSPA plugin,
 chain to mix audio groups back together.
 
 Prebuilt versions of `patchcord` are included for several platforms.
-If a prebuilt binary is unavailable, `pip` can compile the plugin from
-the included source, provided the LADSPA SDK is installed. On
-Debian-based systems, the SDK can be installed with:
+If a prebuilt binary is unavailable, `pip` will compile the plugin from
+the included source while installing FluidPatcher,
+provided the LADSPA SDK is installed.
+On Debian-based systems, the SDK can be installed with:
 
 ```bash
 sudo apt install ladspa-sdk
@@ -72,10 +73,12 @@ level of a bank file. Each entry represents a single effect instance
 and is identified by a user-defined name.
 
 Audio is routed through plugins in the order they are declared:
-root-level plugins first, followed by patch-level plugins. If applying
-a patch changes the effect chain, FluidPatcher must tear down and
-rebuild the chain, which may briefly interrupt audio. To avoid this,
-effects can be defined exclusively at the bank’s root level.
+root-level plugins first, followed by patch-level plugins.
+
+If applying a patch changes the effect chain, FluidPatcher must
+tear down and rebuild the chain, which may briefly interrupt audio.
+To avoid this, effects can be defined exclusively
+at the bank’s root level.
 
 ### `ladspafx`
 

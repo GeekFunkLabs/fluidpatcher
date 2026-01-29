@@ -20,7 +20,7 @@ nav:
   - Effects (LADSPA): tutorial/lesson05_effects.md
   - Cookbook: tutorial/cookbook.md
 - API Reference:
-  - Patcher: api/patcher.md
+  - FluidPatcher: api/patcher.md
   - Banks: api/bankfiles.md
   - Config/Exceptions: api/misc.md
 theme:
