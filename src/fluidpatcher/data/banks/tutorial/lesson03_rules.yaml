@@ -1,68 +1,60 @@
 names:
   mychan: 1 # midi channel of your controller
-  slider1: 12 # CC of a slider
-  button1: 50 # CC of a momentary button
-  button2: 51 # CC of a momentary button
+  slider1: 13 # CC of a slider
+  pad1: 50 # CC of a momentary button
+  pad2: 51 # CC of a momentary button
   modwheel: 1
   volume: 7
   glide_msb: 5
   glide_lsb: 37
-  portamento: 65
-  legato: 68  
+  glide_pedal: 65
 
 patches:
   VelFilter:
-    # filters notes by velocity
-    # transposes higher velocity notes down an octave
+    # filter notes by velocity
     1: test.sf2:000:004
+    2: test.sf2:000:005
     rules:
-    - {type: note, chan: mychan=1, val: 0-100}
-    - {type: note, chan: mychan=1, num: 0-127*1-12, val: 101-127}
-      # alternate min-max*mul+add route allows shifting all values
+    - {type: note, chan: mychan=1, val: 0-116}
+    - {type: note, chan: mychan=2, val: 117-127}
+    - {type: note, chan: mychan=2, val: 0}
+      # route note releases for the second sound
 
   TypeRoute:
     # midi messages can be converted to other types
-    2: test.sf2:000:081
-    rules:
-    - {type: nt, chan: mychan=2}
-      # there are several aliases for each rule type
-    - {type: aftertouch=control_change, chan: mychan=2, num: modwheel}
-      # convert channel pressure/aftertouch to modulation
-
-  LogVolume:
-    # some parameter changes feel better with a logarithmic curve
     3: test.sf2:000:067
     rules:
-    - {type: note, chan: mychan=3}
-    - {type: cc, chan: mychan=3, num: slider1: volume, log: 2}
+    - {type: note, chan: mychan=3, num: 0-127*1-12}
+      # alternate min-max*mul+add route allows shifting all values
+    - {type: cpress=ctrl, chan: mychan=3, num: modwheel}
+      # convert channel pressure/aftertouch to modulation
 
   IncVolume:
     # named counters can be referenced by multiple rules
-    4: test.sf2:000:090
+    4: test.sf2:000:007
     rules:
+    - {type: ctrl, chan: mychan=4, num: pad1=7, val: 127=-10, counter: vol}
+    - {type: ctrl, chan: mychan=4, num: pad2=7, val: 127=10, counter: vol}
+      # momentary CCs 12, 13 increment counter, value is sent to CC#7
+      # val parameter sets increment amount
     - {type: note, chan: mychan=4}
-    - {type: cc, chan: mychan=4, num: button1=7, val: 127=0-120,
-       counter: vol, inc: 10, startval: 70, wrap: 0}
-    - {type: cc, chan: mychan=4, num: button2=7, val: 127=0-120,
-       counter: vol, inc: -10, startval: 70, wrap: 0}
-      # allow momentary CCs 12, 13 to inc/dec volume
-      # val parameter sets min/max range
 
-  FourteenBit:
+  Glide:
     # send MSB and LSB of a value to different CCs
-    5: test.sf2:000:040
+    # also use a logarithmic curve to make the slider more responsive
+    5: test.sf2:000:081
     rules:
     - {type: note, chan: mychan=5}
-    - {type: ctrl, chan: mychan=5, val: 0-127=0-10000,
-       num: slider1=glide_msb, lsb: glide_lsb}
-      # route values from cc 1 to cc 5 (MSB) and 37 (LSB)
-    messages: [cc:2:portamento:64, cc:2:legato:64]
+    - {type: ctrl, chan: mychan=5, num: slider1=glide_msb, lsb: glide_lsb,
+       val: 0-127=0-1000, log: 2.5}
+
+counters:
+  vol: {min: 0, max: 120, startval: 70, wrap: no}
 
 init:
     messages:
-    - cc:2:portamento:64
-    - cc:2:legato:64
-      # turn on portamento and legato on channel 2
-    - cc:4:volume:70
+    - ctrl:4:volume:70
       # set chan 4 volume to startval of IncVolume counter
+    - ctrl:5:glide_pedal:64
+      # turn on portamento on channel 5
 

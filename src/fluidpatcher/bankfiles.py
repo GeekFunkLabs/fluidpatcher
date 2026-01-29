@@ -289,7 +289,7 @@ class _Patch:
 
 class SFPreset(yaml.YAMLObject):
     """
-    SoundFont preset reference (``!sfpreset``).
+    SoundFont preset reference
 
     Encodes a triplet ``file.sf2:bank:prog`` representing a single
     SoundFont program selection.
@@ -324,7 +324,7 @@ class SFPreset(yaml.YAMLObject):
 
 class MidiMessage(yaml.YAMLObject):
     """
-    Description of a single MIDI message (``!midimsg``).
+    Description of a single MIDI message
 
     Supports channel messages, controller messages, aftertouch,
     sysex payloads, and several shorthand forms.
@@ -395,9 +395,9 @@ class MidiMessage(yaml.YAMLObject):
 
 class _FlowList(list, yaml.YAMLObject):
     """
-    Inline comma-separated list of YAML-embedded objects (``!flowlist``).
+    Inline comma-separated list of YAML-embedded objects
 
-    Useful for compact rule/message declaration syntax.
+    Compact list style with round-trip formatting
     """
     yaml_tag = "!flowlist"
     yaml_loader = BankLoader
@@ -501,8 +501,8 @@ class _Route:
 
 class MidiRule(_BankObject):
     """
-    Routing rule describing how incoming MIDI messages are filtered,
-    transformed, or mapped (``!midirule``).
+    Rule describing how incoming MIDI messages are filtered,
+    transformed, or mapped
 
     Features:
       - Match message type and numeric ranges
@@ -561,13 +561,13 @@ class MidiRule(_BankObject):
 
 class Sequence(_BankObject):
     """
-    Step-sequenced event container (``!sequence``).
+    Step-sequenced event container
 
     May represent one or more parallel rhythm or message streams.
 
     Attributes:
       events (list): Parsed events grouped by pattern
-      groove (int|list): Optional timing subdivision data
+      groove (int|list): Beat accent pattern
     """
     yaml_tag = "!sequence"
     zone = "sequences"
@@ -594,10 +594,11 @@ class Sequence(_BankObject):
 
 class Arpeggio(_BankObject):
     """
-    Patterned arpeggiation definition (``!arpeggio``).
+    Patterned arpeggiation definition
 
     Attributes:
       style (str): Pattern name or algorithm key
+      groove (int|list): Beat accent pattern
     """
     yaml_tag = "!arpeggio"
     zone = "arpeggios"
@@ -607,15 +608,17 @@ class Arpeggio(_BankObject):
         super()._validate(path, names)
         if not hasattr(self, "style"):
             raise BankValidationError("Arpeggio missing style")
+        if hasattr(self, "groove"):
+            if isinstance(self.groove, int):
+                self.groove = [self.groove, 1]
 
 
 class MidiLoop(_BankObject):
     """
-    Looping MIDI event generator (``!midiloop``).
+    Looping MIDI event generator
 
     Attributes:
       beats (int): Loop length in beats
-      optional transformations or nested events
     """
     yaml_tag = "!midiloop"
     zone = "midiloops"
@@ -629,11 +632,11 @@ class MidiLoop(_BankObject):
 
 class MidiFile(_BankObject):
     """
-    MIDI file playback directive (``!midifile``).
+    MIDI file playback directive
 
     Attributes:
       file (str): Path to a .mid file
-      jumps (list[list[int]]): Optional programmatic redirection rules
+      jumps (list[list[float]]): Optional 
     """
     yaml_tag = "!midifile"
     zone = "midifiles"
@@ -647,13 +650,13 @@ class MidiFile(_BankObject):
             if isinstance(self.jumps, str):
                 self.jumps = [self.jumps]
             self.jumps = [
-                [int(t) for t in s.split(">")] for s in self.jumps
+                [float(t) for t in s.split(">")] for s in self.jumps
             ]
 
 
 class LadspaEffect(_BankObject):
     """
-    LADSPA audio effect declaration (``!ladspafx``).
+    LADSPA audio effect declaration
 
     Attributes:
       lib (str): LADSPA library basename
@@ -677,6 +680,30 @@ class LadspaEffect(_BankObject):
             elif self.audio == "mono":
                 self.audio = "Input", "Output"
 
+
+class Counter(_BankObject):
+    """
+    State storing object that responds to messages/rules
+
+    Attributes:
+      min/max (float): range for values
+      startval (float): Initial value for counter, min by default
+      wrap (bool): wrap values if True, else clamp to range (default)
+    """
+    yaml_tag = "!counter"
+    zone = "counters"
+    zone_type = dict
+
+    def _validate(self, path=(), names={}):
+        super()._validate(path, names)
+        if not hasattr(self, "min"):
+            raise BankValidationError("Counter objects must have min")
+        if not hasattr(self, "max"):
+            raise BankValidationError("Counter objects must have max")
+        if not hasattr(self, "startval"):
+            self.startval = self.min
+        if not hasattr(self, "wrap"):
+            self.wrap = False
 
 def str_presenter(dumper, data):
     if "\n" in data:

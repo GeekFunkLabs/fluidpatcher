@@ -7,6 +7,7 @@ slider3: 15
 slider4: 16
 pad1: 50
 pad2: 51
-button1: 52
-button2: 53
+pad3: 52
+button1: 53
+button2: 54
 

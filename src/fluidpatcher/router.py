@@ -98,10 +98,10 @@ class Router:
     def reset(self):
         self.rules = []
         self.fluidrules = []
-        self.counters = {}
-        self.synth.router_clear()
-        if self.fluid_default:
-            self.synth.router_default()
+        if self.fluid_router:
+            self.synth.router_clear()
+            if self.fluid_default:
+                self.synth.router_default()
 
     def add(self, rule):
         if (
@@ -143,21 +143,14 @@ class Router:
         for rule in [r for r in self.rules if r.applies(event)]:
             newevent = rule.apply(event)
             if hasattr(rule, "counter"):
-                wrap = getattr(rule, "wrap", 0)
-                if rule.counter not in self.counters:
-                    self.counters[rule.counter] = getattr(rule, "startval", rule.val.tomin)
-                self.counters[rule.counter] += getattr(rule, "inc", 1)
-                if self.counters[rule.counter] > rule.val.tomax:
-                    if wrap:
-                        self.counters[rule.counter] = rule.val.tomin
-                    else:
-                        self.counters[rule.counter] = rule.val.tomax
-                elif self.counters[rule.counter] < rule.val.tomin:
-                    if wrap:
-                        self.counters[rule.counter] = rule.val.tomax
-                    else:
-                        self.counters[rule.counter] = rule.val.tomin
-                newevent.val = self.counters[rule.counter]
+                if rule.counter in self.counters:
+                    c = self.counters[rule.counter]
+                    c.val += newevent.val
+                    if c.val > c.max:
+                        c.val = c.min if c.wrap else c.max
+                    elif c.val < c.min:
+                        c.val = c.max if c.wrap else c.min
+                    newevent.val = c.val
             if hasattr(rule, "lsb"):
                 lsbevent = RouterEvent(newevent, rule)
                 lsbevent.num, lsbevent.val = rule.lsb, newevent.lsbval

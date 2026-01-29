@@ -84,7 +84,6 @@ class FluidPatcher:
         """
         self.bank = Bank("patches: {}")
         self._sfonts = {}
-        self._players = {ptype: {} for ptype in PLAYER_TYPES}
         self._router = Router(fluid_default=False, fluid_router=False)
         if fluidlog == -1:
             fluidlog = lambda lev, msg: None
@@ -234,14 +233,12 @@ class FluidPatcher:
             self._synth[name] = val
         # players (e.g. sequences, arpeggios, midiloops, midifiles)
         for ptype in PLAYER_TYPES:
-            for name, player in list(self._players[ptype].items()):
-                if player not in self.bank[patch][ptype].values():
+            for name, player in list(self._synth.players[ptype]):
+                if name not in self.bank[patch][ptype]:
                     self._synth.player_remove(ptype, name)
-                    del self._players[ptype][name]
             for name, player in self.bank[patch][ptype].items():
-                if player not in self._players[ptype].values():
+                if name not in self._synth.players[ptype]:
                     self._synth.player_add(ptype, name, player)
-                    self._players[ptype][name] = player
         # ladspa effects
         wanted = self.bank[patch]["ladspafx"] | PATCHCORD
         if set(wanted) != set(self._synth.ladspafx):
@@ -249,6 +246,16 @@ class FluidPatcher:
             for name, fx in wanted.items():
                 self._synth.fxchain_add(name, fx)
             self._synth.fxchain_connect()
+        # counters
+        for name in list(self._router.counters):
+            if name not in self.bank[patch]["counters"]:
+                del self._router.counters[name]
+        for name, counter in self.bank[patch]["counters"].items():
+            if name not in self._router.counters:
+                self._router.counters[name] = counter
+                counter.val = counter.startval
+            if name in self.bank.patch[patch].get("counters", {}):
+                counter.val = counter.startval
         # midi rules
         self._router.reset()
         for rule in self.bank[patch]["rules"]:
