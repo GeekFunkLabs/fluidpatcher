@@ -47,12 +47,11 @@ rules:
 
 In the `TypeRoute` patch:
 
-* Incoming notes are transposed down one octave using the
-  `min-max*mul+add` form of the `num` parameter
+* Incoming notes are transposed down one octave
 * Channel pressure (`cpress`) messages are converted into control changes
 * The resulting control changes are sent as modulation (`modwheel`)
 
-The first rule uses the alternate `min-max*mul+add` form for ranges.
+The first rule uses the alternate `<min>-<max>*<mul>[+|-]<val>` form for ranges.
 Here, all matching note numbers are multiplied by 1 and then shifted by -12,
 which makes octave transposition explicit and predictable.
 
@@ -77,8 +76,8 @@ to the counter:
 
 ```yaml
 rules:
-- {type: ctrl, chan: mychan=4, num: pad1=7, val: 127=-10, counter: vol}
-- {type: ctrl, chan: mychan=4, num: pad2=7, val: 127=10, counter: vol}
+- {type: ctrl, chan: mychan=4, num: pad1=7, val: 1-127=-10, counter: vol}
+- {type: ctrl, chan: mychan=4, num: pad2=7, val: 1-127=10, counter: vol}
 ```
 
 The `val` parameter of each rule captures values 1-127 (pressing the pad)
@@ -154,8 +153,8 @@ patches:
   IncVolume:
     4: test.sf2:000:007
     rules:
-    - {type: ctrl, chan: mychan=4, num: pad1=7, val: 127=-10, counter: vol}
-    - {type: ctrl, chan: mychan=4, num: pad2=7, val: 127=10, counter: vol}
+    - {type: ctrl, chan: mychan=4, num: pad1=7, val: 1-127=-10, counter: vol}
+    - {type: ctrl, chan: mychan=4, num: pad2=7, val: 1-127=10, counter: vol}
     - {type: note, chan: mychan=4}
 
   Glide:

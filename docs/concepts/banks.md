@@ -23,27 +23,30 @@ The smallest valid bank file looks like:
 
 ```yaml
 patches: {}
-````
+```
 
 ## Root vs Patch
 
 Bank files are split into two conceptual areas:
 
-* **Root level** — settings outside the `patches` block
+Root level
+: Settings outside the `patches` block.
   Applied first whenever a patch is activated.
-* **Patch level** — settings within a named entry under `patches`
+
+Patch level
+: Settings within a named entry under `patches`.
   Override or extend the root when that patch is selected.
 
 Most items may appear at either level; a few are **root-only**:
 
 ### Root-only items
 
-* `init`
-  Commands executed **once**, when the bank is loaded—not on patch
+`init`
+: Commands executed **once**, when the bank is loaded—not on patch
   changes. This is primarily for MIDI messages and FluidSynth settings.
 
-* `names`
-  A mapping of identifiers to numeric values.
+`names`
+: A mapping of identifiers to numeric values.
   Names are substituted in MIDI rules and messages, helping keep bank
   files readable (e.g. `filtercutoff` → `74`).
 
@@ -51,7 +54,7 @@ Most items may appear at either level; a few are **root-only**:
 
 FluidPatcher supports inserting external files using:
 
-```
+```yaml
 #include <filename>
 ```
 
@@ -59,7 +62,7 @@ Features:
 
 * May appear anywhere in the file.
 * Relative paths are resolved under `CONFIG["banks_path"]`.
-* Included text is inserted **before YAML parsing**.
+* Included text is inserted *before YAML parsing*.
 * If indented, the indent is applied to each included line.
 * Includes may chain, but recursive loops are blocked.
 
@@ -87,10 +90,12 @@ patches:
     - cc:1:reverb:0
 ```
 
-ccnames.txt:
-
 ```yaml
+# ccnames.txt
 reverb: 91
 chorus: 93
 ```
 
+!!! note
+    It's good practice to give include-able files an extension other
+    than `.yaml`, so they aren't mistaken for complete bank files.

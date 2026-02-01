@@ -18,38 +18,13 @@ or a patch is applied. Messages can appear:
 - In the root- and patch-level `messages` sections
  (sent when a patch is applied)
 
-### Message types
-
-The following channel and voice message types are recognized in bank
-files. Multiple aliases are provided for readability:
-
-* **Note On** – `note`, `note_on`, `nt`  
-  (Incoming note-off messages are normalized to note-on with velocity 0.)
-* **Control Change** – `ctrl`, `control_change`, `cc`
-* **Program Change** – `prog`, `program_change`, `pc`
-* **Pitch Bend** – `pbend`, `pitchwheel`, `pb`
-* **Aftertouch (Channel Pressure)** – `cpress`, `aftertouch`, `cp`
-* **Key Pressure (Polyphonic Aftertouch)** – `kpress`, `polytouch`, `kp`
-
-All message types have a `chan` and `val` parameter. Some types also use
-`num`:
-
-| Message        | `num`              | `val`                 |
-|----------------|--------------------|-----------------------|
-| Note On        | note number        | velocity              |
-| Control Change | controller number  | value                 |
-| Key Pressure   | note number        | pressure              |
-| Program Change | –                  | program number        |
-| Pitch Bend     | –                  | amount (-8192–8192)   |
-| Aftertouch     | –                  | pressure              |
-
 ### Message syntax
 
 Messages are written in bank files using a compact scalar form:
 
 ```yaml
 <type>:<chan>:<num>:<val>
-````
+```
 
 or, when `num` is not applicable:
 
@@ -61,6 +36,34 @@ System real-time messages (`clock:`, `start:`, `stop:`, `continue:`)
 and system exclusive messages (`sysex:XX:XX:XX:...`) may also be sent
 and routed.
 
+### Message Types
+
+MIDI channel messages (i.e. "voice" messages), have `chan` and `type`
+parameters, as well as the parameters shown in the table below.
+
+!!! note
+    Incoming Note Off messages are normalized to Note On messages with a
+    velocity of zero.
+
+| Message        | `num`              | `val`                 |
+|----------------|--------------------|-----------------------|
+| Note On        | note number        | velocity              |
+| Control Change | controller number  | value                 |
+| Key Pressure   | note number        | pressure              |
+| Program Change | –                  | program number        |
+| Pitch Bend     | –                  | amount (-8192–8192)   |
+| Aftertouch     | –                  | pressure              |
+
+The `type` parameter has multiple aliases for each message type
+(standard, short form, mido-style):
+
+* Note On: `note`, `nt`, `note_on`  
+* Control Change: `ctrl`, `cc`, `control_change`
+* Program Change: `prog`, `pc`, `program_change`
+* Pitch Bend: `pbend`, `pb`, `pitchwheel`
+* Aftertouch (Channel Pressure): `cpress`, `cp`, `aftertouch`
+* Key Pressure (Polyphonic Aftertouch): `kpress`, `kp`, `polytouch`
+
 ## MIDI rules
 
 Rules define how incoming MIDI messages are matched, transformed,
@@ -70,10 +73,10 @@ level under the `rules` key.
 ```yaml
 rules:
 - {type: note, chan: 1=2}
-- {type: ctrl, chan: 1=2, num: 74, val: 0-127=50-100}
+- {num: 74, val: 0-127=50-100, type: ctrl, chan: 1=2}
 - type: cpress=ctrl
-  chan: 1=2-5
   num: 1
+  chan: 1=2-5
 ```
 
 Rules may be written inline or in block form, and key order is flexible.
@@ -115,7 +118,7 @@ The parameters `chan`, `num`, and `val` support the following forms:
   For `chan`, matches a single channel and produces events on all target
   channels. For `num` and `val`, behaves like `<from>=<tomin>`.
 
-* `<min>-<max>*<mul>[+|-]<add>`
+* `<min>-<max>*<mul>[+|-]<val>`
   Matches a range, applies a multiplier, and adds an offset.
 
 If a parameter is omitted, it matches any incoming value and forwards
@@ -136,45 +139,53 @@ rules:
 
 Additional rule parameters control non-voice behavior, such as synth
 settings and player control. Player-related parameters are documented
-in the *Players* section.
+in the *Players* section. Rules may also have custom parameters
+recognized by specific user programs.
 
-* **`fluidsetting`**
+* `fluidsetting: <setting>`
   Sets a FluidSynth
   [setting](https://www.fluidsynth.org/api/fluidsettings.xml)
   to the value of the routed message.
 
-* **`log`**
+* `log: <power>`
   Applies a logarithmic
   [function](https://www.desmos.com/calculator/gactb1ql9e) when 
-  to the message value. The `val` parameter must be provided to set
+  to the message value. The rule must have a `val` parameter to set
   the ranges for the transform. The parameter specifies the power of 10
   to use (positive values only).
 
-* **`lsb`**
+* `lsb: <num>`
   Sends the lower 7 bits of a 14-bit value to a second controller
   specified by `num`. The upper 7 bits are sent to the primary target.
 
+Rules are **inclusive** - A rule can have multiple extended parameters,
+all of which will trigger actions. Also, the resulting MIDI event is
+still sent to the synth in most cases - rules with extended behavior
+do not *absorb* the event.
+
 ## Counters
 
-A counter stores values that can be incremented by rules. Counters are
-defined in `counters` items at the root or patch level. Patch-level
-counters are reset each time a patch is applied, while root-level
-counters retain their state across patches.
+A counter stores values that can be incremented by rules and used to
+set event values.
+
+Counters are defined in `counters` items at the root or patch level.
+Patch-level counters are reset each time a patch is applied, while
+root-level counters retain their state across patches.
 
 ### Bank File Parameters
 
-* **`min`, `max`** *(required)*
-  Range for the counter
+`min`, `max` *(required)*
+: Range for the counter
 
-* **`startval`**
-  Initial value (default: `min`)
+`startval`
+: Initial value (default: `min`)
 
-* **`wrap`**
-  Wraps values if True (default: clamp to range).
+`wrap`
+: Wraps values if True (default: clamp to range).
 
 ### Rule Effects
 
-* **`counter: <counter name>`**
-  Increments the counter by the result of the rule's `val` parameter for
-  the triggering message.
+* `counter: <counter name>`
+  Increments the counter by an amount equal to the resulting event's
+  `val` parameter.
 

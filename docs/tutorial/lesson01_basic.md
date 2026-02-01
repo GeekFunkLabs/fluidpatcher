@@ -17,7 +17,7 @@ unchanged:
 ```yaml
 rules:
 - {type: note}
-````
+```
 
 Because no other parameters are specified, any note received on a given
 channel will generate sound using the preset assigned to that channel.
@@ -32,7 +32,7 @@ For the `chan` parameter, mapping a range to a range creates events on
 **every** channel in the target range. For example, sending CC#7
 (Volume) on any channel will adjust the volume of all channels.
 
-## The `Single` Patch
+## Patch: Single
 
 The simplest patch assigns a single preset to a MIDI channel:
 
@@ -45,7 +45,7 @@ This selects program 4 (Electric Piano 1) from bank 0 of `test.sf2` on
 channel 1. If your MIDI controller sends notes on channel 1 (the usual
 default), this patch will immediately produce sound.
 
-## The `Layered` Patch
+## Patch: Layered
 
 The `Layered` patch assigns presets to two channels and adds a
 patch-level rule:
@@ -64,7 +64,7 @@ layered sound using both presets.
 
 Patch-level rules are added to the root rules when the patch is applied.
 
-## The `Split` Patch
+## Patch: Split
 
 The `Split` patch divides the keyboard into two note ranges:
 

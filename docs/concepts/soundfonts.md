@@ -9,21 +9,21 @@ can render the same SoundFont in a consistent and portable way.
 
 Common SoundFont terms used throughout the documentation:
 
-* **Preset**  
-  A single playable instrument defined by the soundfont.
+Preset
+: A single playable instrument defined by the soundfont.
 
-* **Bank**  
-  A collection of up to 128 presets. Banks are numbered from `0–16383`.
+Bank
+: A collection of up to 128 presets. Banks are numbered from `0–16383`.
 
-* **Program**  
-  The index of a preset within a bank (`0–127`).
+Program
+: The index of a preset within a bank (`0–127`).
 
-* **Generator**  
-  A synthesis parameter controlling how samples are played
+Generator
+: A synthesis parameter controlling how samples are played
   (e.g. filter cutoff, envelope times).
 
-* **Modulator**  
-  A rule that connects MIDI messages to generators.
+Modulator
+: A rule that connects MIDI messages to generators.
 
 ## Selecting presets
 
@@ -34,7 +34,7 @@ Presets are specified using the format:
 
 ```yaml
 <soundfont file>:<bank>:<program>
-````
+```
 
 For example:
 

@@ -6,15 +6,15 @@ FluidPatcher keeps a small YAML config file that is used to specify file
 locations, FluidSynth settings, and to store program states. By default, 
 configuration lives at:
 
-````
+```
 ~/.config/fluidpatcher/fluidpatcherconf.yaml
-````
+```
 
 You may override the location entirely using the environment variable:
 
-```bash
+```
 export FLUIDPATCHER_CONFIG=/path/to/myconfig.yaml
-````
+```
 
 # Format
 

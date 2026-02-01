@@ -15,9 +15,9 @@ nav:
 - Bank Tutorials:
   - Basics: tutorial/lesson01_basic.md
   - Messages: tutorial/lesson02_messages.md
-  - Router Rules: tutorial/lesson03_rules.md
-  - Players & Sequencers: tutorial/lesson04_players.md
-  - Effects (LADSPA): tutorial/lesson05_effects.md
+  - Advanced MIDI Rules: tutorial/lesson03_rules.md
+  - Players in Practice: tutorial/lesson04_players.md
+  - Using Plugins: tutorial/lesson05_effects.md
   - Cookbook: tutorial/cookbook.md
 - API Reference:
   - FluidPatcher: api/patcher.md
@@ -26,6 +26,17 @@ nav:
 theme:
   name: readthedocs
   favicon: img/gfl_logo.ico
+markdown_extensions:
+  - admonition
+  - footnotes
+  - attr_list
+  - def_list
+  - tables
+  - fenced_code
+  - pymdownx.superfences
+  - codehilite
+  - toc:
+      permalink: true
 plugins:
   - mkdocstrings:
       handlers:
@@ -35,3 +46,9 @@ plugins:
             members_order: source
             show_root_heading: true
             show_signature_annotations: true
+#            show_private_members: false
+#            show_special_members: false
+            show_source: false
+            show_if_no_docstring: false
+            inherited_members: false
+            members_order: source

@@ -33,8 +33,8 @@ patches:
     # named counters can be referenced by multiple rules
     4: test.sf2:000:007
     rules:
-    - {type: ctrl, chan: mychan=4, num: pad1=7, val: 127=-10, counter: vol}
-    - {type: ctrl, chan: mychan=4, num: pad2=7, val: 127=10, counter: vol}
+    - {type: ctrl, chan: mychan=4, num: pad1=7, val: 1-127=-10, counter: vol}
+    - {type: ctrl, chan: mychan=4, num: pad2=7, val: 1-127=10, counter: vol}
       # momentary CCs 12, 13 increment counter, value is sent to CC#7
       # val parameter sets increment amount
     - {type: note, chan: mychan=4}

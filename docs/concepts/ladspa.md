@@ -1,7 +1,7 @@
 # Effects (LADSPA)
 
 FluidSynth can natively host **LADSPA** plugins to apply audio effects
-such as amplification, filtering, delay, and reverb. LADSPA plugins
+such as amplification, filtering, delay, and modulation. LADSPA plugins
 operate at the audio level, after MIDI events have been rendered to
 sound.
 
@@ -80,29 +80,31 @@ tear down and rebuild the chain, which may briefly interrupt audio.
 To avoid this, effects can be defined exclusively
 at the bank’s root level.
 
-### `ladspafx`
+### Bank File Parameters
 
 Each effect unit supports the following parameters:
 
-* **`lib`** *(required)*
-  The LADSPA plugin file name (without path)
+`lib` *(required)*
+: The LADSPA plugin file name (relative to `CONFIG["ladspa_path"]`
+  or absolute)
 
-* **`plugin`**
-  The plugin label within the file
+`plugin`
+: The plugin label within the file.
   Required if the file contains multiple plugins
 
-* **`audio`**
-  A list of audio port names, with inputs listed first and outputs last
+`audio`
+: A list of audio port names, with inputs listed first and outputs last
   Partial names may be used if they uniquely identify a port
   The aliases `mono` and `stereo` correspond to the layouts
   `Input, Output` and `Input L, Input R, Output L, Output R`
 
-* **`vals`**
-  A mapping of control port names to their initial values
+`vals`
+: A mapping of control port names to their initial values
 
-* **`chan`**
-  A single MIDI channel or list of channels whose audio is routed
-  through the plugin
+`chan`
+: A single MIDI channel or list of channels whose audio is routed
+  through the plugin.
+  FluidPatcher silently maps channels to audio groups.
 
 Effects defined at the patch level override effects defined at the
 root level.
@@ -114,8 +116,7 @@ MIDI rules can modify effect parameters by including an
 
 When a rule matches a MIDI message, the transformed value of that
 message is applied to the specified control port. This allows
-controllers, envelopes, sequences, and other rule-driven events to
-dynamically shape effects during performance.
+controllers to dynamically shape effects during performance.
 
 ## Plugin Inspection
 

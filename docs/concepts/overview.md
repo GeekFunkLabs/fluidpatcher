@@ -3,15 +3,15 @@
 FluidPatcher is a lightweight, configuration-driven tool for building
 Python programs that control FluidSynth. Rather than embedding
 synthesizer logic directly in code, FluidPatcher relies on descriptive,
-YAML-based *bank files*. A bank file defines what the synthesizer does—
-playing notes, routing MIDI, triggering sequences, enabling effects,
-and so on. Put simply: the musical behavior lives in the bank, while
-Python provides the front-end that loads, manages, and switches between
-those definitions.
+YAML-based **bank files**. A bank file defines what the synthesizer
+*does*: playing notes, routing MIDI, triggering sequences, enabling
+effects, and so on. Put simply: the musical behavior lives in the bank,
+while Python provides the front-end that loads, manages, and switches
+between those definitions.
 
 Using FluidPatcher, a Python application takes care of tasks like
-loading and saving banks, activating patches, changing presets, or
-defining keyboard splits. Because the musical configuration is
+loading and saving banks, activating patches, and loading/unloading
+soundfonts as needed. Because the musical configuration is
 externalized, users can create complex performance setups without
 modifying Python code. Bank files may be tailored to specific sets,
 rehearsals, or genres, making them easy to reuse, adapt, and share

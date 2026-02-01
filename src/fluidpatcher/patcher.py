@@ -43,37 +43,15 @@ SYNTH_DEFAULTS = {"synth.chorus.active": 1, "synth.reverb.active": 1,
 
 class FluidPatcher:
     """
-    High-level controller for FluidSynth based on YAML patches.
+    High-level controller for applying YAML-defined patches to FluidSynth.
 
-    FluidPatcher maintains a running FluidSynth instance, loads
-    YAML-defined banks, applies patches, and provides direct access
-    to MIDI routing, soundfonts, players, and synth settings.
-
-    Primary features:
-      - load and save YAML bank files
-      - apply or update patches on the fly
-      - load/unload soundfonts automatically
-      - add MIDI rules and send MIDI messages
-      - access FluidSynth settings directly
-
-    Attributes:
-      bank (Bank):
-          Parsed representation of the currently loaded bank.
-
-      soundfonts (dict[path, SoundFont]):
-          Mapping of loaded soundfonts, keyed by file path.
+    Manages bank loading, patch activation, MIDI routing, soundfonts,
+    players, and synth settings.
     """
 
     def __init__(self, fluidsettings={}, fluidlog=None):
         """
         Create a FluidPatcher and start FluidSynth.
-
-        Initializes FluidSynth using default settings from
-        CONFIG["fluidsettings"], optionally overridden with values
-        supplied in `fluidsettings`.
-
-        If `fluidlog` is provided, it is passed to FluidSynth's
-        logging system. A value of -1 disables logging entirely.
 
         Args:
           fluidsettings (dict):
@@ -99,15 +77,9 @@ class FluidPatcher:
         """dict[path, SoundFont]: A snapshot of the loaded soundfonts."""
         return self._sfonts
 
-    def load_soundfont(self, path):
+    def open_soundfont(self, path):
         """
-        Load a soundfont if not already loaded.
-
-        Automatically resolves paths relative to CONFIG["sounds_path"].
-        Returns an existing SoundFont object if previously loaded.
-
-        Normally users do not call this directly - patches reference
-        soundfonts by filename and FluidPatcher loads them as needed.
+        Load a soundfont and enumerate its presets.
 
         Args:
           path (str or Path): Filename or absolute path.
@@ -128,10 +100,6 @@ class FluidPatcher:
     def load_bank(self, bankfile="", raw=""):
         """
         Load a bank from a YAML file or raw text.
-
-        Parses YAML into a Bank object, resolves #include directives,
-        resets the synth, and applies initialization data defined in
-        the bank's root section (init.fluidsettings, init.messages, etc).
 
         Args:
           bankfile (str or Path):
@@ -183,9 +151,6 @@ class FluidPatcher:
         """
         Write the current bank contents to disk.
 
-        If `raw` is supplied, it is parsed as YAML and stored before
-        saving, ensuring that text is written back unchanged.
-
         Args:
           file (str or Path):
               Output filename relative to CONFIG["banks_path"].
@@ -203,17 +168,8 @@ class FluidPatcher:
         """
         Apply a named patch from the loaded bank.
 
-        This method:
-          - loads and unloads soundfonts to match bank requirements
-          - selects programs for every MIDI channel
-          - applies FluidSynth settings
-          - configures sequence/file/arpeggio players
-          - rebuilds the LADSPA FX chain as needed
-          - installs MIDI router rules
-          - emits any startup MIDI messages
-
         Args:
-          patch (str): The patch name to activate.
+          patch (str): The patch name to apply.
         """
         # load all needed soundfonts at once to speed up patches
         # free memory of unneeded soundfonts
@@ -221,7 +177,7 @@ class FluidPatcher:
             self._synth.unload_soundfont(self._sfonts[sf])
             del self._sfonts[sf]
         for sf in self.bank.soundfonts - set(self._sfonts):
-            self.load_soundfont(sf)
+            self.open_soundfont(sf)
         # select presets
         for chan in range(1, self._synth["synth.midi-channels"] + 1):
             if p := self.bank[patch][chan]:
@@ -268,12 +224,6 @@ class FluidPatcher:
         """
         Write current synth state back into a patch.
 
-        Reads all active MIDI CCs and program selections on every
-        channel, and stores any non-default values into the patch’s
-        'messages' section and program slots.
-
-        Useful for building patches interactively from a controller.
-
         Args:
           name (str): Patch name to modify in-place.
         """
@@ -295,14 +245,10 @@ class FluidPatcher:
 
     def add_midirule(self, rule):
         """
-        Install a live router rule.
-
-        Adds a MIDI rule directly to the router. These rules are
-        not stored in the active bank and disappear when patches
-        are re-applied.
+        Install a live MIDI rule after current bank rules
 
         Args:
-          rule (MidiRule): A routing/transformation rule.
+          rule (MidiRule): A temporary rule
         """
         self._router.add(rule)
 
@@ -311,8 +257,7 @@ class FluidPatcher:
         Send a MIDI message directly to the synth.
 
         Args:
-          msg (MidiMessage):
-              MIDI message object.
+          msg (MidiMessage): MIDI message object.
         """
         self._synth.send_midievent(msg)
 
@@ -332,10 +277,8 @@ class FluidPatcher:
         """
         Modify a FluidSynth setting.
 
-        Only settings whose name begins with 'synth.' are allowed.
-
         Args:
-          name (str): Setting name.
+          name (str): Setting name (only 'synth.' prefixes allowed).
           val (Any): Desired value.
         """
         self._synth[name] = val
@@ -343,9 +286,6 @@ class FluidPatcher:
     def set_callback(self, func):
         """
         Install a callback to observe MIDI events.
-
-        The callback is invoked with decoded MIDI events after
-        routing but before they reach the synth.
 
         Args:
           func (callable | None):
