@@ -52,7 +52,7 @@ patches:
   Drumbox:
     info: separately triggered drum and bass sequences
 
-    1: test.sf2:000:090
+    1: test.sf2:000:081
     3: test.sf2:000:033
     10: test.sf2:128:000
     sequences:
@@ -78,32 +78,32 @@ patches:
     info: sequencer with multiple looping patterns
   
     5: test.sf2:000:081
-    6: test.sf2:000:040
+    6: test.sf2:000:033
     7: test.sf2:000:005
     10: test.sf2:128:000
     sequences:
       basicwave:
         order: 1, 1, 2, 2, -4, 3, -1
         events: |
-          nt:5:F#4:100 nt:6:D2:100  nt:10:36:100
+          nt:5:F#4:070 nt:6:D2:100  nt:10:36:100
           +            _            nt:10:42:100
-          +            nt:6:D2:100  nt:10:38:100
-          nt:5:D4:100  _            nt:10:42:100
+          +            nt:6:D2:100  nt:10:40:100
+          nt:5:D4:070  _            nt:10:42:100
           +            nt:6:D2:100  nt:10:36:100
           +            _            nt:10:42:100
-          +            nt:6:D2:100  nt:10:38:100
+          +            nt:6:D2:100  nt:10:40:100
           +            _            nt:10:42:100
 
-          nt:5:C#4:100 nt:6:A2:100  nt:10:36:100
+          nt:5:C#4:070 nt:6:A2:100  nt:10:36:100
           +            _            note:10:42:100
-          +            nt:6:A2:100  nt:10:38:100
-          nt:5:A4:100  _            nt:10:42:100
+          +            nt:6:A2:100  nt:10:40:100
+          nt:5:A4:070  _            nt:10:42:100
           +            nt:6:A2:100  nt:10:36:100
           +            _            nt:10:42:100
-          +            nt:6:A2:100  nt:10:38:100
+          +            nt:6:A2:100  nt:10:40:100
           +            _            nt:10:42:100
 
-          nt:5:B4:100  nt:6:B2:100  nt:10:36:100
+          nt:5:B4:070  nt:6:B2:100  nt:10:36:100
           +            _            _
           +            _            _
           +            _            _
@@ -114,8 +114,8 @@ patches:
 
     rules:
     - {type: note, chan: 1=7}
-    - {type: cc, num: button2, val: 0, play: basicwave}
-    - {type: cc, num: button2, val: 127=-1, play: basicwave}
+    - {type: cc, num: button1, val: 0, play: basicwave}
+    - {type: cc, num: button1, val: 127=-1, play: basicwave}
     - {type: cc, num: pad1, val: 127=1, play: basicwave}
     - {type: cc, num: pad2, val: 127=6, play: basicwave}
 
@@ -166,8 +166,8 @@ patches:
     rules:
     - {type: cc, num: pad1, val: 1-127=2, play: funk}
     - {type: cc, num: pad2, val: 1-127=10, play: funk}
-    - {type: cc, num: button2, val: 127=-1, play: funk}
-    - {type: cc, num: button2, val: 0, play: funk}
+    - {type: cc, num: button1, val: 127=-1, play: funk}
+    - {type: cc, num: button1, val: 0, play: funk}
     - {type: cc, num: slider3, val: 0-127=60-240, tempo: funk}
     
   FluidyLoops:
@@ -178,10 +178,10 @@ patches:
       test:
         beats: 0
     rules:
-    - {type: cc, num: button1, val: 127=1, record: test}
-    - {type: cc, num: button1, val: 0, record: test}
-    - {type: cc, num: button2, val: 127=1, play: test}
-    - {type: cc, num: button2, val: 0, play: test}
+    - {type: cc, num: button1, val: 127=1, play: test}
+    - {type: cc, num: button1, val: 0, play: test}
+    - {type: cc, num: button2, val: 127=1, record: test}
+    - {type: cc, num: button2, val: 0, record: test}
     - {type: cc, num: pad1, val: 127=-1, record: test}
     - {type: note, chan: 1, loop: test}
     - {type: cc, num: slider3, val: 0-127=60-240, tempo: test}
