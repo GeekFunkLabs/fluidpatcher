@@ -41,7 +41,7 @@ and routed.
 MIDI channel messages (i.e. "voice" messages), have `chan` and `type`
 parameters, as well as the parameters shown in the table below.
 
-!!! note
+!!! info
     Incoming Note Off messages are normalized to Note On messages with a
     velocity of zero.
 

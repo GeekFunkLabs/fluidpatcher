@@ -68,9 +68,11 @@ plugins.
 
 ## Install Python package
 
-!!! note
-    It's advised to install in a virtual environment, to avoid breaking
-    your system packages. For example:
+!!! warning
+    Many systems will *strongly discourage* you from installing in your
+    base python environment, to protect system packages.
+    
+    To create a virtual environment using `venv`, for example:
 
     ```
     python -m venv fpenv

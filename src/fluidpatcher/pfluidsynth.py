@@ -452,6 +452,7 @@ class LadspaEffect:
 
 
 class SoundFont:
+    """An iterable soundfont container"""
 
     def __init__(self, fsfont, sfid):
         self.id = sfid

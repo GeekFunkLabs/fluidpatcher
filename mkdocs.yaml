@@ -41,14 +41,11 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
+          inventories:
+          - https://docs.python.org/3/objects.inv
           options:
-            docstring_section_style: list
-            members_order: source
+            heading_level: 3
             show_root_heading: true
-            show_signature_annotations: true
-#            show_private_members: false
-#            show_special_members: false
             show_source: false
-            show_if_no_docstring: false
-            inherited_members: false
-            members_order: source
+            show_bases: false
+

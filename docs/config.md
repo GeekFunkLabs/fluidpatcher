@@ -1,43 +1,56 @@
 # Configuration
 
+FluidPatcher keeps its global configuration in a YAML file, created
+automatically on first run.
+
 ## Location
 
-FluidPatcher keeps a small YAML config file that is used to specify file
-locations, FluidSynth settings, and to store program states. By default, 
-configuration lives at:
+By default, the config file is stored at:
 
 ```
 ~/.config/fluidpatcher/fluidpatcherconf.yaml
 ```
 
-You may override the location entirely using the environment variable:
+You can override this location by setting the `FLUIDPATCHER_CONFIG`
+environment variable:
 
-```
+```shell
 export FLUIDPATCHER_CONFIG=/path/to/myconfig.yaml
 ```
 
-# Format
+If the file does not exist, fluidpatcher will:
 
-If not found, FluidPatcher creates a default config file like the one
-below:
+1. Create the directory
+2. Copy in a bundled default configuration
+3. Populate default folders if they’re missing
 
-```yaml
-banks_path: ~/.config/fluidpatcher/banks
-sounds_path: ~/.config/fluidpatcher/sounds
-midi_path: ~/.config/fluidpatcher/midi
-ladspa_path: /usr/lib/ladspa
-fluidsettings:
-  midi.autoconnect: 1
-  player.reset-synth: 0
-  synth.ladspa.active: 1
-  synth.audio-groups: 16
-```
+FluidPatcher will work on most platforms without editing this file,
+but it's safe to do so.
 
-The keys `banks_path`, `sounds_path`, `midi_path`, and `ladspa_path`
-specify locations for these file types. Fluidpatcher will expand file
-names using these paths, allowing short filenames to be used in banks
-and enhancing portability. Absolute paths can be used to override
-the config paths when desired.
+## Format
+
+At runtime, the configuration is loaded into a single mapping called
+`CONFIG`. Most values are paths and global settings rather than musical
+behavior.
+
+Key entries include:
+
+| Key             | Meaning                                          |
+| --------------- | ------------------------------------------------ |
+| `banks_path`    | Directory containing your `.yaml` bank files     |
+| `sounds_path`   | Where SoundFont (`.sf2`) files live              |
+| `midi_path`     | Default location for MIDI files                  |
+| `ladspa_path`   | Where LADSPA plugins are searched for            |
+| `fluidsettings` | Raw FluidSynth settings passed through unchanged |
+
+FluidPatcher will expand file names using these paths, allowing short
+filenames to be used in banks and enhancing portability. Absolute paths
+can be used to override the config paths when desired.
+
+If you omit `banks_path`, `sounds_path`, or `midi_path`, FluidPatcher
+fills in sensible defaults relative to the config file.
+
+## FluidSynth Settings
 
 The `fluidsynth` section contains key/value pairs for
 [FluidSynth settings](https://www.fluidsynth.org/api/fluidsettings.xml).
@@ -65,8 +78,7 @@ few useful settings are:
     the audio), but too low and the sound card won't be able to keep up,
     producing stuttering/crackling audio.
 
-
-## Resetting configuration
+## Resetting Configuration
 
 Delete the config file and directories:
 

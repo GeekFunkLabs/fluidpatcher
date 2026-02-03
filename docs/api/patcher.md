@@ -19,28 +19,10 @@ Bank  →  FluidPatcher
             Router → FluidSynth
 ```
 
-## Overview
+## Basic Pattern
 
-`FluidPatcher` is responsible for:
-
-* Loading and saving YAML bank files
-* Managing the lifecycle of a running FluidSynth instance
-* Loading and unloading soundfonts automatically
-* Applying patches (programs, effects, players, rules)
-* Sending and receiving MIDI messages
-* Exposing safe access to FluidSynth settings
-
-It maintains **live state**: switching patches modifies the running
-synth immediately, without restarting the engine.
-
-::: fluidpatcher.FluidPatcher
-    options:
-      members:
-        - __init__
-        - load_bank
-        - apply_patch
-
-## Lifecycle and Typical Usage
+Once created, a `FluidPatcher` instance starts a FluidSynth engine
+immediately and maintains that engine for its entire lifetime.
 
 A minimal interactive session looks like this:
 
@@ -52,32 +34,17 @@ fp.load_bank("mybank.yaml")
 fp.apply_patch("Warm Pad")
 ```
 
-Once created, a `FluidPatcher` instance:
+Patches and banks can be changed with successive calls to
+`apply_patch()` and `load_bank()`. This is all the API a program need
+use to access all the functionality of banks.
 
-1. Starts a FluidSynth engine immediately
-2. Maintains that engine for its entire lifetime
-3. Applies changes incrementally as patches are switched or updated
-
-## Initialization and Synth Control
-
-### `__init__`
+::: fluidpatcher.FluidPatcher.__init__
 
 The constructor initializes FluidSynth using defaults from
-`CONFIG["fluidsettings"]`, optionally overridden by user-supplied values.
+`CONFIG["fluidsettings"]`, optionally overridden by user-supplied
+values. Logging can be redirected or disabled entirely.
 
-Logging can be redirected or disabled entirely.
-
-Key points:
-
-* The synth starts immediately
-* MIDI routing is active as soon as the object exists
-* No bank is loaded by default
-
-## Bank Management
-
-### `load_bank()`
-
-Loads a YAML bank from disk or raw text.
+::: fluidpatcher.FluidPatcher.load_bank
 
 This method:
 
@@ -90,16 +57,7 @@ This method:
 If semantic validation fails (for example, a missing include file),
 a `BankValidationError` is raised.
 
-### `save_bank()`
-
-Writes the current bank back to disk.
-
-If raw YAML text is supplied, it is parsed and stored verbatim, allowing
-round-trip editing without reformatting.
-
-## Patch Application
-
-### `apply_patch()`
+::: fluidpatcher.FluidPatcher.apply_patch
 
 This is the **core operation** of FluidPatcher.
 
@@ -116,7 +74,64 @@ Applying a patch performs the following steps in order:
 Patch application is **idempotent**: reapplying the same patch will
 recreate its intended state exactly.
 
-### `update_patch()`
+## Direct Synth Interaction
+
+These methods can be used to directly interact with the running synth
+instance and/or modify its state. They can be used to create UI-driven
+ways of changing synth settings or adding controller behavior.
+
+::: fluidpatcher.FluidPatcher.fluidsetting
+
+::: fluidpatcher.FluidPatcher.fluidsetting_set
+
+These methods provide controlled access to FluidSynth settings.
+
+Only settings beginning with `synth.` may be modified. This ensures that
+low-level or unsafe parameters cannot be altered accidentally.
+
+::: fluidpatcher.FluidPatcher.send_midimessage
+
+Sends a MIDI message directly to the synth, bypassing routing rules.
+
+Typically used for:
+
+* Explicit CC or program changes
+
+::: fluidpatcher.FluidPatcher.add_midirule
+
+Installs a MIDI rule directly into the live router.
+
+Rules added this way:
+
+* Take effect immediately
+* Are **not stored** in the bank
+* Are cleared when a patch is re-applied
+
+This is useful for temporary mappings or UI-specific behavior.
+
+::: fluidpatcher.FluidPatcher.set_callback
+
+Installs a callback that observes MIDI events
+*after routing but before they reach the synth*.
+
+This is intended for:
+
+* Visualizers
+* UI Interaction with MIDI controllers
+* Debugging tools
+
+Passing `None` disables the callback.
+
+## Bank Modification
+
+The loaded bank can be modified in-place and saved back to disk.
+Example applications are changing patch presets or splitting/layering
+the keyboard interactively.
+
+These methods provide basic tools for modifying banks. Bank editing is
+further discussed in the Banks API section.
+
+::: fluidpatcher.FluidPatcher.update_patch
 
 Reads the *current live synth state* and writes it back into a patch.
 
@@ -129,79 +144,47 @@ Specifically, it:
 This is intended for **interactive patch creation**, where a performer
 builds a sound using a controller and then captures it into YAML.
 
-## SoundFont Handling
+::: fluidpatcher.FluidPatcher.save_bank
 
-### `load_soundfont()`
+Writes the current bank back to disk.
 
-Loads a soundfont on demand and caches it.
+If raw YAML text is supplied, it is parsed and stored verbatim, allowing
+round-trip editing without reformatting.
 
-Normally this method does not need to be called directly—patches
-reference soundfonts symbolically, and `apply_patch()` ensures they
-are loaded automatically. This method returns a SoundFont object that
-can be iterated to discover patches when e.g. modifying a preset
-in a patch programatically.
+::: fluidpatcher.FluidPatcher.open_soundfont
 
-Paths are resolved relative to `CONFIG["sounds_path"]`.
+Paths are resolved relative to `CONFIG["sounds_path"]`. If the soundfont
+is already loaded, the current object is returned.
 
-## MIDI Interaction
+Normally this method does not need to be called directly—the bank
+dynamically reports the set of soundfonts needed by all its patches,
+and each call to `apply_patch()` enforces this set by loading/unloading
+soundfonts as necessary. This both conserves RAM and facilitates rapid
+switching between patches.
 
-### `add_midirule()`
+This method returns a SoundFont object that can be iterated to discover
+patches when e.g. modifying a preset in a patch programatically.
 
-Installs a MIDI rule directly into the live router.
-
-Rules added this way:
-
-* Take effect immediately
-* Are **not stored** in the bank
-* Are cleared when a patch is re-applied
-
-This is useful for temporary mappings or UI-specific behavior.
-
-### `send_midimessage()`
-
-Sends a MIDI message directly to the synth, bypassing routing rules.
-
-Typically used for:
-
-* Explicit CC or program changes
-* Automation or scripting
-
-## `set_callback()`
-
-Installs a callback that observes MIDI events
-*after routing but before they reach the synth*.
-
-This is intended for:
-
-* Visualizers
-* Debugging tools
-* Interactive UIs
-
-Passing `None` disables the callback.
-
-## FluidSynth Settings Access
-
-### `fluidsetting()` / `fluidsetting_set()`
-
-These methods provide controlled access to FluidSynth settings.
-
-Only settings beginning with `synth.` may be modified.
-
-This ensures that low-level or unsafe parameters cannot be altered
-accidentally.
+* Iterating the SoundFont returns the valid `bank, prog` tuples.
+* Element access using `bank, prog` returns
+  the corresponding preset name.
 
 ## Related Types
 
-The following commonly-used types are re-exported at the package level
-for convenience:
+The following classes, defined in `bankfiles.py` and documented in
+the Banks API, are re-exported at the package level for convenience:
 
-* `MidiMessage`
-* `MidiRule`
-* `SFPreset`
-* `FluidMidiEvent`
+* `SFPreset` - SoundFont preset reference
+* `MidiMessage` - Description of a single MIDI message
+* `MidiRule` - Rule describing how incoming MIDI messages are filtered,
+  transformed, or mapped
 
-They are defined in `bankfiles.py` and `pfluidsynth.py` and are documented
-in later API sections.
+This type from `pfluidsynth.py` is also exposed at the package level.
+It can be used to distinguish external MIDI events from events created
+by MIDI rules in the callback.
+
+* `FluidMidiEvent` - A MIDI message from a controller or external
+  software, unaltered by MIDI rules.
 
 ## Summary
 

@@ -43,10 +43,15 @@ SYNTH_DEFAULTS = {"synth.chorus.active": 1, "synth.reverb.active": 1,
 
 class FluidPatcher:
     """
-    High-level controller for applying YAML-defined patches to FluidSynth.
+    High-level controller FluidSynth. Applies descriptive YAML-based
+    patches and manages synth state.
 
-    Manages bank loading, patch activation, MIDI routing, soundfonts,
-    players, and synth settings.
+    Attributes:
+      bank (Bank):
+        Parsed representation of the currently loaded bank.
+
+      soundfonts (dict[path, SoundFont]):
+        Mapping of loaded soundfonts, keyed by file path.                  
     """
 
     def __init__(self, fluidsettings={}, fluidlog=None):
@@ -55,10 +60,10 @@ class FluidPatcher:
 
         Args:
           fluidsettings (dict):
-              Additional FluidSynth settings that override defaults.
+            Additional FluidSynth settings that override defaults.
 
           fluidlog (callable | -1 | None):
-              Callback accepting (level, message) or -1 to suppress logs.
+            Callback accepting (level, message) or -1 to suppress logs.              
         """
         self.bank = Bank("patches: {}")
         self._sfonts = {}
@@ -85,7 +90,7 @@ class FluidPatcher:
           path (str or Path): Filename or absolute path.
 
         Returns:
-          SoundFont: iterable of presets, indexable by (bank, prog).
+          (SoundFont): iterable of presets, indexable by (bank, prog).
         """
         path = CONFIG["sounds_path"] / path
         if path.is_relative_to(CONFIG["sounds_path"]):
@@ -189,7 +194,7 @@ class FluidPatcher:
             self._synth[name] = val
         # players (e.g. sequences, arpeggios, midiloops, midifiles)
         for ptype in PLAYER_TYPES:
-            for name, player in list(self._synth.players[ptype]):
+            for name in list(self._synth.players[ptype]):
                 if name not in self.bank[patch][ptype]:
                     self._synth.player_remove(ptype, name)
             for name, player in self.bank[patch][ptype].items():
@@ -269,7 +274,7 @@ class FluidPatcher:
           name (str): A FluidSynth setting name (e.g. 'synth.gain').
 
         Returns:
-          Any: Current value of the setting.
+          (int|float|str): Current value of the setting.
         """
         return self._synth[name]
         
@@ -279,7 +284,7 @@ class FluidPatcher:
 
         Args:
           name (str): Setting name (only 'synth.' prefixes allowed).
-          val (Any): Desired value.
+          val (int|float|str): Desired value.
         """
         self._synth[name] = val
 

@@ -66,6 +66,9 @@ On Debian-based systems, the SDK can be installed with:
 sudo apt install ladspa-sdk
 ```
 
+If `patchcord.so` is unavailable, the setting `synth.audio-groups` is
+forced to `1`.
+
 ## Defining Effects in Bank Files
 
 Effects are defined using the `ladspafx` section at the root or patch

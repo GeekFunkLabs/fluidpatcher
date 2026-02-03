@@ -54,11 +54,7 @@ def load_config():
 
 def save_config():
     """
-    Persist the current CONFIG mapping back to CONFIG_PATH.
-
-    Converts Path values to POSIX strings for YAML serialization and
-    writes the result to disk without reordering keys. Raises if the
-    file cannot be written.
+    Writes CONFIG to file, converting Paths to POSIX strings.
     """
     cfg_posix = {
         k: v.as_posix() if isinstance(v, Path) else v

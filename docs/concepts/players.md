@@ -49,7 +49,7 @@ shared.
   Values range from `0.5` (no swing) to `0.99`.
 
 * `groove: <player>` (`sequences`, `arpeggios`)
-  Applies volume scaling to emphasize rhythmic accents.
+  Sets volume scaling for odd steps in the pattern.
 
 ## Sequences
 
@@ -101,8 +101,9 @@ A sequence consists of:
 : Timing swing ratio (default: `0.5`)
 
 `groove`
-: Volume emphasis pattern
-  Can be a single value or a list (default: `1`)
+: Volume emphasis pattern for steps, as a list or single value.
+  In the latter case, the value is the fractional scaling for
+  odd steps. (default: `1`)
 
 ### Rule Effects
 

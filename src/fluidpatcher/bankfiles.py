@@ -106,8 +106,9 @@ class BankSyntaxError(BankError):
     """
     Error raised when the YAML text is malformed and cannot be parsed.
 
-    Wraps YAML parser failures and retains line/column information when
-    available, so users can locate the exact point of failure.
+    Attributes:
+      msg (str): Reason for failure
+      mark (tuple): YAML mark object describing the error
     """
     def __init__(self, msg):
         self.msg = msg
@@ -144,12 +145,6 @@ class BankValidationError(BankError):
     """
     Raised when a bank file is valid YAML but contains incorrect or
     unsupported values.
-
-    Typical causes:
-      - Missing required keys
-      - Invalid parameter ranges
-      - Unrecognized message or rule types
-      - Semantic errors in nested objects
 
     Attributes:
       msg (str): Reason for failure
@@ -189,27 +184,15 @@ class Bank:
     """
     Parsed representation of a FluidPatcher bank YAML document.
 
-    Provides:
-      - Access to raw root-level configuration
-      - Per-patch configuration with root inheritance
-      - Validation over the complete parsed structure
-
-    Behaves like a mapping where keys are patch names and values are
-    merged views combining root defaults and per-patch overrides.
-
     Attributes:
       root (dict):
         Raw root-level configuration data.
       patch (dict):
-        Raw patch definitions (unmerged).
+        Raw dictionary of patches (unmerged).
       patches (list[str]):
         Patch names in declaration order.
       soundfonts (list[SFPreset]):
         Dynamic list of soundfont files required by patches.
-
-    Notes:
-      Raises BankSyntaxError if raw YAML parsing fails.
-      Raises BankValidationError if semantic validation fails.
     """
     def __init__(self, text):
         try:
@@ -291,9 +274,6 @@ class SFPreset(yaml.YAMLObject):
     """
     SoundFont preset reference
 
-    Encodes a triplet ``file.sf2:bank:prog`` representing a single
-    SoundFont program selection.
-
     Attributes:
       file (str): Path to the .sf2 file
       bank (int): SoundFont bank index
@@ -325,9 +305,6 @@ class SFPreset(yaml.YAMLObject):
 class MidiMessage(yaml.YAMLObject):
     """
     Description of a single MIDI message
-
-    Supports channel messages, controller messages, aftertouch,
-    sysex payloads, and several shorthand forms.
 
     Attributes:
       type (str): Message type (“note”, “ctrl”, “sysex”, ...)
@@ -504,15 +481,12 @@ class MidiRule(_BankObject):
     Rule describing how incoming MIDI messages are filtered,
     transformed, or mapped
 
-    Features:
-      - Match message type and numeric ranges
-      - Map parameters to new ranges
-      - Produce transformed output messages
-
     Attributes:
-      type, totype: Input and output message types
-      chan, num, val: Range specifications or transforms
-      arbitrary additional parameters for custom functionality
+      type (str),totype (str): Input and output message types
+      chan (int|str): Channel range/transform (default: None)
+      num (int|str): Parameter range/transform (default: None)
+      val (int|float|str): Value range/transform (default: None)
+      **pars (dict): additional parameters for custom functionality
     """
     ftroute = re.compile(r"^({0})?-?({0})?=?(-?{0})?-?(-?{0})?$".format(r"[\w\d\#\.]+"))
     maroute = re.compile(r"^({0})-({0})\*(-?{0})([+-]{0})$".format(r"[\w\d\#\.]+"))
@@ -563,11 +537,13 @@ class Sequence(_BankObject):
     """
     Step-sequenced event container
 
-    May represent one or more parallel rhythm or message streams.
-
     Attributes:
       events (list): Parsed events grouped by pattern
-      groove (int|list): Beat accent pattern
+      order (list): Playback order of patterns (default: [1])
+      tempo (int): Beats per minute (default: 120)
+      tdiv (int): Beat divisor (default: 8)
+      swing (float): Timing swing ratio (default: 0.5)
+      groove (int|list): Beat accent pattern (default: [1, 1])
     """
     yaml_tag = "!sequence"
     zone = "sequences"
@@ -587,9 +563,6 @@ class Sequence(_BankObject):
         super()._validate(path, names)
         if not hasattr(self, "events"):
             raise BankValidationError("Sequence objects must have events")
-        if hasattr(self, "groove"):
-            if isinstance(self.groove, int):
-                self.groove = [self.groove, 1]
 
 
 class Arpeggio(_BankObject):
@@ -598,7 +571,10 @@ class Arpeggio(_BankObject):
 
     Attributes:
       style (str): Pattern name or algorithm key
-      groove (int|list): Beat accent pattern
+      tempo (int): Beats per minute (default: 120)
+      tdiv (int): Beat divisor (default: 8)
+      swing (float): Timing swing ratio (default: 0.5)
+      groove (int|list): Beat accent pattern (default: [1, 1])
     """
     yaml_tag = "!arpeggio"
     zone = "arpeggios"
@@ -619,6 +595,7 @@ class MidiLoop(_BankObject):
 
     Attributes:
       beats (int): Loop length in beats
+      tempo (int): Beats per minute (default: 120)
     """
     yaml_tag = "!midiloop"
     zone = "midiloops"
@@ -636,7 +613,11 @@ class MidiFile(_BankObject):
 
     Attributes:
       file (str): Path to a .mid file
-      jumps (list[list[float]]): Optional 
+      tempo (int): Beats per minute (default: 120)
+      barlength (int): Ticks per musical measure (default: 1)
+      jumps (list[str]): List of bar jumps as [from]>[to] (default: [])
+      shift (int): Channel shift amount (default: 0)
+      mask (list[str]): Ignored message types (default: []) 
     """
     yaml_tag = "!midifile"
     zone = "midifiles"
@@ -652,7 +633,8 @@ class MidiFile(_BankObject):
             self.jumps = [
                 [float(t) for t in s.split(">")] for s in self.jumps
             ]
-
+        if hasattr(self, "mask"):
+            self.mask = [TYPE_ALIAS[t] for t in self.mask]
 
 class LadspaEffect(_BankObject):
     """
@@ -660,8 +642,10 @@ class LadspaEffect(_BankObject):
 
     Attributes:
       lib (str): LADSPA library basename
-      chan (list[int]): Input channel routing
-      audio: Logical/expanded port naming (“mono”, “stereo”, or explicit)
+      plugin (str): Plugin label (default: ``)
+      audio (list[str]): Audio port names (default: [`Input, Output`])
+      vals (dict): Initial values for control ports (default: {})
+      chan (list[int]): Input channel routing (default: [])
     """
     yaml_tag = "!ladspafx"
     zone = "ladspafx"
