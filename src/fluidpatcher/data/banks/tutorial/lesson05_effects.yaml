@@ -3,13 +3,11 @@ names:
   slider2: 14
 
 ladspafx:
-  # effects at root level so they persist
   plate:
     lib: delay
     chan: 1
     audio: mono
     vals: {Delay: 0.1}
-    # use `analyseplugin` to investigate audio/control port names
   trem:
     lib: tap_tremolo
     audio: mono
@@ -22,20 +20,15 @@ ladspafx:
 patches:
   FM Piano:
     1: test.sf2:000:005
-    # only gets plate effect
     rules:
     - {type: note, chan: 1}
   Rhodes:
     2: test.sf2:000:004
-    # tremolo and reverb effects
     rules:
     - {type: note, chan: 1=2}
     - {type: ctrl, num: slider1, val: 0-127=0-20, fx: trem>Freq}
     - {type: ctrl, num: slider2, val: 0-127=0-100, fx: trem>Depth}
-    # links sliders to effect controls
   Clav:
     3: test.sf2:000:007
-    # reverb effect only
     rules:
     - {type: note, chan: 1=3}
-
