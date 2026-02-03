@@ -15,7 +15,7 @@ MIDI_CHANNEL = 1
 fp = FluidPatcher(fluidlog=-1)
 
 # load a soundfont
-soundfont = fp.load_soundfont(CONFIG["sounds_path"] / "test.sf2")
+soundfont = fp.open_soundfont(CONFIG["sounds_path"] / "test.sf2")
 print(f"Loaded soundfont: {soundfont.file}")
 
 # create a patch
