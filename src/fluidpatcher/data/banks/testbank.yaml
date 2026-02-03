@@ -1,3 +1,7 @@
+doc: |
+  This bank is meant to as a test/demo of as many of FluidPatcher's
+  features as possible, to make sure everything is working.
+
 names:
   #include control_names.txt
   volume: 7
@@ -75,7 +79,7 @@ patches:
     - {type: cc, num: pad1, val: 1-127=1, tap: bass}
 
   Robojam: 
-    info: sequencer with multiple looping patterns
+    info: grid-style sequencer with multiple looping patterns
   
     5: test.sf2:000:081
     6: test.sf2:000:033
@@ -197,6 +201,7 @@ messages:
 - cc:4:legato:0
 
 ladspafx:
+  info: uses yaml anchors/tags to chain copies of an effect
   echo1: &echo
     lib: delay.so
     audio: mono
