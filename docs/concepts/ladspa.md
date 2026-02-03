@@ -96,8 +96,8 @@ Each effect unit supports the following parameters:
   Required if the file contains multiple plugins
 
 `audio`
-: A list of audio port names, with inputs listed first and outputs last
-  Partial names may be used if they uniquely identify a port
+: A list of audio port names, with inputs listed first and outputs last.
+  Partial names may be used if they uniquely identify a port.
   The aliases `mono` and `stereo` correspond to the layouts
   `Input, Output` and `Input L, Input R, Output L, Output R`
 
@@ -109,8 +109,8 @@ Each effect unit supports the following parameters:
   through the plugin.
   FluidPatcher silently maps channels to audio groups.
 
-Effects defined at the patch level override effects defined at the
-root level.
+If effects at the root and patch level have the same name, the patch
+effect overrides the root effect.
 
 ### Rule-Driven Effect Control
 

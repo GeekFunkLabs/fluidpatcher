@@ -116,13 +116,12 @@ form a complete NRPN update.
 
 ```yaml
 rules:
-- {type: ctrl, chan: 1, num: 13=7}                 # enable NRPN
-- {type: ctrl, chan: 1, num: 14=99, val: =120}     # NRPN MSB
-- {type: ctrl, chan: 1, num: 14=98, val: =8}       # generator: filter cutoff
-- {type: ctrl, chan: 1, num: 14=6, lsb: 38,
-   val: 0-127=5000-8000, log: 0.02}                 # data entry
-- {type: ctrl, chan: 1, num: 14=99, val: =127}     # clear NRPN MSB
-- {type: ctrl, chan: 1, num: 14=98, val: =127}     # clear NRPN LSB
+- {type: ctrl, chan: 1, num: slider1=99, val: =120}     # NRPN MSB
+- {type: ctrl, chan: 1, num: slider1=98, val: =8}       # generator: filter cutoff
+- {type: ctrl, chan: 1, num: slider1=6, lsb: 38,
+   val: 0-127=5000-8000, log: 0.02}                     # data entry
+- {type: ctrl, chan: 1, num: slider1=99, val: =127}     # clear NRPN MSB
+- {type: ctrl, chan: 1, num: slider1=98, val: =127}     # clear NRPN LSB
 ```
 
 Finding a musically useful range often requires experimentation, as
