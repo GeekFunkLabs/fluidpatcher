@@ -1,18 +1,7 @@
-scripts/content/sf2/FluidR3_GM.sf2
-
-# windows installer assets
-fluidsynth_win*/
-bundled/
-*.nsi
-*.exe
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
-*.so
 
 # Distribution / packaging
 .Python

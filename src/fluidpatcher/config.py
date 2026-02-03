@@ -83,8 +83,9 @@ if not CONFIG["midi_path"].exists():
     shutil.copytree(res.files("fluidpatcher.data") / "midi", CONFIG["midi_path"])
 
 patchcord = res.files("fluidpatcher._ladspa") / "patchcord.so" 
+system = platform.system().lower()
 arch = platform.machine()
-prebuilt_path = res.files("fluidpatcher._ladspa") / f"prebuilt/linux-{arch}/patchcord.so"
+prebuilt_path = res.files("fluidpatcher._ladspa") / f"prebuilt/{system}-{arch}/patchcord.so"
 
 if patchcord.exists():
     PATCHCORD = {"_patchcord": LadspaEffect(lib=patchcord)}
