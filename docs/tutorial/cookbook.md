@@ -64,7 +64,7 @@ between *muted* and an Electric Piano sound:
 3: test.sf2:000:005
 
 rules:
-- {type: ctrl=prog, chan: 1=3, num: button1, val: 0-128=128-5}
+- {type: ctrl=prog, chan: 1=3, num: button1, val: 0-127=128-5}
 ```
 
 ## Parameter Control (RPN / NRPN)

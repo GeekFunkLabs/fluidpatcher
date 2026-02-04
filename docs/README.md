@@ -10,13 +10,9 @@ FluidSynth-based instruments driven by MIDI events. It provides:
 * Optional LADSPA audio effects
 
 FluidPatcher is designed for small systems such as Raspberry Pi but runs
-anywhere FluidSynth does. Banks are designed to be portable to different
-programs/platforms. Sample programs are in `examples/`.
-
-See the [official documentation](
+anywhere FluidSynth does. See the [official documentation](
   https://geekfunklabs.github.io/fluidpatcher
 ) for full details.
-
 
 ## Installation
 
@@ -67,6 +63,12 @@ fp.apply_patch("Piano")
 Play notes on an attached MIDI controller to hear patches. By default,
 FluidSynth will automatically connect to MIDI devices.
 
+Sample programs are in `examples/`, and can be run with
+
+```bash
+python -m fluidpatcher.examples.<example_name>
+```
+
 ## Banks & Patches
 
 Users access all of FluidPatcher's features primarily by writing bank
@@ -74,16 +76,7 @@ files. Bank files are a declarative, YAML-based format for describing
 synth *patches*. The underlying engine parses bank files and pre-loads
 required soundfonts so that different patches can be applied quickly in
 live performance. View the Tutorials section in the docs and/or example
-banks for guided learning:
-
-```shell
-📁 data/banks/tutorial
-├── 📄 lesson01_basic.yaml     # bank/patch structure
-├── 📄 lesson02_messages.yaml  # init blocks & sending messages
-├── 📄 lesson03_rules.yaml     # router rules + transformations
-├── 📄 lesson04_players.yaml   # arps, sequences, file players, loopers
-└── 📄 lesson05_effects.yaml   # LADSPA effects
-```
+banks (`data/banks/tutorial/`) for guided learning.
 
 ## Status & Contributions
 
@@ -97,4 +90,6 @@ Please open issues or pull requests on GitHub.
 ## License
 
 MIT. See LICENSE for details.
+
+FluidPatcher uses the FluidSynth library (LGPL-2.1) via dynamic linking.
 
