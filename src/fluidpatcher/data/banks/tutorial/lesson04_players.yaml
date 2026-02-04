@@ -1,0 +1,81 @@
+names:
+# toggle pads
+  button1: 53
+  button2: 54
+# momentary controller pads
+  pad1: 50
+
+# presets can be set at root level
+1: test.sf2:000:004
+rules:
+- {type: note, chan: 1}
+
+# define players at root level
+# so they can continue playing when applying patches
+# synchronize tempos
+sequences:
+  montuno:
+    tdiv: 16
+    tempo: 110
+    events:
+    # three patterns, one track each
+    - - nt:2:A3:100, nt:2:C4:100, nt:2:E4:100, nt:2:G#3:100
+    - - _, nt:2:C4:100, nt:2:E4:100, nt:2:G3:100
+    - - _, nt:2:C4:100, nt:2:G#3:100, +
+    # `nt` is an alias for `note`
+    order: 1, 2, 2, 3 # pattern playing order
+  disco:
+    tdiv: 8
+    tempo: 110
+    events: | # alternate form; columns=tracks
+      nt:10:36:100  _             nt:10:42:100 
+      _             _             nt:10:46:100 
+      nt:10:36:100  nt:10:39:100  nt:10:42:100 
+      _             _             nt:10:46:100 
+
+# items at root/patch level can appear in any order
+2: test.sf2:000:005
+10: test.sf2:128:000
+
+arpeggios:
+  fastpattern: {style: manual, tempo: 110, tdiv: 16}
+  # can use flow or block style for mappings
+
+midiloops:
+  # set a specific beat number and tempo to match other players
+  loop1: {beats: 4, tempo: 110}
+
+midifiles:
+  funktrack:
+    file: funkjam2.mid
+    barlength: 1000
+    jumps: 9>2
+    shift: 2 # shift to avoid overlap with sequence notes
+    tempo: 110
+
+4: test.sf2:000:033
+12: test.sf2:128:000
+
+patches:
+  Sequencer Control:
+    rules:
+    # starting/stopping sequencers
+    - {type: ctrl, num: button1, val: 0-127=0-1, play: montuno}
+    - {type: ctrl, num: button2, val: 127=1, play: disco}
+    - {type: ctrl, num: button2, val: 0, play: disco}
+  Play Arpeggios:    
+    rules:
+    # sends notes to be arpeggiated
+    - {type: note, chan: 1, arpeggio: fastpattern}
+  Looper Control:
+    rules:
+    - {type: note, loop: loop1} # records notes
+    - {type: ctrl, num: button1, val: 0-127=0-1, play: loop1} # start/stop playing
+    - {type: ctrl, num: button2, val: 0-127=0-1, record: loop1} # start/stop recording
+    - {type: ctrl, num: pad1, val: 127=-1, record: loop1} # undo last layer
+  Backing Tracks:
+    rules:
+    # play/pause
+    - {type: ctrl, num: button1, val: 127=-1, play: funktrack}
+    - {type: ctrl, num: button1, val: 0, play: funktrack}
+

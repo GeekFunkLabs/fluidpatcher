@@ -1,0 +1,219 @@
+doc: |
+  This bank is meant to as a test/demo of as many of FluidPatcher's
+  features as possible, to make sure everything is working.
+
+names:
+  #include control_names.txt
+  volume: 7
+  expression: 11
+  brightness: 74
+  reverb: 91
+  chorus: 93
+  portamento: 65
+  legato: 68
+
+patches:
+
+  Justpiano:
+    info: simple piano patch with reverb control
+
+    1: test.sf2:000:004
+    rules:
+    - {type: cc, num: slider1, val: 0-127=0-1, fluidsetting: synth.reverb.room-size}
+
+  Split Decision:
+    info: keyboard split with program stepping via CC
+
+    2: test.sf2:000:033
+    3: test.sf2:000:004
+    counters:
+      prog1: {min: 4, max: 7, wrap: yes}
+    rules:
+    - {type: note, num: C0-G3*1-12, chan: 1=2}
+    - {type: note, num: G#3-G9, chan: 1=3}
+    - {type: cc=prog, chan: 1=3, num: pad1, val: 1-127=-1, counter: prog1}
+    - {type: cc=prog, chan: 1=3, num: pad2, val: 1-127=1, counter: prog1}
+
+  Hacksynth:
+    info: synth with pitch bend > filter cutoff and delay effect
+
+    4: ModSynth_R1.sf2:000:000
+    rules:
+    - {type: note, chan: 1=4, val: 0}
+    - {type: note, chan: 1=4, val: 1-127=127}
+    - {type: cc, chan: 1=4}
+    - {type: pbend, chan: 1=4, val: 8192-16383}
+    - {type: pbend=cc, chan: 1=4, num: brightness, val: 0-8192=127-0}
+    - {type: cc, chan: 1=4, num: slider2=5, lsb: 37, val: 0-127=0-6000, log: 2}
+    - {type: cc, num: slider1, val: 0-127=0-1, fx: echo1>Delay}
+    - {type: cc, num: slider1, val: 0-127=0-1, fx: echo2>Delay}
+    - {type: cc, num: slider1, val: 0-127=0-1, fx: echo3>Delay}
+    messages:
+    - cc:4:portamento:127
+    - cc:4:legato:127
+    - cc:4:brightness:0
+
+  Drumbox:
+    info: separately triggered drum and bass sequences
+
+    1: test.sf2:000:081
+    3: test.sf2:000:033
+    10: test.sf2:128:000
+    sequences:
+      drums:
+        tdiv: 16
+        events:
+        - - note:10:36:100, _,_,_, note:10:36:100, _, _, _
+          - _, _, _, _, note:10:39:100, _, _, _
+          - [note:10:42:100, note:10:42:50, note:10:42:100, note:10:46:100]
+      bass:
+        tdiv: 16
+        events:
+        - - nt:3:A1:100, +, +, nt:3:G2:100, _, _, nt:3:A2:100, _
+    rules:
+    - {type: cc, num: button1, val: 127=1, play: drums}
+    - {type: cc, num: button1, val: 0, play: drums}
+    - {type: cc, num: button2, val: 127=1, play: bass}
+    - {type: cc, num: button2, val: 0, play: bass}
+    - {type: cc, num: pad1, val: 1-127=1, tap: drums}
+    - {type: cc, num: pad1, val: 1-127=1, tap: bass}
+
+  Robojam: 
+    info: grid-style sequencer with multiple looping patterns
+  
+    5: test.sf2:000:081
+    6: test.sf2:000:033
+    7: test.sf2:000:005
+    10: test.sf2:128:000
+    sequences:
+      basicwave:
+        order: 1, 1, 2, 2, -4, 3, -1
+        events: |
+          nt:5:F#4:070 nt:6:D2:100  nt:10:36:100
+          +            _            nt:10:42:100
+          +            nt:6:D2:100  nt:10:40:100
+          nt:5:D4:070  _            nt:10:42:100
+          +            nt:6:D2:100  nt:10:36:100
+          +            _            nt:10:42:100
+          +            nt:6:D2:100  nt:10:40:100
+          +            _            nt:10:42:100
+
+          nt:5:C#4:070 nt:6:A2:100  nt:10:36:100
+          +            _            note:10:42:100
+          +            nt:6:A2:100  nt:10:40:100
+          nt:5:A4:070  _            nt:10:42:100
+          +            nt:6:A2:100  nt:10:36:100
+          +            _            nt:10:42:100
+          +            nt:6:A2:100  nt:10:40:100
+          +            _            nt:10:42:100
+
+          nt:5:B4:070  nt:6:B2:100  nt:10:36:100
+          +            _            _
+          +            _            _
+          +            _            _
+          +            nt:6:B2:100  nt:10:46:100
+          +            _            _
+          +            _            _
+          +            _            nt:10:36:100
+
+    rules:
+    - {type: note, chan: 1=7}
+    - {type: cc, num: button1, val: 0, play: basicwave}
+    - {type: cc, num: button1, val: 127=-1, play: basicwave}
+    - {type: cc, num: pad1, val: 127=1, play: basicwave}
+    - {type: cc, num: pad2, val: 127=6, play: basicwave}
+
+  Lazy Hands:
+    info: mapping arpeggio styles to key ranges
+  
+    3: test.sf2:000:004
+    5: test.sf2:000:007
+    6: test.sf2:000:067
+    arpeggios:
+      mirror:
+        style: both
+      octaves:
+        style: up
+        tdiv: 16
+      chords:
+        style: chord
+        groove: 2,1,1,2,1,1,2,1
+    rules:
+    - {type: note, chan: 1=3, num: 0-59, arpeggio: mirror}
+    - {type: note, chan: 1=5, num: 60-71*1-12, arpeggio: octaves}
+    - {type: note, chan: 1=5, num: 60-71, arpeggio: octaves}
+    - {type: note, chan: 1=5, num: 60-71*1+12, arpeggio: octaves}
+    - {type: note, chan: 1=6, num: 72-127*1-12, arpeggio: chords}
+    - {type: cc, num: slider1, val: 0-127=0.5-0.99, swing: test}
+    - {type: cc, num: slider1, val: 0-127=0.5-0.99, swing: octaves}
+    - {type: cc, num: slider1, val: 0-127=0.5-0.99, swing: chords}
+    - {type: cc, num: slider2, val: 0-127=0.2-4, groove: test}
+    - {type: cc, num: slider2, val: 0-127=0.2-4, groove: octaves}
+    - {type: cc, num: slider2, val: 0-127=0.2-4, groove: chords}
+    - {type: cc, num: slider3, val: 0-127=60-240, tempo: test}
+    - {type: cc, num: slider3, val: 0-127=60-240, tempo: octaves}
+    - {type: cc, num: slider3, val: 0-127=60-240, tempo: chords}
+
+  Funky Tracks:
+    info: saxophone with multi-part MIDI file backing tracks
+
+    1: test.sf2:000:067
+    5: test.sf2:000:004
+    6: test.sf2:000:033
+    14: test.sf2:128:000
+    midifiles:
+      funk:
+        file: funkjam2.mid
+        barlength: 1000
+        jumps: 9>2, 17>2
+        shift: 4
+    rules:
+    - {type: cc, num: pad1, val: 1-127=2, play: funk}
+    - {type: cc, num: pad2, val: 1-127=10, play: funk}
+    - {type: cc, num: button1, val: 127=-1, play: funk}
+    - {type: cc, num: button1, val: 0, play: funk}
+    - {type: cc, num: slider3, val: 0-127=60-240, tempo: funk}
+    
+  FluidyLoops:
+    info: electric piano with midi looper
+  
+    1: test.sf2:000:005
+    midiloops:
+      test:
+        beats: 0
+    rules:
+    - {type: cc, num: button1, val: 127=1, play: test}
+    - {type: cc, num: button1, val: 0, play: test}
+    - {type: cc, num: button2, val: 127=1, record: test}
+    - {type: cc, num: button2, val: 0, record: test}
+    - {type: cc, num: pad1, val: 127=-1, record: test}
+    - {type: note, chan: 1, loop: test}
+    - {type: cc, num: slider3, val: 0-127=60-240, tempo: test}
+
+rules:
+- {type: note}
+- {type: cc}
+- {type: pbend}
+- {type: kpress, chan: =5}
+
+messages:
+- cc:4:portamento:0
+- cc:4:legato:0
+
+ladspafx:
+  info: uses yaml anchors/tags to chain copies of an effect
+  echo1: &echo
+    lib: delay.so
+    audio: mono
+    chan: 4
+    vals: {Delay: 0.3, Dry/Wet: 0.2}
+  echo2: *echo
+  echo3: *echo
+
+init:
+  messages:
+  - cc:1:reverb:127
+  - cc:1:chorus:127
+  fluidsettings:
+    synth.reverb.room-size: 0.5
+

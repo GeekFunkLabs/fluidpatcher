@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fluidpatcher"
+version = "1.0.0"
+description = "FluidSynth patch manager and performance toolkit"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Bill Peterson", email = "bill@geekfunklabs.com" }
+]
+requires-python = ">=3.10"
+dependencies = ["PyYAML"]
+
+[project.scripts]
+fpatcher-editor = "fluidpatcher.examples.live_bank_editor:main"
+
+[tool.setuptools.package-data]
+"fluidpatcher.data" = ["*.yaml", "banks/*", "midi/*.mid", "sounds/*.sf2"]
+"fluidpatcher._ladspa" = ["prebuilt/*/*.so"]
+
+[[tool.setuptools.ext-modules]]
+name = "fluidpatcher._ladspa.patchcord"
+sources = ["src/fluidpatcher/_ladspa/patchcord.c"]
+extra-link-args = ["-o", "src/fluidpatcher/_ladspa/patchcord.so"]
+optional = true
+

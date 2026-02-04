@@ -1,0 +1,34 @@
+names:
+  slider1: 13
+  slider2: 14
+
+ladspafx:
+  plate:
+    lib: delay
+    chan: 1
+    audio: mono
+    vals: {Delay: 0.1}
+  trem:
+    lib: tap_tremolo
+    audio: mono
+    chan: 2
+  reverb:
+    lib: tap_reverb
+    audio: stereo
+    chan: 2, 3
+
+patches:
+  FM Piano:
+    1: test.sf2:000:005
+    rules:
+    - {type: note, chan: 1}
+  Rhodes:
+    2: test.sf2:000:004
+    rules:
+    - {type: note, chan: 1=2}
+    - {type: ctrl, num: slider1, val: 0-127=0-20, fx: trem>Freq}
+    - {type: ctrl, num: slider2, val: 0-127=0-100, fx: trem>Depth}
+  Clav:
+    3: test.sf2:000:007
+    rules:
+    - {type: note, chan: 1=3}

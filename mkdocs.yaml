@@ -2,20 +2,51 @@ site_name: FluidPatcher
 repo_url: https://github.com/GeekFunkLabs/fluidpatcher
 nav:
 - Home: README.md
-- Basic Usage: basic_usage.md
-- Soundfonts: soundfonts.md
-- Creating Banks: bank_files.md
-- Plugins: ladspa_plugins.md
-- API Reference: api_reference.md
+- Setup:
+  - Installation: install.md
+  - Configuration: config.md
+- Concepts:
+  - Overview: concepts/overview.md
+  - Soundfonts: concepts/soundfonts.md
+  - Banks & Patches: concepts/banks.md
+  - MIDI Event Processing: concepts/midi.md
+  - Players & Sequencers: concepts/players.md
+  - Effects (LADSPA): concepts/ladspa.md
+- Bank Tutorials:
+  - Basics: tutorial/lesson01_basic.md
+  - Messages: tutorial/lesson02_messages.md
+  - Advanced MIDI Rules: tutorial/lesson03_rules.md
+  - Players in Practice: tutorial/lesson04_players.md
+  - Using Plugins: tutorial/lesson05_effects.md
+  - Cookbook: tutorial/cookbook.md
+- API Reference:
+  - Examples: api/examples.md
+  - FluidPatcher: api/patcher.md
+  - Banks: api/bankfiles.md
+  - Config/Exceptions: api/misc.md
 theme:
   name: readthedocs
   favicon: img/gfl_logo.ico
+markdown_extensions:
+  - admonition
+  - footnotes
+  - attr_list
+  - def_list
+  - tables
+  - fenced_code
+  - pymdownx.superfences
+  - codehilite
+  - toc:
+      permalink: true
 plugins:
   - mkdocstrings:
       handlers:
         python:
+          inventories:
+          - https://docs.python.org/3/objects.inv
           options:
-            docstring_section_style: list
-            members_order: source
+            heading_level: 3
             show_root_heading: true
-            show_signature_annotations: true
+            show_source: false
+            show_bases: false
+
