@@ -75,8 +75,10 @@ Users access all of FluidPatcher's features primarily by writing bank
 files. Bank files are a declarative, YAML-based format for describing
 synth *patches*. The underlying engine parses bank files and pre-loads
 required soundfonts so that different patches can be applied quickly in
-live performance. View the Tutorials section in the docs and/or example
-banks (`data/banks/tutorial/`) for guided learning.
+live performance.
+
+View the Tutorials section in the docs and/or example banks
+(`data/banks/tutorial/`) for guided learning.
 
 ## Status & Contributions
 

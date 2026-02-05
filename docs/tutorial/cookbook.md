@@ -50,8 +50,9 @@ messages:
 
 ## Muting / Unsetting Channels
 
-Sometimes it’s useful to selectively mute a channel—for example, to
-silence individual tracks from a MIDI file or sequencer while it
+Sometimes you may want to turn off/mute a soundfont preset using using
+your controller, rather than just changing patches-for example,
+to silence individual tracks from a MIDI file or sequencer while it
 continues playing.
 
 Sending a program change with a value of `128` causes FluidSynth to
@@ -116,12 +117,12 @@ form a complete NRPN update.
 
 ```yaml
 rules:
-- {type: ctrl, chan: 1, num: slider1=99, val: =120}     # NRPN MSB
-- {type: ctrl, chan: 1, num: slider1=98, val: =8}       # generator: filter cutoff
+- {type: ctrl, chan: 1, num: slider1=99, val: =120}  # NPRN select MSB: Soundfont
+- {type: ctrl, chan: 1, num: slider1=98, val: =8}    # NPRN select LSB: generator 8 - filter cutoff
 - {type: ctrl, chan: 1, num: slider1=6, lsb: 38,
-   val: 0-127=5000-8000, log: 0.02}                     # data entry
-- {type: ctrl, chan: 1, num: slider1=99, val: =127}     # clear NRPN MSB
-- {type: ctrl, chan: 1, num: slider1=98, val: =127}     # clear NRPN LSB
+   val: 0-127=5000-8000, log: 0.02}                  # data entry
+- {type: ctrl, chan: 1, num: slider1=99, val: =127}  # clear NRPN MSB
+- {type: ctrl, chan: 1, num: slider1=98, val: =127}  # clear NRPN LSB
 ```
 
 Finding a musically useful range often requires experimentation, as
