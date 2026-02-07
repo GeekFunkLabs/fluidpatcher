@@ -24,20 +24,6 @@ from .bankfiles import LadspaEffect
 
 
 def load_config():
-    """
-    Load configuration from disk and finalize derived paths.
-
-    Returns
-    -------
-    dict
-        A configuration mapping loaded from CONFIG_PATH (YAML), with:
-        - any *_path entries converted to pathlib.Path
-        - default fallback paths for banks, sounds, and midi if missing
-        - ladspa_path resolved from environment or system default
-
-    The returned mapping does NOT modify the global CONFIG object; the
-    module updates CONFIG separately after import.
-    """
     cfg = yaml.safe_load(CONFIG_PATH.read_text())
     for key, val in list(cfg.items()):
         if key.endswith("_path") and val is not None:
@@ -54,7 +40,7 @@ def load_config():
 
 def save_config():
     """
-    Writes CONFIG to file, converting Paths to POSIX strings.
+    Writes CONFIG to file.
     """
     cfg_posix = {
         k: v.as_posix() if isinstance(v, Path) else v

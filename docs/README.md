@@ -1,5 +1,8 @@
 # FluidPatcher
 
+* [Source Code](https://github.com/GeekFunkLabs/fluidpatcher)
+* [Official Documentation](https://geekfunklabs.github.io/fluidpatcher)
+
 FluidPatcher is a lightweight Python toolkit for building playable
 FluidSynth-based instruments driven by MIDI events. It provides:
 
@@ -10,9 +13,7 @@ FluidSynth-based instruments driven by MIDI events. It provides:
 * Optional LADSPA audio effects
 
 FluidPatcher is designed for small systems such as Raspberry Pi but runs
-anywhere FluidSynth does. See the [official documentation](
-  https://geekfunklabs.github.io/fluidpatcher
-) for full details.
+anywhere FluidSynth does.
 
 ## Installation
 

@@ -482,10 +482,11 @@ class MidiRule(_BankObject):
     transformed, or mapped
 
     Attributes:
-      type (str),totype (str): Input and output message types
-      chan (int|str): Channel range/transform (default: None)
-      num (int|str): Parameter range/transform (default: None)
-      val (int|float|str): Value range/transform (default: None)
+      type (str): Matching message type
+      totype (str): Resulting message type (default: ``self.type``)
+      chan (int|str): Channel range/transform (optional)
+      num (int|str): Parameter range/transform (optional)
+      val (int|float|str): Value range/transform (optional)
       **pars (dict): additional parameters for custom functionality
     """
     ftroute = re.compile(r"^({0})?-?({0})?=?(-?{0})?-?(-?{0})?$".format(r"[\w\d\#\.]+"))
@@ -539,11 +540,11 @@ class Sequence(_BankObject):
 
     Attributes:
       events (list): Parsed events grouped by pattern
-      order (list): Playback order of patterns (default: [1])
-      tempo (int): Beats per minute (default: 120)
-      tdiv (int): Beat divisor (default: 8)
-      swing (float): Timing swing ratio (default: 0.5)
-      groove (int|list): Beat accent pattern (default: [1, 1])
+      order (list): Playback order of patterns (default: ``[1]``)
+      tempo (int): Beats per minute (default: ``120``)
+      tdiv (int): Beat divisor (default: ``8``)
+      swing (float): Timing swing ratio (default: ``0.5``)
+      groove (int|list): Beat accent pattern (default: ``[1, 1]``)
     """
     yaml_tag = "!sequence"
     zone = "sequences"
@@ -570,11 +571,11 @@ class Arpeggio(_BankObject):
     Patterned arpeggiation definition
 
     Attributes:
-      style (str): Pattern name or algorithm key
-      tempo (int): Beats per minute (default: 120)
-      tdiv (int): Beat divisor (default: 8)
-      swing (float): Timing swing ratio (default: 0.5)
-      groove (int|list): Beat accent pattern (default: [1, 1])
+      style (str): Pattern type
+      tempo (int): Beats per minute (default: ``120``)
+      tdiv (int): Beat divisor (default: ``8``)
+      swing (float): Timing swing ratio (default: ``0.5``)
+      groove (int|list): Beat accent pattern (default: ``[1, 1]``)
     """
     yaml_tag = "!arpeggio"
     zone = "arpeggios"
@@ -595,7 +596,7 @@ class MidiLoop(_BankObject):
 
     Attributes:
       beats (int): Loop length in beats
-      tempo (int): Beats per minute (default: 120)
+      tempo (int): Beats per minute (default: ``120``)
     """
     yaml_tag = "!midiloop"
     zone = "midiloops"
@@ -613,11 +614,11 @@ class MidiFile(_BankObject):
 
     Attributes:
       file (str): Path to a .mid file
-      tempo (int): Beats per minute (default: 120)
-      barlength (int): Ticks per musical measure (default: 1)
-      jumps (list[str]): List of bar jumps as [from]>[to] (default: [])
-      shift (int): Channel shift amount (default: 0)
-      mask (list[str]): Ignored message types (default: []) 
+      tempo (int): Beats per minute (default: ``120``)
+      barlength (int): Ticks per musical measure (default: ``1``)
+      jumps (list[str]): List of bar jumps as [from]>[to] (default: ``[]``)
+      shift (int): Channel shift amount (default: ``0``)
+      mask (list[str]): Ignored message types (default: ``[]``) 
     """
     yaml_tag = "!midifile"
     zone = "midifiles"
@@ -642,10 +643,10 @@ class LadspaEffect(_BankObject):
 
     Attributes:
       lib (str): LADSPA library basename
-      plugin (str): Plugin label (default: ``)
-      audio (list[str]): Audio port names (default: [`Input, Output`])
-      vals (dict): Initial values for control ports (default: {})
-      chan (list[int]): Input channel routing (default: [])
+      plugin (str): Plugin label (default: ``''``)
+      audio (list[str]): Audio port names (default: ``['Input', 'Output']``)
+      vals (dict): Initial values for control ports (default: ``{}``)
+      chan (list[int]): Input channel routing (default: ``[]``)
     """
     yaml_tag = "!ladspafx"
     zone = "ladspafx"
@@ -671,8 +672,8 @@ class Counter(_BankObject):
 
     Attributes:
       min/max (float): range for values
-      startval (float): Initial value for counter, min by default
-      wrap (bool): wrap values if True, else clamp to range (default)
+      startval (float): Initial value for counter (default: ``self.min``)
+      wrap (bool): wrap values if True, else clamp to range (default: ``False``)
     """
     yaml_tag = "!counter"
     zone = "counters"

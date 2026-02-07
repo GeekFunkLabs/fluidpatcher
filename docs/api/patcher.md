@@ -21,9 +21,6 @@ Bank  →  FluidPatcher
 
 ## Basic Pattern
 
-Once created, a `FluidPatcher` instance starts a FluidSynth engine
-immediately and maintains that engine for its entire lifetime.
-
 A minimal interactive session looks like this:
 
 ```python
@@ -38,11 +35,20 @@ Patches and banks can be changed with successive calls to
 `apply_patch()` and `load_bank()`. This is all the API a program need
 use to access all the functionality of banks.
 
-::: fluidpatcher.FluidPatcher.__init__
+::: fluidpatcher.FluidPatcher
+    options:
+      members:
+        - __init__
 
-The constructor initializes FluidSynth using defaults from
-`CONFIG["fluidsettings"]`, optionally overridden by user-supplied
-values. Logging can be redirected or disabled entirely.
+The constructor initializes a FluidSynth engine using defaults from
+`CONFIG["fluidsettings"]`, optionally overridden by user-supplied values.
+It creates a custom MIDI router and installs it in the engine, which it
+then starts and maintains for the FluidPatcher's entire lifetime.
+
+FluidSynth's built-in logging (`None`) can be disabled (`-1`) or
+redirected to a custom function that accepts a [fluid_log_level](
+https://www.fluidsynth.org/api/group__logging.html
+) and a message string.
 
 ::: fluidpatcher.FluidPatcher.load_bank
 

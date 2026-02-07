@@ -63,7 +63,7 @@ class FluidPatcher:
             Additional FluidSynth settings that override defaults.
 
           fluidlog (callable | -1 | None):
-            Callback accepting (level, message) or -1 to suppress logs.              
+            Callback accepting (level, message) or -1 to suppress logs.
         """
         self.bank = Bank("patches: {}")
         self._sfonts = {}
@@ -87,7 +87,8 @@ class FluidPatcher:
         Load a soundfont and enumerate its presets.
 
         Args:
-          path (str or Path): Filename or absolute path.
+          path (str|Path):
+            Filename relative to CONFIG["sounds_path"], or absolute.
 
         Returns:
           (SoundFont): iterable of presets, indexable by (bank, prog).
@@ -107,15 +108,11 @@ class FluidPatcher:
         Load a bank from a YAML file or raw text.
 
         Args:
-          bankfile (str or Path):
-              Filename relative to CONFIG["banks_path"], or absolute.
+          bankfile (str|Path):
+            Filename relative to CONFIG["banks_path"], or absolute.
 
           raw (str):
-              YAML text to load directly, bypassing disk I/O.
-
-        Raises:
-          BankValidationError: if a referenced include file is missing
-                               or other semantic validation fails.
+            YAML text to load directly, bypassing disk I/O.
         """
         def read_bank(files, raw="", indent=0):
             text = ""
@@ -152,22 +149,22 @@ class FluidPatcher:
         for msg in init.get("messages", []):
             self.send_midimessage(msg)
 
-    def save_bank(self, file, raw=""):
+    def save_bank(self, bankfile, raw=""):
         """
         Write the current bank contents to disk.
 
         Args:
-          file (str or Path):
-              Output filename relative to CONFIG["banks_path"].
+          bankfile (str|Path):
+            Output filename relative to CONFIG["banks_path"], or absolute
 
           raw (str):
-              Exact YAML text to store.
+            Exact YAML text to store.
         """
         if raw:
             self.bank = Bank(raw)
         else:
             raw = self.bank.dump()
-        (CONFIG["banks_path"] / file).write_text(raw)
+        (CONFIG["banks_path"] / bankfile).write_text(raw)
 
     def apply_patch(self, patch):
         """

@@ -17,9 +17,11 @@ FLUID_PLAYER_PLAYING = 1
 FLUID_PLAYER_DONE = 3
 
 RULE_TYPES = "note", "ctrl", "prog", "pbend", "cpress", "kpress"
-MIDI_TYPES = {"noteoff": 0x80, "note": 0x90, "kpress": 0xa0, "ctrl": 0xb0,
+MIDI_TYPES = {
+    "noteoff": 0x80, "note": 0x90, "kpress": 0xa0, "ctrl": 0xb0,
     "prog": 0xc0, "cpress": 0xd0, "pbend": 0xe0, "sysex": 0xf0,
-    "clock": 0xf8, "start": 0xfa, "continue": 0xfb, "stop": 0xfc}
+    "clock": 0xf8, "start": 0xfa, "continue": 0xfb, "stop": 0xfc,
+}
 PLAYER_TYPES = "sequences", "arpeggios", "midiloops", "midifiles"
 SEQ_LAG = 10
 
@@ -471,6 +473,9 @@ class SoundFont:
 
     def index(self, p):
         return list(self._presets).index(p)
+
+    def items(self):
+        return self._presets.items()
 
     def __iter__(self):
         return iter(self._presets)

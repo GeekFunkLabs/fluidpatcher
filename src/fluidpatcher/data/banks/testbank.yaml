@@ -201,8 +201,9 @@ messages:
 - cc:4:legato:0
 
 ladspafx:
-  info: uses yaml anchors/tags to chain copies of an effect
   echo1: &echo
+    info: uses yaml anchors/tags to chain copies of an effect
+
     lib: delay.so
     audio: mono
     chan: 4
