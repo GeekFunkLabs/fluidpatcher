@@ -17,23 +17,26 @@ or the location referenced by the environment variable
 
 Loading happens *once* at import, and the data is stored in the global
 variable CONFIG. When loading, any key ending in `_path` is
-automatically converted into a `Path` object internally,
+automatically converted into a `pathlib.Path` object internally,
 so paths behave consistently across platforms.
 
 ::: fluidpatcher.config.save_config
 
 This function can be used to store modified fluidsettings or add custom
-states that persist across FluidPatcher imports.
+states that persist across FluidPatcher imports. `Path` objects are
+serialized as POSIX strings. 
 
 For example, a program might store the current bank, so that it can be
 loaded automatically next time the program starts:
 
 ```python
-CONFIG["currentbank_path"] = Path(bankfile)
+CONFIG["mybank_path"] = Path(bankfile)
+save_config()
 ```
 
-By choosing a key that ends in `_path` it gets properly serialized by
-`save_config()` and parsed on import, like the other path settings.
+`save_config()` will automatically serialize the `Path` object, and
+because the chosen key ends in `_path` it will be converted back to a
+`Path` on import.
 
 ## Bank File Errors
 

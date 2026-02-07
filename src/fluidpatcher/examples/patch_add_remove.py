@@ -6,7 +6,7 @@ Normally banks are created and loaded as YAML. This example shows how
 to modify a bank within a program.
 """
 
-from fluidpatcher import FluidPatcher, CONFIG, SFPreset, MidiRule
+from fluidpatcher import FluidPatcher, SFPreset, MidiRule
 
 # the MIDI channel of notes from your controller
 MIDI_CHANNEL = 1
@@ -15,7 +15,7 @@ MIDI_CHANNEL = 1
 fp = FluidPatcher(fluidlog=-1)
 
 # load a soundfont
-soundfont = fp.open_soundfont(CONFIG["sounds_path"] / "test.sf2")
+soundfont = fp.open_soundfont("test.sf2")
 print(f"Loaded soundfont: {soundfont.file}")
 
 # create a patch
@@ -61,6 +61,7 @@ while True:
         # list available presets
         print("preset bank:prog name")
         print("====== ========= ====")
+
         for i, (bank, prog) in enumerate(soundfont, start=1):
             print(f"{i:>6}  {bank:03}:{prog:03}  {soundfont[bank, prog]}")
 
@@ -77,7 +78,7 @@ while True:
                 print("Preset number out of range")
 
     elif cmd == "d":
-        name = input("Enter name of patch delete: ")
+        name = input("Enter name of patch to delete: ")
         if name in fp.bank.patches:
             # delete the patch
             del fp.bank.patch[name]
