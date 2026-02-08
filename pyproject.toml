@@ -12,7 +12,12 @@ authors = [
     { name = "Bill Peterson", email = "bill@geekfunklabs.com" }
 ]
 requires-python = ">=3.10"
-dependencies = ["PyYAML"]
+dependencies = ["PyYAML>=6.0"]
+
+[project.urls]
+Homepage = "https://github.com/GeekFunkLabs/fluidpatcher"
+Documentation = "https://geekfunklabs.github.io/fluidpatcher/"
+Source = "https://github.com/GeekFunkLabs/fluidpatcher"
 
 [project.scripts]
 fpatcher-editor = "fluidpatcher.examples.live_bank_editor:main"
@@ -20,10 +25,4 @@ fpatcher-editor = "fluidpatcher.examples.live_bank_editor:main"
 [tool.setuptools.package-data]
 "fluidpatcher.data" = ["*.yaml", "banks/*", "midi/*.mid", "sounds/*.sf2"]
 "fluidpatcher._ladspa" = ["prebuilt/*/*.so"]
-
-[[tool.setuptools.ext-modules]]
-name = "fluidpatcher._ladspa.patchcord"
-sources = ["src/fluidpatcher/_ladspa/patchcord.c"]
-extra-link-args = ["-o", "src/fluidpatcher/_ladspa/patchcord.so"]
-optional = true
 
