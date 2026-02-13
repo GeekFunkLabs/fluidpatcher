@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Examples - FluidPatcher</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../../assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Examples";
+        var mkdocs_page_input_path = "api/examples.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> FluidPatcher
+        </a>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Setup</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../install/">Installation</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../config/">Configuration</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Concepts</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/overview/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/soundfonts/">Soundfonts</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/banks/">Banks & Patches</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/midi/">MIDI Event Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/players/">Players & Sequencers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/ladspa/">Effects (LADSPA)</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bank Tutorials</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson01_basic/">Basics</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson02_messages/">Messages</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson03_rules/">Advanced MIDI Rules</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson04_players/">Players in Practice</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson05_effects/">Using Plugins</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/cookbook/">Cookbook</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">API Reference</span></p>
+              <ul class="current">
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Examples</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#basic-example">Basic Example</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#patch-addingremoving">Patch Adding/Removing</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#live-bank-editor">Live Bank Editor</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../patcher/">FluidPatcher</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../bankfiles/">Banks</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../misc/">Config/Exceptions</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">FluidPatcher</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">API Reference</li>
+      <li class="breadcrumb-item active">Examples</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher/edit/master/docs/api/examples.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h1>
+<p>FluidPatcher ships with several runnable examples that demonstrate
+common usage patterns, from minimal scripting to interactive bank
+editing. These examples are intended to be read alongside the API
+reference—they show how the core objects behave in practice,
+not just how they’re defined.</p>
+<h2 id="basic-example">Basic Example<a class="headerlink" href="#basic-example" title="Permanent link">&para;</a></h2>
+<pre class="highlight"><code class="language-bash">python -m fluidpatcher.examples.basic</code></pre>
+<p>Make sure:</p>
+<ul>
+<li>A MIDI controller is connected</li>
+<li><code>testbank.yaml</code> exists in your configured banks path</li>
+<li>Fluidsynth audio is routed to speakers or headphones</li>
+</ul>
+<p><strong>What it demonstrates</strong></p>
+<ul>
+<li>Creating a <code>FluidPatcher</code> instance</li>
+<li>Loading a bank from YAML</li>
+<li>Enumerating patches in a bank</li>
+<li>Applying patches at runtime</li>
+<li>Leaving MIDI routing “as-is” so notes from a connected controller are
+heard immediately</li>
+</ul>
+<p>This is the smallest useful FluidPatcher program. It loads a bank file
+and lets you step through its patches interactively from the terminal.</p>
+<p><strong>How it works</strong></p>
+<ul>
+<li>Loads <code>testbank.yaml</code></li>
+<li>Prints the available patch names</li>
+<li>Applies the first patch</li>
+<li>Loops, advancing to the next patch when you press Enter</li>
+</ul>
+<p>No MIDI rules are defined in the script itself—this relies on the bank
+configuration to route MIDI appropriately.</p>
+<h2 id="patch-addingremoving">Patch Adding/Removing<a class="headerlink" href="#patch-addingremoving" title="Permanent link">&para;</a></h2>
+<pre class="highlight"><code class="language-bash">python -m fluidpatcher.examples.patch_add_remove</code></pre>
+<p>You’ll need:</p>
+<ul>
+<li>A valid SoundFont (<code>test.sf2</code> in the configured sounds path)</li>
+<li>A MIDI controller on channel 1 (or adjust <code>MIDI_CHANNEL</code>)</li>
+</ul>
+<p><strong>What it demonstrates</strong></p>
+<ul>
+<li>Creating patches programmatically (without YAML)</li>
+<li>Adding and deleting patches while the program is running</li>
+<li>Enumerating presets from a SoundFont</li>
+<li>Using <code>SFPreset</code> and <code>MidiRule</code> directly</li>
+<li>Applying patches dynamically</li>
+</ul>
+<p>This example shows that banks are not static files—they’re mutable data
+structures that can be created, edited, and destroyed entirely in Python.</p>
+<p><strong>How it works</strong></p>
+<ul>
+<li>Loads a SoundFont</li>
+<li>Creates an initial patch in code</li>
+<li>Defines a root-level MIDI rule so note events reach the synth</li>
+<li>
+<p>Presents a simple text UI to:</p>
+</li>
+<li>
+<p>Select patches</p>
+</li>
+<li>Add new patches</li>
+<li>Change presets</li>
+<li>Delete patches</li>
+</ul>
+<p>This is especially useful if you’re building tools that generate or
+manipulate banks rather than authoring them by hand.</p>
+<h2 id="live-bank-editor">Live Bank Editor<a class="headerlink" href="#live-bank-editor" title="Permanent link">&para;</a></h2>
+<pre class="highlight"><code class="language-bash">python -m fluidpatcher.examples.live_bank_editor</code></pre>
+<p>Or, if installed via <code>pip</code>:</p>
+<pre class="highlight"><code class="language-bash">fpatcher-editor</code></pre>
+<p>Notes:</p>
+<ul>
+<li>YAML syntax and validation errors are shown in the status bar and
+  printed to stdout for debugging</li>
+<li>Errors do not stop the editor—this is intentional</li>
+<li>MIDI and audio routing must be handled externally
+  (e.g., JACK, ALSA, a DAW)</li>
+</ul>
+<p><strong>What it demonstrates</strong></p>
+<ul>
+<li>Live parsing and validation of bank YAML</li>
+<li>Immediate feedback on syntax and validation errors</li>
+<li>Applying patches without restarting FluidPatcher</li>
+<li>Using FluidPatcher alongside a DAW</li>
+<li>Integrating FluidPatcher into a GUI application</li>
+</ul>
+<p>This example is a full interactive editor for FluidPatcher bank files.
+Edits are parsed as you type, and valid patches appear immediately in a
+menu where they can be auditioned.</p>
+<p>It’s intended both as a practical tool and as a reference for embedding
+FluidPatcher in larger applications.</p>
+<p><strong>Key features</strong></p>
+<ul>
+<li>Open and save YAML bank files</li>
+<li>Real-time error reporting (non-fatal)</li>
+<li>Patch menu populated from parsed bank contents</li>
+<li>Designed to run concurrently with external MIDI/audio routing</li>
+</ul>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../../tutorial/cookbook/" class="btn btn-neutral float-left" title="Cookbook"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../patcher/" class="btn btn-neutral float-right" title="FluidPatcher">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../../tutorial/cookbook/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../patcher/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
