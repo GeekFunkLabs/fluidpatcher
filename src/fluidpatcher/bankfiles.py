@@ -423,14 +423,6 @@ class _BankObject(yaml.YAMLObject):
         obj._init_pars(pars)
         return obj
 
-    def _init_pars(self, pars):
-        self.__dict__.update(pars)
-        self._pars = pars
-
-    def copy(self, **pars):
-        pars["_pars"] = self._pars | pars
-        return self.__class__(**self.__dict__ | pars)
-
     @classmethod
     def to_yaml(cls, dumper, data):
         return dumper.represent_mapping(
@@ -439,20 +431,23 @@ class _BankObject(yaml.YAMLObject):
             flow_style=cls.yaml_flow_style
         )
 
+    def _init_pars(self, pars):
+        self.__dict__.update(pars)
+        self._pars = pars
+
+    def copy(self, **pars):
+        for k, v in self.__dict__.items():
+            if k[0] != "_":
+                pars.setdefault(k, v)
+        return self.__class__(**pars)
+
     def _validate(self, path=(), names={}):
-        for k, v in self:
-            _walk(v, path + (k,), names)
+        for k, v in self.__dict__.items():
+            if k[0] != "_":
+                _walk(v, path + (k,), names)
 
     def __repr__(self):
         return str(self._pars)
-
-    def __contains__(self, k):
-        return k in self.__dict__
-
-    def __iter__(self):
-        return iter(
-            [(k, v) for k, v in self.__dict__.items() if k[0] != "_"]
-        )
 
 
 class _Route:
