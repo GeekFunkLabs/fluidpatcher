@@ -234,9 +234,6 @@ class Bank:
     def __iter__(self):
         return iter([self.root, *self.patch.values()])
 
-    def index(self, name):
-        return list(self.patch).index(name)
-
     def dump(self):
         bank = self.root | {"patches": self.patch}
         return yaml.dump(bank, Dumper=BankDumper, sort_keys=False)
@@ -448,6 +445,9 @@ class _BankObject(yaml.YAMLObject):
 
     def __repr__(self):
         return str(self._pars)
+
+    def __iter__(self):
+        return iter([(k, v) for k, v in self._pars.items()])
 
 
 class _Route:
