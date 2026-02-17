@@ -10,6 +10,7 @@ engine and Bank files. It handles:
   - optional notification hooks for UI or CLI environments
 """
 
+from contextlib import contextmanager
 from pathlib import Path
 
 from yaml import safe_load, safe_dump
@@ -263,6 +264,34 @@ class FluidPatcher:
         """
         self._synth.send_midievent(msg)
 
+    def set_midicallback(self, func):
+        """
+        Install a callback to observe MIDI events.
+
+        Args:
+          func (callable | None):
+              Function taking a single event, or None to disable.
+        """
+        if func:
+            self._router.callback = func
+        else:
+            self._router.callback = lambda event: None
+
+    @contextmanager
+    def midi_capture(self, func):
+        """
+        Convenience context manager for setting MIDI callback
+
+        Args:
+          func (callable | None):
+              Function taking a single event, or None to disable.
+        """
+        self.set_midicallback(func)
+        try:
+            yield
+        finally:
+            self.set_midicallback(None)
+
     def fluidsetting(self, name):
         """
         Retrieve a FluidSynth setting.
@@ -284,17 +313,4 @@ class FluidPatcher:
           val (int|float|str): Desired value.
         """
         self._synth[name] = val
-
-    def set_callback(self, func):
-        """
-        Install a callback to observe MIDI events.
-
-        Args:
-          func (callable | None):
-              Function taking a single event, or None to disable.
-        """
-        if func:
-            self._router.callback = func
-        else:
-            self._router.callback = lambda event: None
 
