@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>MIDI Event Processing - FluidPatcher</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../../assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "MIDI Event Processing";
+        var mkdocs_page_input_path = "concepts/midi.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> FluidPatcher
+        </a>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Setup</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../install/">Installation</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../config/">Configuration</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Concepts</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../overview/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../soundfonts/">Soundfonts</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../banks/">Banks & Patches</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">MIDI Event Processing</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#midi-messages">MIDI messages</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#message-syntax">Message syntax</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#message-types">Message Types</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#midi-rules">MIDI rules</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#rule-matching-and-transformation">Rule matching and transformation</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#parameter-forms">Parameter forms</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#default-routing">Default routing</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#extended-rule-parameters">Extended rule parameters</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#counters">Counters</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#bank-file-parameters">Bank File Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#rule-effects">Rule Effects</a>
+    </li>
+        </ul>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../players/">Players & Sequencers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../ladspa/">Effects (LADSPA)</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bank Tutorials</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson01_basic/">Basics</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson02_messages/">Messages</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson03_rules/">Advanced MIDI Rules</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson04_players/">Players in Practice</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson05_effects/">Using Plugins</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/cookbook/">Cookbook</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">API Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/examples/">Examples</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/patcher/">FluidPatcher</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/bankfiles/">Banks</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/misc/">Config/Exceptions</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">FluidPatcher</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Concepts</li>
+      <li class="breadcrumb-item active">MIDI Event Processing</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher/edit/master/docs/concepts/midi.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="midi-event-processing">MIDI Event Processing<a class="headerlink" href="#midi-event-processing" title="Permanent link">&para;</a></h1>
+<p>All interaction with FluidSynth in FluidPatcher is driven by MIDI
+messages. Incoming messages from connected MIDI controllers are matched
+against routing rules defined in the bank or active patch, producing
+synth events such as playing notes, modifying parameters, or controlling
+players.</p>
+<p>A single incoming message may match multiple rules, and each matching
+rule generates a separate event.</p>
+<h2 id="midi-messages">MIDI messages<a class="headerlink" href="#midi-messages" title="Permanent link">&para;</a></h2>
+<p>FluidPatcher can send MIDI messages automatically when a bank is loaded
+or a patch is applied. Messages can appear:</p>
+<ul>
+<li>In the root-level <code>init</code> section (sent once when the bank is loaded)</li>
+<li>In the root- and patch-level <code>messages</code> sections
+ (sent when a patch is applied)</li>
+</ul>
+<h3 id="message-syntax">Message syntax<a class="headerlink" href="#message-syntax" title="Permanent link">&para;</a></h3>
+<p>Messages are written in bank files using a compact scalar form:</p>
+<pre class="highlight"><code class="language-yaml">&lt;type&gt;:&lt;chan&gt;:&lt;num&gt;:&lt;val&gt;</code></pre>
+<p>or, when <code>num</code> is not applicable:</p>
+<pre class="highlight"><code class="language-yaml">&lt;type&gt;:&lt;chan&gt;:&lt;val&gt;</code></pre>
+<p>System real-time messages (<code>clock:</code>, <code>start:</code>, <code>stop:</code>, <code>continue:</code>)
+and system exclusive messages (<code>sysex:XX:XX:XX:...</code>) may also be sent
+and routed.</p>
+<h3 id="message-types">Message Types<a class="headerlink" href="#message-types" title="Permanent link">&para;</a></h3>
+<p>MIDI channel messages (i.e. "voice" messages), have <code>chan</code> and <code>type</code>
+parameters, as well as the parameters shown in the table below.</p>
+<div class="admonition info">
+<p class="admonition-title">Info</p>
+<p>Incoming Note Off messages are normalized to Note On messages with a
+velocity of zero.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Message</th>
+<th><code>num</code></th>
+<th><code>val</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Note On</td>
+<td>note number</td>
+<td>velocity</td>
+</tr>
+<tr>
+<td>Control Change</td>
+<td>controller number</td>
+<td>value</td>
+</tr>
+<tr>
+<td>Key Pressure</td>
+<td>note number</td>
+<td>pressure</td>
+</tr>
+<tr>
+<td>Program Change</td>
+<td>–</td>
+<td>program number</td>
+</tr>
+<tr>
+<td>Pitch Bend</td>
+<td>–</td>
+<td>amount (-8192–8192)</td>
+</tr>
+<tr>
+<td>Aftertouch</td>
+<td>–</td>
+<td>pressure</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>type</code> parameter has multiple aliases for each message type
+(standard, short form, mido-style):</p>
+<ul>
+<li>Note On: <code>note</code>, <code>nt</code>, <code>note_on</code>  </li>
+<li>Control Change: <code>ctrl</code>, <code>cc</code>, <code>control_change</code></li>
+<li>Program Change: <code>prog</code>, <code>pc</code>, <code>program_change</code></li>
+<li>Pitch Bend: <code>pbend</code>, <code>pb</code>, <code>pitchwheel</code></li>
+<li>Aftertouch (Channel Pressure): <code>cpress</code>, <code>cp</code>, <code>aftertouch</code></li>
+<li>Key Pressure (Polyphonic Aftertouch): <code>kpress</code>, <code>kp</code>, <code>polytouch</code></li>
+</ul>
+<h2 id="midi-rules">MIDI rules<a class="headerlink" href="#midi-rules" title="Permanent link">&para;</a></h2>
+<p>Rules define how incoming MIDI messages are matched, transformed,
+and forwarded as synth events. Rules may appear at the root or patch
+level under the <code>rules</code> key.</p>
+<pre class="highlight"><code class="language-yaml">rules:
+- {type: note, chan: 1=2}
+- {num: 74, val: 0-127=50-100, type: ctrl, chan: 1=2}
+- type: cpress=ctrl
+  num: 1
+  chan: 1=2-5</code></pre>
+<p>Rules may be written inline or in block form, and key order is flexible.
+Only the <code>type</code> parameter is required.</p>
+<h3 id="rule-matching-and-transformation">Rule matching and transformation<a class="headerlink" href="#rule-matching-and-transformation" title="Permanent link">&para;</a></h3>
+<p>Each rule matches incoming messages based on its parameters. By default,
+a matching rule produces an event of the same type with the same values.
+A rule may also transform the event by changing its type or parameters.</p>
+<p>To convert one message type into another, use:</p>
+<pre class="highlight"><code class="language-yaml">type: &lt;from&gt;=&lt;to&gt;</code></pre>
+<h3 id="parameter-forms">Parameter forms<a class="headerlink" href="#parameter-forms" title="Permanent link">&para;</a></h3>
+<p>The parameters <code>chan</code>, <code>num</code>, and <code>val</code> support the following forms:</p>
+<ul>
+<li>
+<p><code>&lt;value&gt;</code>
+  Matches a single value.</p>
+</li>
+<li>
+<p><code>&lt;min&gt;-&lt;max&gt;</code>
+  Matches a range of values.</p>
+</li>
+<li>
+<p><code>&lt;from&gt;=&lt;to&gt;</code>
+  Matches a value and converts it to a new value.</p>
+</li>
+<li>
+<p><code>&lt;min&gt;-&lt;max&gt;=&lt;value&gt;</code>
+  Matches a range and converts all values to a single value.</p>
+</li>
+<li>
+<p><code>&lt;min&gt;-&lt;max&gt;=&lt;tomin&gt;-&lt;tomax&gt;</code>
+  Scales values proportionally across the target range.
+  For <code>chan</code>, this creates an event on <em>each</em> target channel.</p>
+</li>
+<li>
+<p><code>&lt;from&gt;=&lt;tomin&gt;-&lt;tomax&gt;</code>
+  For <code>chan</code>, matches a single channel and produces events on all target
+  channels. For <code>num</code> and <code>val</code>, behaves like <code>&lt;from&gt;=&lt;tomin&gt;</code>.</p>
+</li>
+<li>
+<p><code>&lt;min&gt;-&lt;max&gt;*&lt;mul&gt;[+|-]&lt;val&gt;</code>
+  Matches a range, applies a multiplier, and adds an offset.</p>
+</li>
+</ul>
+<p>If a parameter is omitted, it matches any incoming value and forwards
+that value unchanged.</p>
+<h3 id="default-routing">Default routing<a class="headerlink" href="#default-routing" title="Permanent link">&para;</a></h3>
+<p>When a patch is applied, all existing rules are cleared. If no rule
+routes note events to the synth, no sound will be produced. A minimal
+default rule at the root level is usually sufficient:</p>
+<pre class="highlight"><code class="language-yaml">rules:
+- {type: note}</code></pre>
+<h2 id="extended-rule-parameters">Extended rule parameters<a class="headerlink" href="#extended-rule-parameters" title="Permanent link">&para;</a></h2>
+<p>Additional rule parameters control non-voice behavior, such as synth
+settings and player control. Player-related parameters are documented
+in the <em>Players</em> section. Rules may also have custom parameters
+recognized by specific user programs.</p>
+<ul>
+<li>
+<p><code>fluidsetting: &lt;setting&gt;</code>
+  Sets a FluidSynth
+  <a href="https://www.fluidsynth.org/api/fluidsettings.xml">setting</a>
+  to the value of the routed message.</p>
+</li>
+<li>
+<p><code>log: &lt;power&gt;</code>
+  Applies a logarithmic
+  <a href="https://www.desmos.com/calculator/gactb1ql9e">function</a> when 
+  to the message value. The rule must have a <code>val</code> parameter to set
+  the ranges for the transform. The parameter specifies the power of 10
+  to use (positive values only).</p>
+</li>
+<li>
+<p><code>lsb: &lt;num&gt;</code>
+  Sends the lower 7 bits of a 14-bit value to a second controller
+  specified by <code>num</code>. The upper 7 bits are sent to the primary target.</p>
+</li>
+</ul>
+<p>Rules are <strong>inclusive</strong> - A rule can have multiple extended parameters,
+all of which will trigger actions. Also, the resulting MIDI event is
+still sent to the synth in most cases - rules with extended behavior
+do not <em>absorb</em> the event.</p>
+<h2 id="counters">Counters<a class="headerlink" href="#counters" title="Permanent link">&para;</a></h2>
+<p>A counter stores values that can be incremented by rules and used to
+set event values.</p>
+<p>Counters are defined in <code>counters</code> items at the root or patch level.
+Patch-level counters are reset each time a patch is applied, while
+root-level counters retain their state across patches.</p>
+<h3 id="bank-file-parameters">Bank File Parameters<a class="headerlink" href="#bank-file-parameters" title="Permanent link">&para;</a></h3>
+<dl>
+<dt><code>min</code>, <code>max</code> <em>(required)</em></dt>
+<dd>Range for the counter</dd>
+<dt><code>startval</code></dt>
+<dd>Initial value (default: <code>min</code>)</dd>
+<dt><code>wrap</code></dt>
+<dd>Wraps values if True (default: clamp to range).</dd>
+</dl>
+<h3 id="rule-effects">Rule Effects<a class="headerlink" href="#rule-effects" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>counter: &lt;counter name&gt;</code>
+  Increments the counter by an amount equal to the resulting event's
+  <code>val</code> parameter.</li>
+</ul>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../banks/" class="btn btn-neutral float-left" title="Banks & Patches"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../players/" class="btn btn-neutral float-right" title="Players & Sequencers">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../banks/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../players/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

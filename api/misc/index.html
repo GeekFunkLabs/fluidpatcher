@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Config/Exceptions - FluidPatcher</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../../assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Config/Exceptions";
+        var mkdocs_page_input_path = "api/misc.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> FluidPatcher
+        </a>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Setup</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../install/">Installation</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../config/">Configuration</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Concepts</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/overview/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/soundfonts/">Soundfonts</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/banks/">Banks & Patches</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/midi/">MIDI Event Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/players/">Players & Sequencers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/ladspa/">Effects (LADSPA)</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bank Tutorials</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson01_basic/">Basics</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson02_messages/">Messages</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson03_rules/">Advanced MIDI Rules</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson04_players/">Players in Practice</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson05_effects/">Using Plugins</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/cookbook/">Cookbook</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">API Reference</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../examples/">Examples</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../patcher/">FluidPatcher</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../bankfiles/">Banks</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Config/Exceptions</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#global-configuration">Global Configuration</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#loading-config">Loading Config</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#fluidpatcher.config.save_config">save_config</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#bank-file-errors">Bank File Errors</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#fluidpatcher.bankfiles.BankSyntaxError">BankSyntaxError</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#fluidpatcher.bankfiles.BankValidationError">BankValidationError</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#summary">Summary</a>
+    </li>
+    </ul>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">FluidPatcher</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">API Reference</li>
+      <li class="breadcrumb-item active">Config/Exceptions</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher/edit/master/docs/api/misc.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="miscellaneous-config-and-exceptions">Miscellaneous: Config and Exceptions<a class="headerlink" href="#miscellaneous-config-and-exceptions" title="Permanent link">&para;</a></h1>
+<p>This section covers two minor parts of the API that can be useful
+when writing programs with FluidPatcher:</p>
+<ul>
+<li>Managing the <strong>global configuration file</strong></li>
+<li><strong>Exceptions</strong> raised when a bank file fails to load</li>
+</ul>
+<h2 id="global-configuration">Global Configuration<a class="headerlink" href="#global-configuration" title="Permanent link">&para;</a></h2>
+<p>FluidPatcher configuration is stored at
+<code>~/.config/fluidpatcher/fluidpatcherconf.yaml</code>,
+or the location referenced by the environment variable
+<code>FLUIDPATCHER_CONFIG</code> if set.</p>
+<h3 id="loading-config">Loading Config<a class="headerlink" href="#loading-config" title="Permanent link">&para;</a></h3>
+<p>Loading happens <em>once</em> at import, and the data is stored in the global
+variable CONFIG. When loading, any key ending in <code>_path</code> is
+automatically converted into a <code>pathlib.Path</code> object internally,
+so paths behave consistently across platforms.</p>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="fluidpatcher.config.save_config" class="doc doc-heading">
+            <code class="highlight language-python">fluidpatcher.config.save_config()</code>
+
+<a href="#fluidpatcher.config.save_config" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents first">
+
+        <p>Writes CONFIG to file.</p>
+
+
+    </div>
+
+</div><p>This function can be used to store modified fluidsettings or add custom
+states that persist across FluidPatcher imports. <code>Path</code> objects are
+serialized as POSIX strings. </p>
+<p>For example, a program might store the current bank, so that it can be
+loaded automatically next time the program starts:</p>
+<pre class="highlight"><code class="language-python">CONFIG["mybank_path"] = Path(bankfile)
+save_config()</code></pre>
+<p><code>save_config()</code> will automatically serialize the <code>Path</code> object, and
+because the chosen key ends in <code>_path</code> it will be converted back to a
+<code>Path</code> on import.</p>
+<h2 id="bank-file-errors">Bank File Errors<a class="headerlink" href="#bank-file-errors" title="Permanent link">&para;</a></h2>
+<p>All bank-related errors derive from a single base class <code>BankError</code>.
+This makes it easy to catch <em>any</em> bank failure at a high level, while
+still getting detailed diagnostics.</p>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="fluidpatcher.bankfiles.BankSyntaxError" class="doc doc-heading">
+            <code>fluidpatcher.bankfiles.BankSyntaxError</code>
+
+
+<a href="#fluidpatcher.bankfiles.BankSyntaxError" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Error raised when the YAML text is malformed and cannot be parsed.</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Attributes:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>msg</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Reason for failure</p>
+              </div>
+            </li>
+            <li>
+              <b><code>mark</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#tuple">tuple</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>YAML mark object describing the error</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+
+</div><p>This error means the YAML itself is improperly formatted.</p>
+<p>Typical issues include:</p>
+<ul>
+<li>Bad indentation</li>
+<li>Missing colons</li>
+<li>Unterminated flow mappings</li>
+<li>Invalid YAML literals</li>
+</ul>
+<p>When possible, the error includes line and column information pointing
+directly at the problem.</p>
+<p>Example output:</p>
+<pre class="highlight"><code class="language-shell">mapping values are not allowed here at line 27, column 14</code></pre>
+<p>This error happens <em>before</em> fluidpatcher looks at musical meaning—
+nothing in the file is interpreted yet.</p>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="fluidpatcher.bankfiles.BankValidationError" class="doc doc-heading">
+            <code>fluidpatcher.bankfiles.BankValidationError</code>
+
+
+<a href="#fluidpatcher.bankfiles.BankValidationError" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Raised when a bank file is valid YAML but contains incorrect or
+unsupported values.</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Attributes:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>msg</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Reason for failure</p>
+              </div>
+            </li>
+            <li>
+              <b><code>path</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#tuple">tuple</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Hierarchical path to the failing node</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+
+</div><p>This error means the YAML is valid, but the contents don’t make sense
+to fluidpatcher.</p>
+<p>Common causes include:</p>
+<ul>
+<li>Missing required keys</li>
+<li>Unknown rule or message types</li>
+<li>Invalid parameter ranges</li>
+<li>Null values (not allowed)</li>
+</ul>
+<p>Validation errors include a <strong>path</strong> that points to the failing node
+in the bank structure.</p>
+<p>Example output:</p>
+<pre class="highlight"><code class="language-shell">MidiRule type 'ntoe' not recognized in patches.Rhodes.rules.2</code></pre>
+<p>This tells you exactly where fluidpatcher gave up, without requiring
+guesswork.</p>
+<h2 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Global config can be modified and store state variables</li>
+<li>Bank files are validated strictly, with clear diagnostics</li>
+<li>Syntax errors mean “bad YAML”</li>
+<li>Validation errors mean “valid YAML, wrong meaning”</li>
+</ul>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../bankfiles/" class="btn btn-neutral float-left" title="Banks"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../bankfiles/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

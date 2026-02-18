@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Effects (LADSPA) - FluidPatcher</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../../assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Effects (LADSPA)";
+        var mkdocs_page_input_path = "concepts/ladspa.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> FluidPatcher
+        </a>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Setup</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../install/">Installation</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../config/">Configuration</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Concepts</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../overview/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../soundfonts/">Soundfonts</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../banks/">Banks & Patches</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../midi/">MIDI Event Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../players/">Players & Sequencers</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Effects (LADSPA)</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#fluidsynth-audio-routing">FluidSynth Audio Routing</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#enabling-ladspa-support">Enabling LADSPA Support</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#defining-effects-in-bank-files">Defining Effects in Bank Files</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#bank-file-parameters">Bank File Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#rule-driven-effect-control">Rule-Driven Effect Control</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#plugin-inspection">Plugin Inspection</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#notes-on-performance">Notes on Performance</a>
+    </li>
+    </ul>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bank Tutorials</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson01_basic/">Basics</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson02_messages/">Messages</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson03_rules/">Advanced MIDI Rules</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson04_players/">Players in Practice</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson05_effects/">Using Plugins</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/cookbook/">Cookbook</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">API Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/examples/">Examples</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/patcher/">FluidPatcher</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/bankfiles/">Banks</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/misc/">Config/Exceptions</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">FluidPatcher</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Concepts</li>
+      <li class="breadcrumb-item active">Effects (LADSPA)</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher/edit/master/docs/concepts/ladspa.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="effects-ladspa">Effects (LADSPA)<a class="headerlink" href="#effects-ladspa" title="Permanent link">&para;</a></h1>
+<p>FluidSynth can natively host <strong>LADSPA</strong> plugins to apply audio effects
+such as amplification, filtering, delay, and modulation. LADSPA plugins
+operate at the audio level, after MIDI events have been rendered to
+sound.</p>
+<p>FluidPatcher builds on this capability by allowing banks to define
+effect chains, route audio to them on a per-channel basis, and control
+effect parameters using MIDI rules.</p>
+<p>At present, LADSPA support is provided on Linux systems. While LADSPA
+plugins can be built on other platforms, FluidPatcher does not
+currently support or test non-Linux configurations.</p>
+<h2 id="fluidsynth-audio-routing">FluidSynth Audio Routing<a class="headerlink" href="#fluidsynth-audio-routing" title="Permanent link">&para;</a></h2>
+<p>FluidSynth provides a flexible—though correspondingly complex—audio
+routing graph. FluidPatcher abstracts most of this away, but
+understanding the basics is helpful when working with effects.</p>
+<p>Audio is rendered into one or more <strong>audio groups</strong>. These groups are
+the units that can be routed through LADSPA effect chains. The number
+of available groups is set using the fluidsetting <code>synth.audio-groups</code>.</p>
+<p>Audio from MIDI channels is assigned to audio groups sequentially. If
+there are fewer groups than channels, the assignment wraps around. For
+example, with <code>synth.audio-groups: 4</code> and 16 MIDI channels:</p>
+<ul>
+<li>Group 1 receives audio from channels 1, 5, 9, 13</li>
+<li>Group 2 receives audio from channels 2, 6, 10, 14</li>
+<li>and so on</li>
+</ul>
+<p>For maximum routing flexibility, the number of audio groups can be set
+equal to the number of MIDI channels. This increases CPU usage, since
+separate effect instances are created internally for each group. If
+performance is a concern, reducing the number of groups can
+significantly lower overhead.</p>
+<h2 id="enabling-ladspa-support">Enabling LADSPA Support<a class="headerlink" href="#enabling-ladspa-support" title="Permanent link">&para;</a></h2>
+<p>The following configuration settings enable LADSPA processing:</p>
+<pre class="highlight"><code class="language-yaml">ladspa_path: /usr/lib/ladspa
+fluidsettings:
+  synth.audio-groups: 16
+  synth.ladspa.active: 1</code></pre>
+<p>FluidSynth can output multiple stereo pairs (<code>synth.audio-channels</code>).
+As a result, audio groups processed by effects are not mixed back to
+the main output by default.</p>
+<p>To address this, FluidPatcher includes a lightweight LADSPA plugin,
+<code>patchcord.so</code>, which is automatically appended to the end of an effect
+chain to mix audio groups back together.</p>
+<p>Prebuilt versions of <code>patchcord</code> are included for several platforms.
+If a prebuilt binary is unavailable, <code>pip</code> will compile the plugin from
+the included source while installing FluidPatcher,
+provided the LADSPA SDK is installed.
+On Debian-based systems, the SDK can be installed with:</p>
+<pre class="highlight"><code class="language-bash">sudo apt install ladspa-sdk</code></pre>
+<p>If <code>patchcord.so</code> is unavailable, the setting <code>synth.audio-groups</code> is
+forced to <code>1</code>.</p>
+<h2 id="defining-effects-in-bank-files">Defining Effects in Bank Files<a class="headerlink" href="#defining-effects-in-bank-files" title="Permanent link">&para;</a></h2>
+<p>Effects are defined using the <code>ladspafx</code> section at the root or patch
+level of a bank file. Each entry represents a single effect instance
+and is identified by a user-defined name.</p>
+<p>Audio is routed through plugins in the order they are declared:
+root-level plugins first, followed by patch-level plugins.</p>
+<p>If applying a patch changes the effect chain, FluidPatcher must
+tear down and rebuild the chain, which may briefly interrupt audio.
+To avoid this, effects can be defined exclusively
+at the bank’s root level.</p>
+<h3 id="bank-file-parameters">Bank File Parameters<a class="headerlink" href="#bank-file-parameters" title="Permanent link">&para;</a></h3>
+<p>Each effect unit supports the following parameters:</p>
+<dl>
+<dt><code>lib</code> <em>(required)</em></dt>
+<dd>The LADSPA plugin file name (relative to <code>CONFIG["ladspa_path"]</code>
+  or absolute)</dd>
+<dt><code>plugin</code></dt>
+<dd>The plugin label within the file.
+  Required if the file contains multiple plugins</dd>
+<dt><code>audio</code></dt>
+<dd>A list of audio port names, with inputs listed first and outputs last.
+  Partial names may be used if they uniquely identify a port.
+  The aliases <code>mono</code> and <code>stereo</code> correspond to the layouts
+  <code>Input, Output</code> and <code>Input L, Input R, Output L, Output R</code></dd>
+<dt><code>vals</code></dt>
+<dd>A mapping of control port names to their initial values</dd>
+<dt><code>chan</code></dt>
+<dd>A single MIDI channel or list of channels whose audio is routed
+  through the plugin.
+  FluidPatcher silently maps channels to audio groups.</dd>
+</dl>
+<p>If effects at the root and patch level have the same name, the patch
+effect overrides the root effect.</p>
+<h3 id="rule-driven-effect-control">Rule-Driven Effect Control<a class="headerlink" href="#rule-driven-effect-control" title="Permanent link">&para;</a></h3>
+<p>MIDI rules can modify effect parameters by including an
+<code>fx: [ladspafx name]&gt;[port name]</code> parameter.</p>
+<p>When a rule matches a MIDI message, the transformed value of that
+message is applied to the specified control port. This allows
+controllers to dynamically shape effects during performance.</p>
+<h2 id="plugin-inspection">Plugin Inspection<a class="headerlink" href="#plugin-inspection" title="Permanent link">&para;</a></h2>
+<p>Configuring an effect requires knowing the plugin’s audio and
+control ports. This information is not inferred automatically.</p>
+<p>The LADSPA SDK provides the <code>listplugins</code> and <code>analyseplugin</code>
+utilities, which list available plugins and print detailed information
+about a specific plugin’s ports. This output is the authoritative
+reference for:</p>
+<ul>
+<li>Plugin labels</li>
+<li>Audio input and output port names</li>
+<li>Control port names, ranges, and default values</li>
+</ul>
+<p>Some plugin files contain multiple plugins; the <code>plugin</code> parameter
+selects which one to use.</p>
+<h2 id="notes-on-performance">Notes on Performance<a class="headerlink" href="#notes-on-performance" title="Permanent link">&para;</a></h2>
+<p>Routing multiple audio groups through a single effect instance does
+<strong>not</strong> mix them together; each group is processed independently.
+However, each additional group increases CPU usage. For best
+performance, effects should be applied only to the groups that
+require them.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../players/" class="btn btn-neutral float-left" title="Players & Sequencers"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../../tutorial/lesson01_basic/" class="btn btn-neutral float-right" title="Basics">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../players/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../../tutorial/lesson01_basic/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

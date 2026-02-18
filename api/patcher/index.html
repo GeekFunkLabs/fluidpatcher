@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>FluidPatcher - FluidPatcher</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../../assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "FluidPatcher";
+        var mkdocs_page_input_path = "api/patcher.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> FluidPatcher
+        </a>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Setup</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../install/">Installation</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../config/">Configuration</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Concepts</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/overview/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/soundfonts/">Soundfonts</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/banks/">Banks & Patches</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/midi/">MIDI Event Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/players/">Players & Sequencers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/ladspa/">Effects (LADSPA)</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bank Tutorials</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson01_basic/">Basics</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson02_messages/">Messages</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson03_rules/">Advanced MIDI Rules</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson04_players/">Players in Practice</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson05_effects/">Using Plugins</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/cookbook/">Cookbook</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">API Reference</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../examples/">Examples</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">FluidPatcher</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#basic-pattern">Basic Pattern</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#fluidpatcher.FluidPatcher">FluidPatcher</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#fluidpatcher.FluidPatcher.__init__">__init__</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#fluidpatcher.FluidPatcher.load_bank">load_bank</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#fluidpatcher.FluidPatcher.apply_patch">apply_patch</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#direct-synth-interaction">Direct Synth Interaction</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#fluidpatcher.FluidPatcher.fluidsetting">fluidsetting</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#fluidpatcher.FluidPatcher.fluidsetting_set">fluidsetting_set</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#fluidpatcher.FluidPatcher.send_midimessage">send_midimessage</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#fluidpatcher.FluidPatcher.add_midirule">add_midirule</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#fluidpatcher.FluidPatcher.set_midicallback">set_midicallback</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#fluidpatcher.FluidPatcher.midi_capture">midi_capture</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#bank-modification">Bank Modification</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#fluidpatcher.FluidPatcher.update_patch">update_patch</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#fluidpatcher.FluidPatcher.save_bank">save_bank</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#fluidpatcher.FluidPatcher.open_soundfont">open_soundfont</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#related-types">Related Types</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#summary">Summary</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../bankfiles/">Banks</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../misc/">Config/Exceptions</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">FluidPatcher</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">API Reference</li>
+      <li class="breadcrumb-item active">FluidPatcher</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher/edit/master/docs/api/patcher.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="fluidpatcher-api">FluidPatcher API<a class="headerlink" href="#fluidpatcher-api" title="Permanent link">&para;</a></h1>
+<p>The <code>FluidPatcher</code> class is the <strong>primary public interface</strong> to
+FluidPatcher. It coordinates FluidSynth, YAML-defined banks, and
+MIDI routing into a single, performance-oriented control surface.</p>
+<p>Most applications—CLI tools, GUIs, or scripts—will interact almost
+exclusively with this class.</p>
+<p>Conceptually, <code>FluidPatcher</code> sits <em>above</em> the router and ctypes
+FluidSynth wrapper, and <em>below</em> the user interface
+(banks, UI, MIDI controllers).</p>
+<pre class="highlight"><code>        UI / Controller
+              ↓
+Bank  →  FluidPatcher
+              ↓      ↘
+            Router → FluidSynth</code></pre>
+<h2 id="basic-pattern">Basic Pattern<a class="headerlink" href="#basic-pattern" title="Permanent link">&para;</a></h2>
+<p>A minimal interactive session looks like this:</p>
+<pre class="highlight"><code class="language-python">from fluidpatcher import FluidPatcher
+
+fp = FluidPatcher()
+fp.load_bank("mybank.yaml")
+fp.apply_patch("Warm Pad")</code></pre>
+<p>Patches and banks can be changed with successive calls to
+<code>apply_patch()</code> and <code>load_bank()</code>. This is all the API a program need
+use to access all the functionality of banks.</p>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="fluidpatcher.FluidPatcher" class="doc doc-heading">
+            <code>fluidpatcher.FluidPatcher</code>
+
+
+<a href="#fluidpatcher.FluidPatcher" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>High-level controller FluidSynth. Applies descriptive YAML-based
+patches and manages synth state.</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Attributes:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>bank</code></b>
+                  (<code><a class="autorefs autorefs-internal" title="fluidpatcher.bankfiles.Bank" href="../bankfiles/#fluidpatcher.bankfiles.Bank">Bank</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Parsed representation of the currently loaded bank.</p>
+              </div>
+            </li>
+            <li>
+              <b><code>soundfonts</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#dict">dict</a>[<span title="path">path</span>, <span title="SoundFont">SoundFont</span>]</code>)
+              –
+              <div class="doc-md-description">
+                <p>Mapping of loaded soundfonts, keyed by file path.</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="fluidpatcher.FluidPatcher.__init__" class="doc doc-heading">
+            <code class="highlight language-python">__init__(fluidsettings={}, fluidlog=None)</code>
+
+<a href="#fluidpatcher.FluidPatcher.__init__" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Create a FluidPatcher and start FluidSynth.</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Parameters:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>fluidsettings</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#dict">dict</a></code>, default:
+                      <code>{}</code>
+)
+              –
+              <div class="doc-md-description">
+                <p>Additional FluidSynth settings that override defaults.</p>
+              </div>
+            </li>
+            <li>
+              <b><code>fluidlog</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#callable">callable</a> | -1 | None</code>, default:
+                      <code>None</code>
+)
+              –
+              <div class="doc-md-description">
+                <p>Callback accepting (level, message) or -1 to suppress logs.</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+
+</div><p>The constructor initializes a FluidSynth engine using defaults from
+<code>CONFIG["fluidsettings"]</code>, optionally overridden by user-supplied values.
+It creates a custom MIDI router and installs it in the engine, which it
+then starts and maintains for the FluidPatcher's entire lifetime.</p>
+<p>FluidSynth's built-in logging (<code>None</code>) can be disabled (<code>-1</code>) or
+redirected to a custom function that accepts a <a href="https://www.fluidsynth.org/api/group__logging.html">fluid_log_level</a> and a message string.</p>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="fluidpatcher.FluidPatcher.load_bank" class="doc doc-heading">
+            <code class="highlight language-python">fluidpatcher.FluidPatcher.load_bank(bankfile='', raw='')</code>
+
+<a href="#fluidpatcher.FluidPatcher.load_bank" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents first">
+
+        <p>Load a bank from a YAML file or raw text.</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Parameters:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>bankfile</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a> | <a class="autorefs autorefs-external" title="pathlib.Path" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path">Path</a></code>, default:
+                      <code>&#39;&#39;</code>
+)
+              –
+              <div class="doc-md-description">
+                <p>Filename relative to CONFIG["banks_path"], or absolute.</p>
+              </div>
+            </li>
+            <li>
+              <b><code>raw</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>, default:
+                      <code>&#39;&#39;</code>
+)
+              –
+              <div class="doc-md-description">
+                <p>YAML text to load directly, bypassing disk I/O.</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+    </div>
+
+</div><p>This method:</p>
+<ul>
+<li>Parses YAML into a <code>Bank</code> object</li>
+<li>Resolves <code>#include</code> directives recursively</li>
+<li>Resets the synth to a clean state</li>
+<li>Applies global initialization (<code>init.fluidsettings</code>, <code>init.messages</code>)</li>
+<li>Resolves filesystem paths for MIDI files and LADSPA plugins</li>
+</ul>
+<p>If semantic validation fails (for example, a missing include file),
+a <code>BankValidationError</code> is raised.</p>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="fluidpatcher.FluidPatcher.apply_patch" class="doc doc-heading">
+            <code class="highlight language-python">fluidpatcher.FluidPatcher.apply_patch(patch)</code>
+
+<a href="#fluidpatcher.FluidPatcher.apply_patch" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents first">
+
+        <p>Apply a named patch from the loaded bank.</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Parameters:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>patch</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>The patch name to apply.</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+    </div>
+
+</div><p>This is the <strong>core operation</strong> of FluidPatcher.</p>
+<p>Applying a patch performs the following steps in order:</p>
+<ol>
+<li>Verify bank soundfonts are available and load/unload as needed</li>
+<li>Set/unset presets for every MIDI channel</li>
+<li>Apply FluidSynth settings defined by the patch</li>
+<li>Instantiate MIDI players (sequences, arpeggios, loops, midifiles)</li>
+<li>Rebuild the LADSPA effect chain if necessary</li>
+<li>Reset and install MIDI routing rules</li>
+<li>Emit root/patch MIDI messages</li>
+</ol>
+<p>Patch application is <strong>idempotent</strong>: reapplying the same patch will
+recreate its intended state exactly.</p>
+<h2 id="direct-synth-interaction">Direct Synth Interaction<a class="headerlink" href="#direct-synth-interaction" title="Permanent link">&para;</a></h2>
+<p>These methods can be used to directly interact with the running synth
+instance and/or modify its state. They can be used to create UI-driven
+ways of changing synth settings or adding controller behavior.</p>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="fluidpatcher.FluidPatcher.fluidsetting" class="doc doc-heading">
+            <code class="highlight language-python">fluidpatcher.FluidPatcher.fluidsetting(name)</code>
+
+<a href="#fluidpatcher.FluidPatcher.fluidsetting" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents first">
+
+        <p>Retrieve a FluidSynth setting.</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Parameters:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>name</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>A FluidSynth setting name (e.g. 'synth.gain').</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Returns:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a> | <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a> | <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+              –
+              <div class="doc-md-description">
+                <p>Current value of the setting.</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="fluidpatcher.FluidPatcher.fluidsetting_set" class="doc doc-heading">
+            <code class="highlight language-python">fluidpatcher.FluidPatcher.fluidsetting_set(name, val)</code>
+
+<a href="#fluidpatcher.FluidPatcher.fluidsetting_set" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents first">
+
+        <p>Modify a FluidSynth setting.</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Parameters:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>name</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Setting name (only 'synth.' prefixes allowed).</p>
+              </div>
+            </li>
+            <li>
+              <b><code>val</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a> | <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a> | <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Desired value.</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+    </div>
+
+</div><p>These methods provide controlled access to FluidSynth settings.</p>
+<p>Only settings beginning with <code>synth.</code> may be modified. This ensures that
+low-level or unsafe parameters cannot be altered accidentally.</p>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="fluidpatcher.FluidPatcher.send_midimessage" class="doc doc-heading">
+            <code class="highlight language-python">fluidpatcher.FluidPatcher.send_midimessage(msg)</code>
+
+<a href="#fluidpatcher.FluidPatcher.send_midimessage" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents first">
+
+        <p>Send a MIDI message directly to the synth.</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Parameters:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>msg</code></b>
+                  (<code><a class="autorefs autorefs-internal" title="fluidpatcher.bankfiles.MidiMessage" href="../bankfiles/#fluidpatcher.bankfiles.MidiMessage">MidiMessage</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>MIDI message object.</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+    </div>
+
+</div><p>Sends a MIDI message directly to the synth, bypassing routing rules.</p>
+<p>Typically used for:</p>
+<ul>
+<li>Explicit CC or program changes</li>
+</ul>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="fluidpatcher.FluidPatcher.add_midirule" class="doc doc-heading">
+            <code class="highlight language-python">fluidpatcher.FluidPatcher.add_midirule(rule)</code>
+
+<a href="#fluidpatcher.FluidPatcher.add_midirule" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents first">
+
+        <p>Install a live MIDI rule after current bank rules</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Parameters:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>rule</code></b>
+                  (<code><a class="autorefs autorefs-internal" title="fluidpatcher.bankfiles.MidiRule" href="../bankfiles/#fluidpatcher.bankfiles.MidiRule">MidiRule</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>A temporary rule</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+    </div>
+
+</div><p>Installs a MIDI rule directly into the live router.</p>
+<p>Rules added this way:</p>
+<ul>
+<li>Take effect immediately</li>
+<li>Are <strong>not stored</strong> in the bank</li>
+<li>Are cleared when a patch is re-applied</li>
+</ul>
+<p>This is useful for temporary mappings or UI-specific behavior.</p>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="fluidpatcher.FluidPatcher.set_midicallback" class="doc doc-heading">
+            <code class="highlight language-python">fluidpatcher.FluidPatcher.set_midicallback(func)</code>
+
+<a href="#fluidpatcher.FluidPatcher.set_midicallback" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents first">
+
+        <p>Install a callback to observe MIDI events.</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Parameters:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>func</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#callable">callable</a> | None</code>)
+              –
+              <div class="doc-md-description">
+                <p>Function taking a single event, or None to disable.</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+    </div>
+
+</div><p>Installs a callback that observes both incoming MIDI events and any
+events created by MIDI rules.</p>
+<p>This is intended for:</p>
+<ul>
+<li>Visualizers</li>
+<li>UI Interaction with MIDI controllers</li>
+<li>Debugging tools</li>
+</ul>
+<p>Passing <code>None</code> disables the callback.</p>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="fluidpatcher.FluidPatcher.midi_capture" class="doc doc-heading">
+            <code class="highlight language-python">fluidpatcher.FluidPatcher.midi_capture(func)</code>
+
+<a href="#fluidpatcher.FluidPatcher.midi_capture" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents first">
+
+        <p>Convenience context manager for setting MIDI callback</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Parameters:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>func</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#callable">callable</a> | None</code>)
+              –
+              <div class="doc-md-description">
+                <p>Function taking a single event, or None to disable.</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+    </div>
+
+</div><p>Can be used in a <code>with</code> statement.</p>
+<h2 id="bank-modification">Bank Modification<a class="headerlink" href="#bank-modification" title="Permanent link">&para;</a></h2>
+<p>The loaded bank can be modified in-place and saved back to disk.
+Example applications are changing patch presets or splitting/layering
+the keyboard interactively.</p>
+<p>These methods provide basic tools for modifying banks. Bank editing is
+further discussed in the Banks API section.</p>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="fluidpatcher.FluidPatcher.update_patch" class="doc doc-heading">
+            <code class="highlight language-python">fluidpatcher.FluidPatcher.update_patch(name)</code>
+
+<a href="#fluidpatcher.FluidPatcher.update_patch" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents first">
+
+        <p>Write current synth state back into a patch.</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Parameters:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>name</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Patch name to modify in-place.</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+    </div>
+
+</div><p>Reads the <em>current live synth state</em> and writes it back into a patch.</p>
+<p>Specifically, it:</p>
+<ul>
+<li>Scans all MIDI CCs on all channels</li>
+<li>Stores non-default controller values as MIDI messages</li>
+<li>Records current program selections</li>
+</ul>
+<p>This is intended for <strong>interactive patch creation</strong>, where a performer
+builds a sound using a controller and then captures it into YAML.</p>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="fluidpatcher.FluidPatcher.save_bank" class="doc doc-heading">
+            <code class="highlight language-python">fluidpatcher.FluidPatcher.save_bank(bankfile, raw='')</code>
+
+<a href="#fluidpatcher.FluidPatcher.save_bank" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents first">
+
+        <p>Write the current bank contents to disk.</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Parameters:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>bankfile</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a> | <a class="autorefs autorefs-external" title="pathlib.Path" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path">Path</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Output filename relative to CONFIG["banks_path"], or absolute</p>
+              </div>
+            </li>
+            <li>
+              <b><code>raw</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>, default:
+                      <code>&#39;&#39;</code>
+)
+              –
+              <div class="doc-md-description">
+                <p>Exact YAML text to store.</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+    </div>
+
+</div><p>Writes the current bank back to disk.</p>
+<p>If raw YAML text is supplied, it is parsed and stored verbatim, allowing
+round-trip editing without reformatting.</p>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="fluidpatcher.FluidPatcher.open_soundfont" class="doc doc-heading">
+            <code class="highlight language-python">fluidpatcher.FluidPatcher.open_soundfont(path)</code>
+
+<a href="#fluidpatcher.FluidPatcher.open_soundfont" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents first">
+
+        <p>Load a soundfont and enumerate its presets.</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Parameters:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>path</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a> | <a class="autorefs autorefs-external" title="pathlib.Path" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path">Path</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Filename relative to CONFIG["sounds_path"], or absolute.</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Returns:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+                  <code><span title="SoundFont">SoundFont</span></code>
+              –
+              <div class="doc-md-description">
+                <p>iterable of presets, indexable by (bank, prog).</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+    </div>
+
+</div><p>Paths are resolved relative to <code>CONFIG["sounds_path"]</code>. If the soundfont
+is already loaded, the current object is returned.</p>
+<p>Normally this method does not need to be called directly—the bank
+dynamically reports the set of soundfonts needed by all its patches,
+and each call to <code>apply_patch()</code> enforces this set by loading/unloading
+soundfonts as necessary. This both conserves RAM and facilitates rapid
+switching between patches.</p>
+<p>This method returns a SoundFont object that can be iterated to discover
+patches when e.g. modifying a preset in a patch programatically.</p>
+<ul>
+<li>Iterating the SoundFont returns the valid <code>bank, prog</code> tuples.</li>
+<li>Element access using <code>bank, prog</code> returns
+  the corresponding preset name.</li>
+</ul>
+<h2 id="related-types">Related Types<a class="headerlink" href="#related-types" title="Permanent link">&para;</a></h2>
+<p>The following classes, defined in <code>bankfiles.py</code> and documented in
+the Banks API, are re-exported at the package level for convenience:</p>
+<ul>
+<li><code>SFPreset</code> - SoundFont preset reference</li>
+<li><code>MidiMessage</code> - Description of a single MIDI message</li>
+<li><code>MidiRule</code> - Rule describing how incoming MIDI messages are filtered,
+  transformed, or mapped</li>
+</ul>
+<p>This type from <code>pfluidsynth.py</code> is also exposed at the package level.
+It can be used to distinguish external MIDI events from events created
+by MIDI rules in the callback.</p>
+<ul>
+<li><code>FluidMidiEvent</code> - A MIDI message from a controller or external
+  software, unaltered by MIDI rules.</li>
+</ul>
+<h2 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h2>
+<p><code>FluidPatcher</code> is intentionally opinionated:</p>
+<ul>
+<li>YAML banks define <em>intent</em></li>
+<li>The patcher enforces that intent consistently</li>
+<li>Live state is always derived from declarative configuration</li>
+</ul>
+<p>If you understand <code>FluidPatcher</code>, you understand how the rest of the
+library fits together.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../examples/" class="btn btn-neutral float-left" title="Examples"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../bankfiles/" class="btn btn-neutral float-right" title="Banks">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../examples/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../bankfiles/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
