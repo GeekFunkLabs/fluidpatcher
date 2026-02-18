@@ -134,6 +134,16 @@ Rules can:
 * Translate between message types
 * Trigger players, counters, or actions
 
+::: fluidpatcher.bankfiles.Route
+    options:
+      members:
+        - from_affine
+        - from_ranges
+
+The `chan`, `num`, and `val` attributes of a **MidiRule** are converted
+to **Route** objects on creation. A **Route** instance can be used
+to modify one of these attributes *after* creating the rule.
+
 ::: fluidpatcher.bankfiles.Sequence
 
 A step-sequenced event container supporting:

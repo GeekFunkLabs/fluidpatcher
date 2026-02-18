@@ -450,38 +450,17 @@ class _BankObject(yaml.YAMLObject):
         return iter([(k, v) for k, v in self._pars.items()])
 
 
-class _Route:
-
-    def __init__(self, min, max, tomin, tomax, mul=None, add=None):
-        self.min = min
-        self.max = max
-        self.tomin = tomin
-        self.tomax = tomax
-        if mul == None:
-            self.mul = 1 if min == max else (tomax - tomin) / (max - min)
-        else:
-            self.mul = mul
-        if add == None:
-            self.add = tomin - min * self.mul
-        else:
-            self.add = add
-
-    def __iter__(self):
-        tovals = range(self.tomin, self.tomax + 1)
-        return iter([_Route(self.min, self.max, n, n) for n in tovals])
-
-
 class MidiRule(_BankObject):
     """
-    Rule describing how incoming MIDI messages are filtered,
-    transformed, or mapped
+    A mapping that describes how to match incoming MIDI messages and
+    what events they should trigger.
 
     Attributes:
       type (str): Matching message type
       totype (str): Resulting message type (default: ``self.type``)
-      chan (int|str): Channel range/transform (optional)
-      num (int|str): Parameter range/transform (optional)
-      val (int|float|str): Value range/transform (optional)
+      chan (Route): Channel range/transform (optional)
+      num (Route): Parameter range/transform (optional)
+      val (Route): Value range/transform (optional)
       **pars (dict): additional parameters for custom functionality
     """
     ftroute = re.compile(r"^({0})?-?({0})?=?(-?{0})?-?(-?{0})?$".format(r"[\w\d\#\.]+"))
@@ -508,25 +487,81 @@ class MidiRule(_BankObject):
             spec = str(getattr(self, par, ""))
             if (m := self.ftroute.match(spec)) and any(m.groups()):
                 min, max, tomin, tomax = [resolve(x, names) for x in m.groups()]
-                if min == None:
-                    min, max = (1, 256) if par == "chan" else (1, 127)
-                elif max == None:
-                    max = min
-                if tomin == None:
-                    tomin, tomax = min, max
-                elif tomax == None:
-                    tomax = tomin
-                setattr(self, par, _Route(min, max, tomin, tomax))
+                setattr(self, par, Route.from_ranges(min, max, tomin, tomax))
             elif m := self.maroute.match(spec):
                 min, max, mul, add = [resolve(x, names) for x in m.groups()]
-                tomin = min * mul + add
-                tomax = max * mul + add
-                setattr(self, par, _Route(min, max, tomin, tomax, mul, add))
+                setattr(self, par, Route.from_affine(min, max, mul, add))
         if hasattr(self, "lsb"):
             self.lsb = resolve(self.lsb, names)
 
     def __str__(self):
         return ", ".join([f"{k}: {v}" for k, v in self._pars.items()])
+
+
+class Route:
+    """
+    An object that expresses MIDI parameter ranges/transforms.
+
+    Attributes:
+      min (int|float): minimum value to match
+      max (int|float): maximum value to match
+      mul (int|float): multiplier to apply to values
+      add (int|float): amount to add to values
+      tomin (int|float): minimum of target range for values
+      tomax (int|float): maximum of target range for values
+    """
+    def __init__(self, min, max, mul, add):
+        self.min = min
+        self.max = max
+        self.mul = mul
+        self.add = add
+        self.tomin = min * mul + add
+        self.tomax = max * mul + add
+
+    @classmethod
+    def from_ranges(cls, min=None, max=None, tomin=None, tomax=None):
+        """
+        Creates a Route based on from-to ranges
+
+        Args:
+          min (int|float): minimum value to match
+          max (int|float): maximum value to match
+          tomin (int|float): minimum of target range for values
+          tomax (int|float): maximum of target range for values
+        """
+        if min is None:
+            min, max = 0, 127
+        elif max is None:
+            max = min
+        if tomin is None:
+            tomin, tomax = min, max
+        elif tomax is None:
+            tomax = tomin
+        mul = 1 if min == max else (tomax - tomin) / (max - min)
+        add = tomin - min * self.mul
+        obj = cls(min, max, mul, add)
+        obj.tomin = tomin
+        obj.tomax = tomax
+        return obj
+
+    @classmethod
+    def from_affine(cls, min, max, mul, add):
+        """
+        Creates a Route using an affine transform
+
+        Args:
+          min (int|float): minimum value to match
+          max (int|float): maximum value to match
+          mul (int|float): multiplier to apply to values
+          add (int|float): amount to add to values
+        """
+        return cls(min, max, mul, add)
+
+    def __iter__(self):
+        tovals = range(self.tomin, self.tomax + 1)
+        return iter(
+            Route.from_ranges(self.min, self.max, n, n) for n in tovals
+        )
 
 
 class Sequence(_BankObject):

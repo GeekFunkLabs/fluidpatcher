@@ -115,10 +115,10 @@ Rules added this way:
 
 This is useful for temporary mappings or UI-specific behavior.
 
-::: fluidpatcher.FluidPatcher.set_callback
+::: fluidpatcher.FluidPatcher.set_midicallback
 
-Installs a callback that observes MIDI events
-*after routing but before they reach the synth*.
+Installs a callback that observes both incoming MIDI events and any
+events created by MIDI rules.
 
 This is intended for:
 
@@ -127,6 +127,10 @@ This is intended for:
 * Debugging tools
 
 Passing `None` disables the callback.
+
+::: fluidpatcher.FluidPatcher.midi_capture
+
+Can be used in a `with` statement.
 
 ## Bank Modification
 
