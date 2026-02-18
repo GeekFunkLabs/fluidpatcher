@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fluidpatcher"
-version = "1.0.1"
+version = "1.0.2"
 description = "FluidSynth patch manager and performance toolkit"
 readme = "docs/README.md"
 license = { file = "LICENSE" }
