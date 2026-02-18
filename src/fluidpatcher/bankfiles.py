@@ -538,10 +538,8 @@ class Route:
         elif tomax is None:
             tomax = tomin
         mul = 1 if min == max else (tomax - tomin) / (max - min)
-        add = tomin - min * self.mul
+        add = tomin - min * mul
         obj = cls(min, max, mul, add)
-        obj.tomin = tomin
-        obj.tomax = tomax
         return obj
 
     @classmethod
@@ -558,7 +556,7 @@ class Route:
         return cls(min, max, mul, add)
 
     def __iter__(self):
-        tovals = range(self.tomin, self.tomax + 1)
+        tovals = range(int(self.tomin), int(self.tomax) + 1)
         return iter(
             Route.from_ranges(self.min, self.max, n, n) for n in tovals
         )
