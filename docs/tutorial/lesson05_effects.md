@@ -67,6 +67,9 @@ plate:
 * `mono` alias sets audio ports to `Input, Output`
 * Sets an initial delay time of 0.1 seconds
 
+Since this is a mono plugin, separate instances will be created for the
+left and right channels so that audio is still processed in stereo.
+
 ### Tremolo (`trem`)
 
 ```yaml

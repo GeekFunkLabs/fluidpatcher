@@ -31,6 +31,11 @@ example, with `synth.audio-groups: 4` and 16 MIDI channels:
 * Group 2 receives audio from channels 2, 6, 10, 14
 * and so on
 
+Each audio group contains a stereo pair of audio streams. LADSPA plugins
+may process zero, one, or many audio streams depending on how they're
+written. When using a mono plugin, FluidPatcher automatically creates
+duplicate instances for the left and right channels.
+
 For maximum routing flexibility, the number of audio groups can be set
 equal to the number of MIDI channels. This increases CPU usage, since
 separate effect instances are created internally for each group. If
@@ -96,10 +101,12 @@ Each effect unit supports the following parameters:
   Required if the file contains multiple plugins
 
 `audio`
-: A list of audio port names, with inputs listed first and outputs last.
-  Partial names may be used if they uniquely identify a port.
-  The aliases `mono` and `stereo` correspond to the layouts
-  `Input, Output` and `Input L, Input R, Output L, Output R`
+: A list of audio port names to use, either `<input>, <output>` for a
+  mono plugin or `<left-input>, <right-input>, <left-ouput>, <right-output>`
+  for a stereo plugin. Partial names may be used if they uniquely
+  identify a port.
+  The aliases `mono` and `stereo` correspond to the common naming schemes
+  `Input, Output` and `Input L, Input R, Output L, Output R`.
 
 `vals`
 : A mapping of control port names to their initial values
