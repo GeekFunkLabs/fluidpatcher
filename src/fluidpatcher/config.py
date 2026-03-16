@@ -23,25 +23,12 @@ import yaml
 from .bankfiles import LadspaEffect
 
 
-def load_config():
-    cfg = yaml.safe_load(CONFIG_PATH.read_text())
-    for key, val in list(cfg.items()):
-        if key.endswith("_path") and val is not None:
-            cfg[key] = Path(val)
-    cfg.setdefault("banks_path", CONFIG_PATH.parent / "banks")
-    cfg.setdefault("sounds_path", cfg["banks_path"].parent / "sounds")
-    cfg.setdefault("midi_path", cfg["banks_path"].parent / "midi")
-    cfg.setdefault(
-        "ladspa_path",
-        Path(os.getenv("LADSPA_PATH", "/usr/lib/ladspa"))
-    )
-    return cfg
-
-
 def save_config():
     """
     Writes CONFIG to file.
     """
+    if not CONFIG_PATH.parent.exists():
+        CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     cfg_posix = {
         k: v.as_posix() if isinstance(v, Path) else v
         for k, v in CONFIG.items()
@@ -51,16 +38,39 @@ def save_config():
     )
 
 
+DEFAULT_CFG = """\
+fluidsettings:
+  midi.autoconnect: 1
+  player.reset-synth: 0
+  synth.ladspa.active: 1
+  synth.audio-groups: 16
+"""
+
 CONFIG_PATH = Path(os.getenv(
     "FLUIDPATCHER_CONFIG",
     "~/.config/fluidpatcher/fluidpatcherconf.yaml"
 )).expanduser()
 
-if not CONFIG_PATH.exists():
-    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy(res.files("fluidpatcher.data") / "fluidpatcherconf.yaml", CONFIG_PATH)
+# load configuration
+CONFIG = yaml.safe_load(DEFAULT_CFG)
+if CONFIG_PATH.exists:
+    cfg = yaml.safe_load(CONFIG_PATH.read_text())
+    CONFIG.update(cfg)
 
-CONFIG = load_config()
+for key, val in list(CONFIG.items()):
+    if key.endswith("_path") and val is not None:
+        CONFIG[key] = Path(val)
+CONFIG.setdefault("banks_path", CONFIG_PATH.parent / "banks")
+CONFIG.setdefault("sounds_path", CONFIG["banks_path"].parent / "sounds")
+CONFIG.setdefault("midi_path", CONFIG["banks_path"].parent / "midi")
+CONFIG.setdefault(
+    "ladspa_path",
+    Path(os.getenv("LADSPA_PATH", "/usr/lib/ladspa"))
+)
+
+# create default files as needed
+if not CONFIG_PATH.exists():
+    save_config()
 if not CONFIG["banks_path"].exists():
     shutil.copytree(res.files("fluidpatcher.data") / "banks", CONFIG["banks_path"])
 if not CONFIG["sounds_path"].exists():
@@ -68,10 +78,11 @@ if not CONFIG["sounds_path"].exists():
 if not CONFIG["midi_path"].exists():
     shutil.copytree(res.files("fluidpatcher.data") / "midi", CONFIG["midi_path"])
 
-patchcord = res.files("fluidpatcher._ladspa") / "patchcord.so" 
+# initialize patchcord for multi-channel LADSPA mixing
 system = platform.system().lower()
 arch = platform.machine()
 prebuilt_path = res.files("fluidpatcher._ladspa") / f"prebuilt/{system}-{arch}/patchcord.so"
+patchcord = res.files("fluidpatcher._ladspa") / "patchcord.so"
 
 if patchcord.exists():
     PATCHCORD = {"_patchcord": LadspaEffect(lib=patchcord)}
