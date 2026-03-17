@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Banks & Patches - FluidPatcher</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../../assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Banks \u0026 Patches";
+        var mkdocs_page_input_path = "concepts/banks.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> FluidPatcher
+        </a>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Setup</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../install/">Installation</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../config/">Configuration</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Concepts</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../overview/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../soundfonts/">Soundfonts</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Banks & Patches</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#rules-and-restrictions">Rules and restrictions</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#root-vs-patch">Root vs Patch</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#root-only-items">Root-only items</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#includes">Includes</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#example">Example</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../midi/">MIDI Event Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../players/">Players & Sequencers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../ladspa/">Effects (LADSPA)</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bank Tutorials</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson01_basic/">Basics</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson02_messages/">Messages</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson03_rules/">Advanced MIDI Rules</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson04_players/">Players in Practice</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson05_effects/">Using Plugins</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/cookbook/">Cookbook</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">API Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/examples/">Examples</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/patcher/">FluidPatcher</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/bankfiles/">Banks</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/misc/">Config/Exceptions</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">FluidPatcher</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Concepts</li>
+      <li class="breadcrumb-item active">Banks & Patches</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher/edit/master/docs/concepts/banks.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="bank-files">Bank Files<a class="headerlink" href="#bank-files" title="Permanent link">&para;</a></h1>
+<p>A <strong>bank file</strong> is a valid <a href="https://yaml.org/">YAML</a> document with a
+defined structure and a few additional constraints required by
+FluidPatcher.</p>
+<p>Bank files describe everything about a FluidSynth session: loaded
+soundfonts, patches, routing rules, effects, and initialization
+messages. Python code simply loads and applies them.</p>
+<h2 id="rules-and-restrictions">Rules and restrictions<a class="headerlink" href="#rules-and-restrictions" title="Permanent link">&para;</a></h2>
+<ul>
+<li>The top-level of every bank file <strong>must</strong> be a mapping and contain a
+  <code>patches</code> key.</li>
+<li><code>null</code>/<code>None</code> values are not allowed. Any instance is treated as an
+  error and causes a <code>BankValidationError</code>.</li>
+<li>Comma-separated strings (e.g. <code>A,B,C</code>) are automatically parsed as
+  lists, even without brackets.</li>
+<li>All configuration happens either at the <strong>root level</strong> or within
+  individual <strong>patches</strong>.</li>
+</ul>
+<p>The smallest valid bank file looks like:</p>
+<pre class="highlight"><code class="language-yaml">patches: {}</code></pre>
+<h2 id="root-vs-patch">Root vs Patch<a class="headerlink" href="#root-vs-patch" title="Permanent link">&para;</a></h2>
+<p>Bank files are split into two conceptual areas:</p>
+<dl>
+<dt>Root level</dt>
+<dd>Settings outside the <code>patches</code> block.
+  Applied first whenever a patch is activated.</dd>
+<dt>Patch level</dt>
+<dd>Settings within a named entry under <code>patches</code>.
+  Override or extend the root when that patch is selected.</dd>
+</dl>
+<p>Most items may appear at either level; a few are <strong>root-only</strong>:</p>
+<h3 id="root-only-items">Root-only items<a class="headerlink" href="#root-only-items" title="Permanent link">&para;</a></h3>
+<dl>
+<dt><code>init</code></dt>
+<dd>Commands executed <strong>once</strong>, when the bank is loaded—not on patch
+  changes. This is primarily for MIDI messages and FluidSynth settings.</dd>
+<dt><code>names</code></dt>
+<dd>A mapping of identifiers to numeric values.
+  Names are substituted in MIDI rules and messages, helping keep bank
+  files readable (e.g. <code>filtercutoff</code> → <code>74</code>).</dd>
+</dl>
+<h2 id="includes">Includes<a class="headerlink" href="#includes" title="Permanent link">&para;</a></h2>
+<p>FluidPatcher supports inserting external files using:</p>
+<pre class="highlight"><code class="language-yaml">#include &lt;filename&gt;</code></pre>
+<p>Features:</p>
+<ul>
+<li>May appear anywhere in the file.</li>
+<li>Relative paths are resolved under <code>CONFIG["banks_path"]</code>.</li>
+<li>Included text is inserted <em>before YAML parsing</em>.</li>
+<li>If indented, the indent is applied to each included line.</li>
+<li>Includes may chain, but recursive loops are blocked.</li>
+</ul>
+<p>This allows larger banks to be split into logical pieces or to share
+common mappings such as controller aliases.</p>
+<h2 id="example">Example<a class="headerlink" href="#example" title="Permanent link">&para;</a></h2>
+<p>The bank file snippet below illustrates root vs patch precedence and
+use of <code>names</code> and <code>#include</code>.
+When a patch is applied, root sets reverb to 100, but the “Harpsichord”
+patch overrides it to 0.
+“Piano” retains the root value.</p>
+<pre class="highlight"><code class="language-yaml">names:
+  #include ccnames.txt
+messages: cc:1:reverb:100, cc:1:chorus:0
+patches:
+  Piano:
+    1: defaultGM.sf2:000:000
+  Harpsichord:
+    1: defaultGM.sf2:000:006
+    messages:
+    - cc:1:reverb:0</code></pre>
+<pre class="highlight"><code class="language-yaml"># ccnames.txt
+reverb: 91
+chorus: 93</code></pre>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>It's good practice to give include-able files an extension other
+than <code>.yaml</code>, so they aren't mistaken for complete bank files.</p>
+</div>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../soundfonts/" class="btn btn-neutral float-left" title="Soundfonts"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../midi/" class="btn btn-neutral float-right" title="MIDI Event Processing">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../soundfonts/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../midi/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

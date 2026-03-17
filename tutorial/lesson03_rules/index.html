@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Advanced MIDI Rules - FluidPatcher</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../../assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Advanced MIDI Rules";
+        var mkdocs_page_input_path = "tutorial/lesson03_rules.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> FluidPatcher
+        </a>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Setup</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../install/">Installation</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../config/">Configuration</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Concepts</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/overview/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/soundfonts/">Soundfonts</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/banks/">Banks & Patches</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/midi/">MIDI Event Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/players/">Players & Sequencers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/ladspa/">Effects (LADSPA)</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bank Tutorials</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../lesson01_basic/">Basics</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../lesson02_messages/">Messages</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Advanced MIDI Rules</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#filtering-notes-by-velocity">Filtering Notes by Velocity</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#transforming-notes-and-converting-message-types">Transforming Notes and Converting Message Types</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#incrementing-parameters-with-counters">Incrementing Parameters with Counters</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#high-resolution-control-with-logarithmic-scaling">High-Resolution Control with Logarithmic Scaling</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#complete-bank-file">Complete Bank File</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../lesson04_players/">Players in Practice</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../lesson05_effects/">Using Plugins</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../cookbook/">Cookbook</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">API Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/examples/">Examples</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/patcher/">FluidPatcher</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/bankfiles/">Banks</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/misc/">Config/Exceptions</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">FluidPatcher</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Bank Tutorials</li>
+      <li class="breadcrumb-item active">Advanced MIDI Rules</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher/edit/master/docs/tutorial/lesson03_rules.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="tutorial-advanced-midi-rules">Tutorial: Advanced MIDI Rules<a class="headerlink" href="#tutorial-advanced-midi-rules" title="Permanent link">&para;</a></h1>
+<p><strong>File:</strong> <code>data/banks/tutorial/lesson03_rules.yaml</code></p>
+<p>This lesson explores some of the more advanced things MIDI rules can do:
+filtering events, transforming values, converting message types, maintaining
+state with counters, and generating high-resolution control changes.</p>
+<p>Each patch demonstrates a specific technique. While the examples are musical,
+the patterns are broadly useful for MIDI processing and performance control.</p>
+<h2 id="filtering-notes-by-velocity">Filtering Notes by Velocity<a class="headerlink" href="#filtering-notes-by-velocity" title="Permanent link">&para;</a></h2>
+<p>The <code>VelFilter</code> patch demonstrates routing notes to <em>different instruments</em>
+based on velocity, while ensuring that note releases are handled correctly.</p>
+<pre class="highlight"><code class="language-yaml">rules:
+- {type: note, chan: mychan=1, val: 0-116}
+- {type: note, chan: mychan=2, val: 117-127}
+- {type: note, chan: mychan=2, val: 0}</code></pre>
+<p>Here:</p>
+<ul>
+<li>Notes with velocity <strong>0–116</strong> are routed to channel 1 (E.Piano 1)</li>
+<li>Notes with velocity <strong>117–127</strong> are routed to channel 2 (E.Piano 2)</li>
+<li>A third rule explicitly routes <strong>note-off events</strong> (<code>val: 0</code>) to channel 2</li>
+</ul>
+<p>This last rule is important. Note messages with zero velocity release
+notes. These are included in the range of the first rule for channel
+1, but mapping both the upper velocity range and 0 velocity notes to
+channel 2 requires two separate rules.</p>
+<p>This patch illustrates a core idea:
+<strong>each rule independently decides whether to create a synth event.</strong></p>
+<h2 id="transforming-notes-and-converting-message-types">Transforming Notes and Converting Message Types<a class="headerlink" href="#transforming-notes-and-converting-message-types" title="Permanent link">&para;</a></h2>
+<p>Rules can reshape values <em>and</em> change message types.</p>
+<pre class="highlight"><code class="language-yaml">rules:
+- {type: note, chan: mychan=3, num: 0-127*1-12}
+- {type: cpress=ctrl, chan: mychan=3, num: modwheel}</code></pre>
+<p>In the <code>TypeRoute</code> patch:</p>
+<ul>
+<li>Incoming notes are transposed down one octave</li>
+<li>Channel pressure (<code>cpress</code>) messages are converted into control changes</li>
+<li>The resulting control changes are sent as modulation (<code>modwheel</code>)</li>
+</ul>
+<p>The first rule uses the alternate <code>&lt;min&gt;-&lt;max&gt;*&lt;mul&gt;[+|-]&lt;val&gt;</code> form for ranges.
+Here, all matching note numbers are multiplied by 1 and then shifted by -12,
+which makes octave transposition explicit and predictable.</p>
+<p>Rules can freely map one message type into another. When mapping from
+a message type that doesn't have a <code>num</code> to one that does, as in this
+case, the rule must provide the <code>num</code> parameter.</p>
+<h2 id="incrementing-parameters-with-counters">Incrementing Parameters with Counters<a class="headerlink" href="#incrementing-parameters-with-counters" title="Permanent link">&para;</a></h2>
+<p>Rules can maintain internal state using <strong>named counters</strong>, which allows
+messages to increment or decrement parameters.</p>
+<p>A counter named <code>vol</code> is created at the root level:</p>
+<pre class="highlight"><code class="language-yaml">counters:
+  vol: {min: 0, max: 120, startval: 70, wrap: no}</code></pre>
+<p>In the <code>IncVolume</code> patch, MIDI rules connect two momentary buttons
+to the counter:</p>
+<pre class="highlight"><code class="language-yaml">rules:
+- {type: ctrl, chan: mychan=4, num: pad1=7, val: 1-127=-10, counter: vol}
+- {type: ctrl, chan: mychan=4, num: pad2=7, val: 1-127=10, counter: vol}</code></pre>
+<p>The <code>val</code> parameter of each rule captures values 1-127 (pressing the pad)
+and ignores value 0 (releasing the pad).
+The result of the <code>val</code> parameter increments the counter. Wrapping is
+disabled (the default), so values are clamped at the limits.</p>
+<p>The rule sets the <code>val</code> of the resulting MIDI message to the current
+value of the counter.
+In order for the volume CC to have the correct initial value,
+a message is sent in the <code>init</code> block to initialize it:</p>
+<pre class="highlight"><code class="language-yaml">- ctrl:4:volume:70</code></pre>
+<p>If the counter were defined at the patch level, it would reset each
+time the patch was applied.</p>
+<h2 id="high-resolution-control-with-logarithmic-scaling">High-Resolution Control with Logarithmic Scaling<a class="headerlink" href="#high-resolution-control-with-logarithmic-scaling" title="Permanent link">&para;</a></h2>
+<p>Some parameters benefit from both higher resolution and non-linear response.
+Portamento/glide is a good example of this. Portamento is activated on
+channel 5 when the bank is loaded using the message:</p>
+<pre class="highlight"><code class="language-yaml">- ctrl:5:glide_pedal:64</code></pre>
+<p>The following rule in the <code>Glide</code> patch implements smooth portamento
+control:</p>
+<pre class="highlight"><code class="language-yaml">- {type: ctrl, chan: mychan=5,
+   num: slider1=glide_msb, lsb: glide_lsb,
+   val: 0-127=0-1000, log: 2.5}</code></pre>
+<ul>
+<li>A slider generates a value scaled to <strong>0–1000</strong></li>
+<li>The value is split into MSB and LSB parts</li>
+<li>Each part is sent to a different control change</li>
+<li>A logarithmic curve makes the slider more responsive at low values</li>
+</ul>
+<h2 id="complete-bank-file">Complete Bank File<a class="headerlink" href="#complete-bank-file" title="Permanent link">&para;</a></h2>
+<pre class="highlight"><code class="language-yaml">names:
+  mychan: 1
+  slider1: 13
+  pad1: 50
+  pad2: 51
+  modwheel: 1
+  volume: 7
+  glide_msb: 5
+  glide_lsb: 37
+  glide_pedal: 65
+
+patches:
+  VelFilter:
+    1: test.sf2:000:004
+    2: test.sf2:000:005
+    rules:
+    - {type: note, chan: mychan=1, val: 0-116}
+    - {type: note, chan: mychan=2, val: 117-127}
+    - {type: note, chan: mychan=2, val: 0}
+
+  TypeRoute:
+    3: test.sf2:000:067
+    rules:
+    - {type: note, chan: mychan=3, num: 0-127*1-12}
+    - {type: cpress=ctrl, chan: mychan=3, num: modwheel}
+
+  IncVolume:
+    4: test.sf2:000:007
+    rules:
+    - {type: ctrl, chan: mychan=4, num: pad1=7, val: 1-127=-10, counter: vol}
+    - {type: ctrl, chan: mychan=4, num: pad2=7, val: 1-127=10, counter: vol}
+    - {type: note, chan: mychan=4}
+
+  Glide:
+    5: test.sf2:000:081
+    rules:
+    - {type: note, chan: mychan=5}
+    - {type: ctrl, chan: mychan=5, num: slider1=glide_msb, lsb: glide_lsb,
+       val: 0-127=0-1000, log: 2.5}
+
+counters:
+  vol: {min: 0, max: 120, startval: 70, wrap: no}
+
+init:
+    messages:
+    - ctrl:4:volume:70
+    - ctrl:5:glide_pedal:64</code></pre>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../lesson02_messages/" class="btn btn-neutral float-left" title="Messages"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../lesson04_players/" class="btn btn-neutral float-right" title="Players in Practice">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../lesson02_messages/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../lesson04_players/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

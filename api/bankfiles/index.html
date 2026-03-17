@@ -1,0 +1,1580 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Banks - FluidPatcher</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../../assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Banks";
+        var mkdocs_page_input_path = "api/bankfiles.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> FluidPatcher
+        </a>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Setup</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../install/">Installation</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../config/">Configuration</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Concepts</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/overview/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/soundfonts/">Soundfonts</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/banks/">Banks & Patches</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/midi/">MIDI Event Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/players/">Players & Sequencers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/ladspa/">Effects (LADSPA)</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bank Tutorials</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson01_basic/">Basics</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson02_messages/">Messages</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson03_rules/">Advanced MIDI Rules</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson04_players/">Players in Practice</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson05_effects/">Using Plugins</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/cookbook/">Cookbook</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">API Reference</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../examples/">Examples</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../patcher/">FluidPatcher</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Banks</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#the-bank-class">The Bank Class</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#fluidpatcher.bankfiles.Bank">Bank</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#root-vs-patch-data">Root vs Patch Data</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#modifying-banks-programmatically">Modifying Banks Programmatically</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#mutating-objects-and-serialization">Mutating Objects and Serialization</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#bank-object-types">Bank Object Types</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#fluidpatcher.bankfiles.SFPreset">SFPreset</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#fluidpatcher.bankfiles.MidiMessage">MidiMessage</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#fluidpatcher.bankfiles.MidiRule">MidiRule</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#fluidpatcher.bankfiles.Route">Route</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#fluidpatcher.bankfiles.Route.from_affine">from_affine</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#fluidpatcher.bankfiles.Route.from_ranges">from_ranges</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#fluidpatcher.bankfiles.Sequence">Sequence</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#fluidpatcher.bankfiles.Arpeggio">Arpeggio</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#fluidpatcher.bankfiles.MidiLoop">MidiLoop</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#fluidpatcher.bankfiles.MidiFile">MidiFile</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#fluidpatcher.bankfiles.LadspaEffect">LadspaEffect</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#fluidpatcher.bankfiles.Counter">Counter</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#summary">Summary</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../misc/">Config/Exceptions</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">FluidPatcher</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">API Reference</li>
+      <li class="breadcrumb-item active">Banks</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher/edit/master/docs/api/bankfiles.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="banks-api">Banks API<a class="headerlink" href="#banks-api" title="Permanent link">&para;</a></h1>
+<p>The <code>bankfiles</code> module defines FluidPatcher’s <strong>declarative data model</strong>.
+It turns YAML bank files into structured Python objects that can be
+validated, inspected, modified, and written back to disk.</p>
+<p>Advanced users and UI authors can use these classes directly to build
+interactive editors, patch designers, or controller-driven workflows.</p>
+<h2 id="the-bank-class">The Bank Class<a class="headerlink" href="#the-bank-class" title="Permanent link">&para;</a></h2>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="fluidpatcher.bankfiles.Bank" class="doc doc-heading">
+            <code>fluidpatcher.bankfiles.Bank</code>
+
+
+<a href="#fluidpatcher.bankfiles.Bank" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Parsed representation of a FluidPatcher bank YAML document.</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Attributes:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>root</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#dict">dict</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Raw root-level configuration data.</p>
+              </div>
+            </li>
+            <li>
+              <b><code>patch</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#dict">dict</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Raw dictionary of patches (unmerged).</p>
+              </div>
+            </li>
+            <li>
+              <b><code>patches</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#list">list</a>[<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a>]</code>)
+              –
+              <div class="doc-md-description">
+                <p>Patch names in declaration order.</p>
+              </div>
+            </li>
+            <li>
+              <b><code>soundfonts</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#list">list</a>[<a class="autorefs autorefs-internal" title="fluidpatcher.bankfiles.SFPreset" href="#fluidpatcher.bankfiles.SFPreset">SFPreset</a>]</code>)
+              –
+              <div class="doc-md-description">
+                <p>Dynamic list of soundfont files required by patches.</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+
+</div><p>Users don't instantiate Bank objects directly. They are created by
+<code>FluidPatcher.load_bank</code> and a reference stored at <code>FluidPatcher.bank</code>.</p>
+<pre class="highlight"><code class="language-python">fp = FluidPatcher()
+fp.bank</code></pre>
+<h3 id="root-vs-patch-data">Root vs Patch Data<a class="headerlink" href="#root-vs-patch-data" title="Permanent link">&para;</a></h3>
+<p>Bank files are split into two conceptual areas:</p>
+<ul>
+<li>
+<p><strong>Root level</strong> — settings outside the <code>patches</code> block</p>
+</li>
+<li>
+<p><strong>Patch level</strong> — settings within a named entry under <code>patches</code></p>
+</li>
+</ul>
+<p>The <code>root</code> and <code>patch</code> attributes provide direct access to these two
+areas of the parsed bank data, allowing them to be queried or modified
+independently.</p>
+<p>Indexing the <code>Bank</code> object by patch name returns a <strong>merged view</strong>
+combining root and patch data using the following rules:</p>
+<ul>
+<li>SoundFont presets fall back to root values</li>
+<li>Lists (<code>messages</code>, <code>rules</code>) concatenate root + patch</li>
+<li>Dictionaries (<code>sequences</code>, <code>arpeggios</code>, etc.) merge, with patch values
+  overriding root values</li>
+</ul>
+<p>This merged view is computed dynamically and does <strong>not</strong> modify the
+underlying bank structure. It should be treated as read-only; edits
+should instead be made via the <code>root</code> and <code>patch</code> mappings.</p>
+<h2 id="modifying-banks-programmatically">Modifying Banks Programmatically<a class="headerlink" href="#modifying-banks-programmatically" title="Permanent link">&para;</a></h2>
+<p>Banks are mutable, and are designed to support interactive workflows
+such as:</p>
+<ul>
+<li>Changing a patch’s SoundFont preset</li>
+<li>Inserting or removing MIDI rules</li>
+<li>Adjusting controller mappings</li>
+<li>Writing the modified bank back to disk</li>
+</ul>
+<p>Example: change the program on channel 1 for a patch:</p>
+<pre class="highlight"><code class="language-python">fp.bank.patch["My Patch"][1] = SFPreset("piano.sf2", 0, 4)</code></pre>
+<h2 id="mutating-objects-and-serialization">Mutating Objects and Serialization<a class="headerlink" href="#mutating-objects-and-serialization" title="Permanent link">&para;</a></h2>
+<p>When bank objects are loaded from YAML, they retain their original
+serialized representation to support consistent round-trip
+loading and saving. Bank object attributes can be edited in-place,
+but if dumped to file they appear in their original form.</p>
+<p>To update an object's YAML representation, it must replaced with a new
+instance. Most bank object types (except <code>SFPreset</code>) provide a <code>copy()</code>
+method to simplify this. <code>copy()</code> creates a new object using the
+original parameters as defaults, with any provided keyword arguments
+overriding selected fields.</p>
+<pre class="highlight"><code class="language-python">rule = fp.bank.patch["My Patch"]["rules"][2]
+
+fp.bank.patch["My Patch"]["rules"][2] = rule.copy(
+    chan=3,
+    val="0-127=50-80"
+)</code></pre>
+<p>This pattern preserves round-trip fidelity while supporting safe,
+incremental edits.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>Replace edited objects with copies to persist them to disk.</p>
+</div>
+<h2 id="bank-object-types">Bank Object Types<a class="headerlink" href="#bank-object-types" title="Permanent link">&para;</a></h2>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="fluidpatcher.bankfiles.SFPreset" class="doc doc-heading">
+            <code>fluidpatcher.bankfiles.SFPreset</code>
+
+
+<a href="#fluidpatcher.bankfiles.SFPreset" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>SoundFont preset reference</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Attributes:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>file</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Path to the .sf2 file</p>
+              </div>
+            </li>
+            <li>
+              <b><code>bank</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>SoundFont bank index</p>
+              </div>
+            </li>
+            <li>
+              <b><code>prog</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Program index</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+
+</div><p>Represents a single SoundFont program selection. These objects
+correspond to YAML entries such as:</p>
+<pre class="highlight"><code class="language-yaml">1: piano.sf2:000:004</code></pre>
+<p>They are lightweight and effectively immutable, making them safe to
+replace programmatically.</p>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="fluidpatcher.bankfiles.MidiMessage" class="doc doc-heading">
+            <code>fluidpatcher.bankfiles.MidiMessage</code>
+
+
+<a href="#fluidpatcher.bankfiles.MidiMessage" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Description of a single MIDI message</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Attributes:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>type</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Message type (“note”, “ctrl”, “sysex”, ...)</p>
+              </div>
+            </li>
+            <li>
+              <b><code>chan</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Channel number (where applicable)</p>
+              </div>
+            </li>
+            <li>
+              <b><code>num</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Note/controller number (where applicable)</p>
+              </div>
+            </li>
+            <li>
+              <b><code>val</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Value (velocity, CC value, pitch bend, etc.)</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+
+</div><p>Represents a MIDI message that can be sent when loading a bank,
+applying a patch, or from a <code>Sequence</code>.</p>
+<p>Supported features include:</p>
+<ul>
+<li>Channel messages (note, CC, program change, etc.)</li>
+<li>System realtime messages and SysEx</li>
+<li>Shorthand aliases (<code>nt</code>, <code>cc</code>, <code>pc</code>)</li>
+<li>Scientific pitch notation (<code>C#4</code>)</li>
+</ul>
+<p>Example:</p>
+<pre class="highlight"><code class="language-python">msg = MidiMessage(type="cc", chan=1, num=7, val=100)
+fp.bank.patch["My Patch"]["messages"].append(msg)</code></pre>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="fluidpatcher.bankfiles.MidiRule" class="doc doc-heading">
+            <code>fluidpatcher.bankfiles.MidiRule</code>
+
+
+<a href="#fluidpatcher.bankfiles.MidiRule" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>A mapping that describes how to match incoming MIDI messages and
+what events they should trigger.</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Attributes:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>type</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Matching message type</p>
+              </div>
+            </li>
+            <li>
+              <b><code>totype</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Resulting message type (default: <code>self.type</code>)</p>
+              </div>
+            </li>
+            <li>
+              <b><code>chan</code></b>
+                  (<code><a class="autorefs autorefs-internal" title="fluidpatcher.bankfiles.Route" href="#fluidpatcher.bankfiles.Route">Route</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Channel range/transform (optional)</p>
+              </div>
+            </li>
+            <li>
+              <b><code>num</code></b>
+                  (<code><a class="autorefs autorefs-internal" title="fluidpatcher.bankfiles.Route" href="#fluidpatcher.bankfiles.Route">Route</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Parameter range/transform (optional)</p>
+              </div>
+            </li>
+            <li>
+              <b><code>val</code></b>
+                  (<code><a class="autorefs autorefs-internal" title="fluidpatcher.bankfiles.Route" href="#fluidpatcher.bankfiles.Route">Route</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Value range/transform (optional)</p>
+              </div>
+            </li>
+            <li>
+              <b><code>**pars</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#dict">dict</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>additional parameters for custom functionality</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+
+</div><p>A declarative routing directive connecting incoming MIDI messages to
+synth events or programmatic actions.</p>
+<p>Rules can:</p>
+<ul>
+<li>Filter by type, channel, controller, or value</li>
+<li>Remap ranges (e.g. slider → effect parameter)</li>
+<li>Translate between message types</li>
+<li>Trigger players, counters, or actions</li>
+</ul>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="fluidpatcher.bankfiles.Route" class="doc doc-heading">
+            <code>fluidpatcher.bankfiles.Route</code>
+
+
+<a href="#fluidpatcher.bankfiles.Route" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>An object that expresses MIDI parameter ranges/transforms.</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Attributes:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>min</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a> | <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>minimum value to match</p>
+              </div>
+            </li>
+            <li>
+              <b><code>max</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a> | <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>maximum value to match</p>
+              </div>
+            </li>
+            <li>
+              <b><code>mul</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a> | <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>multiplier to apply to values</p>
+              </div>
+            </li>
+            <li>
+              <b><code>add</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a> | <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>amount to add to values</p>
+              </div>
+            </li>
+            <li>
+              <b><code>tomin</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a> | <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>minimum of target range for values</p>
+              </div>
+            </li>
+            <li>
+              <b><code>tomax</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a> | <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>maximum of target range for values</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="fluidpatcher.bankfiles.Route.from_affine" class="doc doc-heading">
+            <code class="highlight language-python">from_affine(min, max, mul, add)</code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#fluidpatcher.bankfiles.Route.from_affine" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Creates a Route using an affine transform</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Parameters:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>min</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a> | <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>minimum value to match</p>
+              </div>
+            </li>
+            <li>
+              <b><code>max</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a> | <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>maximum value to match</p>
+              </div>
+            </li>
+            <li>
+              <b><code>mul</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a> | <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>multiplier to apply to values</p>
+              </div>
+            </li>
+            <li>
+              <b><code>add</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a> | <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>amount to add to values</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="fluidpatcher.bankfiles.Route.from_ranges" class="doc doc-heading">
+            <code class="highlight language-python">from_ranges(min=None, max=None, tomin=None, tomax=None)</code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#fluidpatcher.bankfiles.Route.from_ranges" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Creates a Route based on from-to ranges</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Parameters:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>min</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a> | <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>, default:
+                      <code>None</code>
+)
+              –
+              <div class="doc-md-description">
+                <p>minimum value to match</p>
+              </div>
+            </li>
+            <li>
+              <b><code>max</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a> | <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>, default:
+                      <code>None</code>
+)
+              –
+              <div class="doc-md-description">
+                <p>maximum value to match</p>
+              </div>
+            </li>
+            <li>
+              <b><code>tomin</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a> | <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>, default:
+                      <code>None</code>
+)
+              –
+              <div class="doc-md-description">
+                <p>minimum of target range for values</p>
+              </div>
+            </li>
+            <li>
+              <b><code>tomax</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a> | <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>, default:
+                      <code>None</code>
+)
+              –
+              <div class="doc-md-description">
+                <p>maximum of target range for values</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+
+</div><p>The <code>chan</code>, <code>num</code>, and <code>val</code> attributes of a <strong>MidiRule</strong> are converted
+to <strong>Route</strong> objects on creation. A <strong>Route</strong> instance can be used
+to modify one of these attributes <em>after</em> creating the rule.</p>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="fluidpatcher.bankfiles.Sequence" class="doc doc-heading">
+            <code>fluidpatcher.bankfiles.Sequence</code>
+
+
+<a href="#fluidpatcher.bankfiles.Sequence" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Step-sequenced event container</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Attributes:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>events</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#list">list</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Parsed events grouped by pattern</p>
+              </div>
+            </li>
+            <li>
+              <b><code>order</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#list">list</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Playback order of patterns (default: <code>[1]</code>)</p>
+              </div>
+            </li>
+            <li>
+              <b><code>tempo</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Beats per minute (default: <code>120</code>)</p>
+              </div>
+            </li>
+            <li>
+              <b><code>tdiv</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Beat divisor (default: <code>8</code>)</p>
+              </div>
+            </li>
+            <li>
+              <b><code>swing</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Timing swing ratio (default: <code>0.5</code>)</p>
+              </div>
+            </li>
+            <li>
+              <b><code>groove</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a> | <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#list">list</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Beat accent pattern (default: <code>[1, 1]</code>)</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+
+</div><p>A step-sequenced event container supporting:</p>
+<ul>
+<li>Pattern-based sequencing</li>
+<li>Multi-track layouts</li>
+<li>Groove patterns</li>
+<li>Text or structured event syntax</li>
+</ul>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="fluidpatcher.bankfiles.Arpeggio" class="doc doc-heading">
+            <code>fluidpatcher.bankfiles.Arpeggio</code>
+
+
+<a href="#fluidpatcher.bankfiles.Arpeggio" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Patterned arpeggiation definition</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Attributes:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>style</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Pattern type</p>
+              </div>
+            </li>
+            <li>
+              <b><code>tempo</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Beats per minute (default: <code>120</code>)</p>
+              </div>
+            </li>
+            <li>
+              <b><code>tdiv</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Beat divisor (default: <code>8</code>)</p>
+              </div>
+            </li>
+            <li>
+              <b><code>swing</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Timing swing ratio (default: <code>0.5</code>)</p>
+              </div>
+            </li>
+            <li>
+              <b><code>groove</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a> | <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#list">list</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Beat accent pattern (default: <code>[1, 1]</code>)</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+
+</div><p>Defines a patterned arpeggiation behavior. Arpeggios are triggered by
+incoming notes and can be reassigned or modified per patch.</p>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="fluidpatcher.bankfiles.MidiLoop" class="doc doc-heading">
+            <code>fluidpatcher.bankfiles.MidiLoop</code>
+
+
+<a href="#fluidpatcher.bankfiles.MidiLoop" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Looping MIDI event generator</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Attributes:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>beats</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Loop length in beats</p>
+              </div>
+            </li>
+            <li>
+              <b><code>tempo</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Beats per minute (default: <code>120</code>)</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+
+</div><p>A looping MIDI recorder/player used for live looping and overdubbing.</p>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="fluidpatcher.bankfiles.MidiFile" class="doc doc-heading">
+            <code>fluidpatcher.bankfiles.MidiFile</code>
+
+
+<a href="#fluidpatcher.bankfiles.MidiFile" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>MIDI file playback directive</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Attributes:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>file</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Path to a .mid file</p>
+              </div>
+            </li>
+            <li>
+              <b><code>tempo</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Beats per minute (default: <code>120</code>)</p>
+              </div>
+            </li>
+            <li>
+              <b><code>barlength</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Ticks per musical measure (default: <code>1</code>)</p>
+              </div>
+            </li>
+            <li>
+              <b><code>jumps</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#list">list</a>[<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a>]</code>)
+              –
+              <div class="doc-md-description">
+                <p>List of bar jumps as [from]&gt;[to] (default: <code>[]</code>)</p>
+              </div>
+            </li>
+            <li>
+              <b><code>shift</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Channel shift amount (default: <code>0</code>)</p>
+              </div>
+            </li>
+            <li>
+              <b><code>mask</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#list">list</a>[<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a>]</code>)
+              –
+              <div class="doc-md-description">
+                <p>Ignored message types (default: <code>[]</code>)</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+
+</div><p>MIDI file playback directive supporting:</p>
+<ul>
+<li>Jump points</li>
+<li>Tempo matching</li>
+<li>Note shifting to avoid collisions</li>
+</ul>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="fluidpatcher.bankfiles.LadspaEffect" class="doc doc-heading">
+            <code>fluidpatcher.bankfiles.LadspaEffect</code>
+
+
+<a href="#fluidpatcher.bankfiles.LadspaEffect" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>LADSPA audio effect declaration</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Attributes:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>lib</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>LADSPA library basename</p>
+              </div>
+            </li>
+            <li>
+              <b><code>plugin</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Plugin label (default: <code>''</code>)</p>
+              </div>
+            </li>
+            <li>
+              <b><code>audio</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#list">list</a>[<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a>]</code>)
+              –
+              <div class="doc-md-description">
+                <p>Audio port names (default: <code>['Input', 'Output']</code>)</p>
+              </div>
+            </li>
+            <li>
+              <b><code>vals</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#dict">dict</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Initial values for control ports (default: <code>{}</code>)</p>
+              </div>
+            </li>
+            <li>
+              <b><code>chan</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#list">list</a>[<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a>]</code>)
+              –
+              <div class="doc-md-description">
+                <p>Input channel routing (default: <code>[]</code>)</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+
+</div><p>Defines a LADSPA plugin instance and routing.</p>
+<p>Effects are declarative:</p>
+<ul>
+<li>Applying a patch rebuilds the FX chain as needed</li>
+<li>Parameter changes can be driven by <code>MidiRule</code> mappings</li>
+</ul>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="fluidpatcher.bankfiles.Counter" class="doc doc-heading">
+            <code>fluidpatcher.bankfiles.Counter</code>
+
+
+<a href="#fluidpatcher.bankfiles.Counter" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>State storing object that responds to messages/rules</p>
+
+
+<table class="field-list">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-body" />
+  </colgroup>
+  <tbody valign="top">
+    <tr class="field">
+      <th class="field-name">Attributes:</th>
+      <td class="field-body">
+        <ul class="first simple">
+            <li>
+              <b><code>min/max</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>range for values</p>
+              </div>
+            </li>
+            <li>
+              <b><code>startval</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>Initial value for counter (default: <code>self.min</code>)</p>
+              </div>
+            </li>
+            <li>
+              <b><code>wrap</code></b>
+                  (<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>)
+              –
+              <div class="doc-md-description">
+                <p>wrap values if True, else clamp to range (default: <code>False</code>)</p>
+              </div>
+            </li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+
+</div><p>A persistent state container used by routing rules.</p>
+<p>Counters enable:</p>
+<ul>
+<li>Toggle behavior</li>
+<li>Stepped parameter changes</li>
+<li>Stateful controller logic</li>
+</ul>
+<h2 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h2>
+<p>The <code>bankfiles</code> module defines <strong>everything that can appear in a bank</strong>.</p>
+<p>Key takeaways:</p>
+<ul>
+<li>YAML is parsed into validated Python objects</li>
+<li>Banks are mutable and round-trippable</li>
+<li>Patch access returns merged views, not copies</li>
+<li>Use the <code>copy()</code> method to save edited objects to disk</li>
+</ul>
+<p>If <code>FluidPatcher</code> is the engine, <code>bankfiles</code> is the language it speaks.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../patcher/" class="btn btn-neutral float-left" title="FluidPatcher"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../misc/" class="btn btn-neutral float-right" title="Config/Exceptions">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../patcher/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../misc/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
