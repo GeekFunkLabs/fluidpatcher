@@ -16,7 +16,7 @@ or the location referenced by the environment variable
 ### Loading Config
 
 Loading happens *once* at import, and the data is stored in the global
-variable CONFIG. When loading, any key ending in `_path` is
+variable **`CONFIG`**. When loading, any key ending in `_path` is
 automatically converted into a `pathlib.Path` object internally,
 so paths behave consistently across platforms.
 
