@@ -20,24 +20,6 @@ variable CONFIG. When loading, any key ending in `_path` is
 automatically converted into a `pathlib.Path` object internally,
 so paths behave consistently across platforms.
 
-::: fluidpatcher.config.save_config
-
-This function can be used to store modified fluidsettings or add custom
-states that persist across FluidPatcher imports. `Path` objects are
-serialized as POSIX strings. 
-
-For example, a program might store the current bank, so that it can be
-loaded automatically next time the program starts:
-
-```python
-CONFIG["mybank_path"] = Path(bankfile)
-save_config()
-```
-
-`save_config()` will automatically serialize the `Path` object, and
-because the chosen key ends in `_path` it will be converted back to a
-`Path` on import.
-
 ## Bank File Errors
 
 All bank-related errors derive from a single base class `BankError`.

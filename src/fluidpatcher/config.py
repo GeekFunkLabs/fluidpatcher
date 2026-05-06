@@ -23,21 +23,6 @@ import yaml
 from .bankfiles import LadspaEffect
 
 
-def save_config():
-    """
-    Writes CONFIG to file.
-    """
-    if not CONFIG_PATH.parent.exists():
-        CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    cfg_posix = {
-        k: v.as_posix() if isinstance(v, Path) else v
-        for k, v in CONFIG.items()
-    }
-    CONFIG_PATH.write_text(
-        yaml.safe_dump(cfg_posix, sort_keys=False)
-    )
-
-
 DEFAULT_CFG = """\
 fluidsettings:
   midi.autoconnect: 1
@@ -53,30 +38,29 @@ CONFIG_PATH = Path(os.getenv(
 
 # load configuration
 CONFIG = yaml.safe_load(DEFAULT_CFG)
-if CONFIG_PATH.exists:
+if not CONFIG_PATH.exists:
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CONFIG_PATH.write_text(DEFAULT_CFG)
+else:
     cfg = yaml.safe_load(CONFIG_PATH.read_text())
     CONFIG.update(cfg)
 
+# parse config
 for key, val in list(CONFIG.items()):
     if key.endswith("_path") and val is not None:
         CONFIG[key] = Path(val)
-CONFIG.setdefault("banks_path", CONFIG_PATH.parent / "banks")
-CONFIG.setdefault("sounds_path", CONFIG["banks_path"].parent / "sounds")
-CONFIG.setdefault("midi_path", CONFIG["banks_path"].parent / "midi")
 CONFIG.setdefault(
     "ladspa_path",
     Path(os.getenv("LADSPA_PATH", "/usr/lib/ladspa"))
 )
 
 # create default files as needed
-if not CONFIG_PATH.exists():
-    save_config()
-if not CONFIG["banks_path"].exists():
-    shutil.copytree(res.files("fluidpatcher.data") / "banks", CONFIG["banks_path"])
-if not CONFIG["sounds_path"].exists():
-    shutil.copytree(res.files("fluidpatcher.data") / "sounds", CONFIG["sounds_path"])
-if not CONFIG["midi_path"].exists():
-    shutil.copytree(res.files("fluidpatcher.data") / "midi", CONFIG["midi_path"])
+localshare = Path.home() / ".local/share/fluidpatcher"
+for item in "banks", "sounds", "midi":
+    key = item + "_path"
+    CONFIG.setdefault(key, localshare / item)
+    if not CONFIG[key].exists():
+        shutil.copytree(res.files("fluidpatcher.data") / item, CONFIG[key])
 
 # initialize patchcord for multi-channel LADSPA mixing
 system = platform.system().lower()

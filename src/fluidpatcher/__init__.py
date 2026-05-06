@@ -27,13 +27,13 @@ Requirements:
 from importlib.metadata import version, PackageNotFoundError
 
 from .bankfiles import MidiMessage, MidiRule, SFPreset
-from .config import CONFIG, save_config
+from .config import CONFIG
 from .patcher import FluidPatcher
 from .pfluidsynth import FluidMidiEvent
 
 
-__all__ = ["MidiMessage", "MidiRule", "SFPreset", "CONFIG",
-           "save_config", "FluidPatcher", "FluidMidiEvent"]
+__all__ = ["CONFIG", "FluidPatcher", "FluidMidiEvent",
+           "MidiMessage", "MidiRule", "SFPreset"]
 
 try:
     __version__ = version("fluidpatcher")
