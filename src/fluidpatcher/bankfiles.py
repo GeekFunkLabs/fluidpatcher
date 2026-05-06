@@ -540,6 +540,8 @@ class Route:
         mul = 1 if min == max else (tomax - tomin) / (max - min)
         add = tomin - min * mul
         obj = cls(min, max, mul, add)
+        obj.tomin = tomin
+        obj.tomax = tomax
         return obj
 
     @classmethod
