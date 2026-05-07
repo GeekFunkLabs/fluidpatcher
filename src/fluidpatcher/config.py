@@ -38,12 +38,11 @@ CONFIG_PATH = Path(os.getenv(
 
 # load configuration
 CONFIG = yaml.safe_load(DEFAULT_CFG)
-if not CONFIG_PATH.exists:
+if not CONFIG_PATH.exists():
     CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     CONFIG_PATH.write_text(DEFAULT_CFG)
 else:
-    cfg = yaml.safe_load(CONFIG_PATH.read_text())
-    CONFIG.update(cfg)
+    CONFIG |= yaml.safe_load(CONFIG_PATH.read_text())
 
 # parse config
 for key, val in list(CONFIG.items()):
