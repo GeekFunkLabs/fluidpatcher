@@ -55,7 +55,7 @@ class FluidPatcher:
         Mapping of loaded soundfonts, keyed by file path.                  
     """
 
-    def __init__(self, fluidsettings={}, fluidlog=None):
+    def __init__(self, fluidsettings=None, fluidlog=None):
         """
         Create a FluidPatcher and start FluidSynth.
 
@@ -69,6 +69,8 @@ class FluidPatcher:
         self.bank = Bank("patches: {}")
         self._sfonts = {}
         self._router = Router(fluid_default=False, fluid_router=False)
+        if fluidsettings is None:
+            fluidsettings = {}
         if fluidlog == -1:
             fluidlog = lambda lev, msg: None
         self._synth = Synth(

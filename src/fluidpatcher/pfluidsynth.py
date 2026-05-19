@@ -490,7 +490,7 @@ class Synth:
         self.st = FS.new_fluid_settings()
         for name, val in fluidsettings.items():
             self[name] = val
-        if logfunc:
+        if logfunc is not None:
             self.logfunc = CFUNCTYPE(None, c_int, c_char_p, c_void_p)(
                 lambda lev, msg, _: logfunc(lev, msg)
             )
