@@ -6,6 +6,7 @@ from ctypes import *
 
 FLUID_OK = 0
 FLUID_FAILED = -1
+FLUID_ERR = 1
 FLUID_NUM_TYPE = 0
 FLUID_INT_TYPE = 1
 FLUID_STR_TYPE = 2
@@ -712,7 +713,12 @@ class Synth:
                 effect.link(hostports, lastports, buffers)
                 lastports = buffers
             effects[-1].link(hostports, lastports, outports)
-        FS.fluid_ladspa_activate(self.ladspa)
+
+        errmsg = create_string_buffer(128)
+        if FS.fluid_ladspa_check(self.ladspa, errmsg, 128) != FLUID_OK:
+            FS.fluid_log(FLUID_ERR, errmsg)
+        else:
+            FS.fluid_ladspa_activate(self.ladspa)
 
     if not ladspa_available:
         def fxchain_clear(self): pass
