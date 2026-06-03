@@ -7,6 +7,7 @@ from ctypes import *
 FLUID_OK = 0
 FLUID_FAILED = -1
 FLUID_ERR = 1
+FLUID_LOGLEVELS = 5
 FLUID_NUM_TYPE = 0
 FLUID_INT_TYPE = 1
 FLUID_STR_TYPE = 2
@@ -487,21 +488,22 @@ class SoundFont:
 
 class Synth:
 
-    def __init__(self, fluidsettings={}, logfunc=None, midi_handler=None):
+    def __init__(self, fluidsettings=None, logfunc=None, midi_handler=None):
         self.st = FS.new_fluid_settings()
-        for name, val in fluidsettings.items():
-            self[name] = val
+        if fluidsettings is not None:
+            for name, val in fluidsettings.items():
+                self[name] = val
         if logfunc is not None:
             self.logfunc = CFUNCTYPE(None, c_int, c_char_p, c_void_p)(
                 lambda lev, msg, _: logfunc(lev, msg)
             )
-            for lev in range(5):
+            for lev in range(FLUID_LOGLEVELS):
                 FS.fluid_set_log_function(lev, self.logfunc)
         self.fsynth = FS.new_fluid_synth(self.st)
         FS.new_fluid_audio_driver(self.st, self.fsynth)
         self.frouter_handler = fl_eventcallback(FS.fluid_synth_handle_midi_event)
         self.frouter = FS.new_fluid_midi_router(self.st, self.frouter_handler, self.fsynth)
-        if midi_handler:
+        if midi_handler is not None:
             self.fdriver_handler = fl_eventcallback(
                 lambda _, e: midi_handler(FluidMidiEvent(e)) or FLUID_OK
             )
@@ -700,14 +702,14 @@ class Synth:
             self.ladspafx[name] = LadspaEffect(self, name, fx)
 
     def fxchain_connect(self):
-        b = -1
+        b = 0
         for hostports, outports in self.port_mapping:
             effects = [e for e in self.ladspafx.values() if hostports in e.links]
             if not effects: continue
             lastports = hostports
             for effect in effects[0:-1]:
-                b += 2
-                buffers = (f"buffer{b}", f"buffer{b + 1}")
+                b += 1
+                buffers = (f"buffer{b}_left", f"buffer{b}_right")
                 FS.fluid_ladspa_add_buffer(self.ladspa, buffers[0].encode())
                 FS.fluid_ladspa_add_buffer(self.ladspa, buffers[1].encode())
                 effect.link(hostports, lastports, buffers)
