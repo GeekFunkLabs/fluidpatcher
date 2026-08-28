@@ -23,6 +23,6 @@ Source = "https://github.com/GeekFunkLabs/fluidpatcher"
 fpatcher-editor = "fluidpatcher.examples.live_bank_editor:main"
 
 [tool.setuptools.package-data]
-"fluidpatcher.data" = ["*.yaml", "banks/*", "midi/*.mid", "sounds/*.sf2"]
+"fluidpatcher.data" = ["banks/**/*", "midi/**/*", "sounds/**/*"]
 "fluidpatcher._ladspa" = ["prebuilt/*/*.so"]
 
