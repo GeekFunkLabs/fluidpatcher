@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Messages - FluidPatcher</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../../assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Messages";
+        var mkdocs_page_input_path = "tutorial/lesson02_messages.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> FluidPatcher
+        </a>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Setup</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../install/">Installation</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../config/">Configuration</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Concepts</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/overview/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/soundfonts/">Soundfonts</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/banks/">Banks & Patches</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/midi/">MIDI Event Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/players/">Players & Sequencers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/ladspa/">Effects (LADSPA)</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bank Tutorials</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../lesson01_basic/">Basics</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Messages</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#named-controllers">Named Controllers</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#initialization-messages">Initialization Messages</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#patch-change-messages">Patch-Change Messages</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#rules-that-create-events">Rules That Create Events</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#patches-and-local-overrides">Patches and Local Overrides</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#complete-bank-file">Complete Bank File</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../lesson03_rules/">Advanced MIDI Rules</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../lesson04_players/">Players in Practice</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../lesson05_effects/">Using Plugins</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../cookbook/">Cookbook</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">API Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/examples/">Examples</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/patcher/">FluidPatcher</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/bankfiles/">Banks</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/misc/">Config/Exceptions</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">FluidPatcher</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Bank Tutorials</li>
+      <li class="breadcrumb-item active">Messages</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher/edit/master/docs/tutorial/lesson02_messages.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="tutorial-messages-and-controllers">Tutorial: Messages and Controllers<a class="headerlink" href="#tutorial-messages-and-controllers" title="Permanent link">&para;</a></h1>
+<p><strong>File:</strong> <code>data/banks/tutorial/lesson02_messages.yaml</code></p>
+<p>This lesson introduces <strong>named controllers</strong>, <strong>initialization messages</strong>,
+and <strong>rules that translate incoming MIDI controls into synth events</strong>.
+Together, these features let you shape how controllers behave across
+patches while still allowing per-patch customization.</p>
+<h2 id="named-controllers">Named Controllers<a class="headerlink" href="#named-controllers" title="Permanent link">&para;</a></h2>
+<p>In the <code>names</code> section, controller numbers are given symbolic names:</p>
+<pre class="highlight"><code class="language-yaml">names:
+  volume: 7
+  chorus: 93
+  slider1: 13
+  slider2: 14</code></pre>
+<p>These aliases make the bank easier to read and more portable. Instead of
+remembering that CC#93 controls chorus, rules and messages can refer to
+<code>chorus</code> directly. The value of <code>slider1</code> can be changed to match the
+CC number sent by a physical slider on your controller, instead of
+changing the value every time it is used in the bank file.</p>
+<h2 id="initialization-messages">Initialization Messages<a class="headerlink" href="#initialization-messages" title="Permanent link">&para;</a></h2>
+<p>The <code>init</code> section contains messages that are applied <strong>once</strong>, when the
+bank is loaded:</p>
+<pre class="highlight"><code class="language-yaml">init:
+  messages:
+  - ctrl:1:volume:80</code></pre>
+<p>Here, volume is set to a medium level on channel 1 as a global starting
+state. This message is <em>not</em> resent when switching patches—it
+establishes a baseline for the entire bank.</p>
+<h2 id="patch-change-messages">Patch-Change Messages<a class="headerlink" href="#patch-change-messages" title="Permanent link">&para;</a></h2>
+<p>The <code>messages</code> section at the root level defines messages that are sent
+<strong>each time a patch is applied</strong>, before any patch-specific messages:</p>
+<pre class="highlight"><code class="language-yaml">messages:
+- ctrl:1:chorus:0</code></pre>
+<p>This ensures that chorus is reset to zero whenever a new patch is
+applied, preventing effects from “leaking” between patches.</p>
+<h2 id="rules-that-create-events">Rules That Create Events<a class="headerlink" href="#rules-that-create-events" title="Permanent link">&para;</a></h2>
+<p>The rules section defines how incoming MIDI messages create synth events:</p>
+<pre class="highlight"><code class="language-yaml">rules:
+- {type: note}
+- {type: ctrl, num: slider1=volume}
+- {type: ctrl, num: slider2=chorus}</code></pre>
+<p>The first rule creates note events for all incoming notes, unchanged.</p>
+<p>The last two rules listen for control changes from physical sliders and
+create new CC events targeting synth parameters:</p>
+<ul>
+<li>Moving <code>slider1</code> generates volume CC events</li>
+<li>Moving <code>slider2</code> generates chorus CC events</li>
+</ul>
+<p>Each matching rule creates an event independently—multiple rules can
+respond to the same incoming MIDI message if they apply.</p>
+<h2 id="patches-and-local-overrides">Patches and Local Overrides<a class="headerlink" href="#patches-and-local-overrides" title="Permanent link">&para;</a></h2>
+<p>This bank defines two simple patches:</p>
+<pre class="highlight"><code class="language-yaml">patches:
+  EPiano:
+    1: test.sf2:000:004
+  Sax:
+    1: test.sf2:000:067</code></pre>
+<p>Both use channel 1 and inherit the global rules and messages. The <code>Sax</code>
+patch, however, adds a patch-level message:</p>
+<pre class="highlight"><code class="language-yaml">  Sax:
+    1: test.sf2:000:067
+    messages:
+    - ctrl:1:chorus:99</code></pre>
+<p>Patch-level messages are sent <strong>after</strong> the root-level messages when the
+patch is applied. In this case, chorus is reset to zero globally, then
+set to a higher value specifically for the sax sound.</p>
+<h2 id="complete-bank-file">Complete Bank File<a class="headerlink" href="#complete-bank-file" title="Permanent link">&para;</a></h2>
+<pre class="highlight"><code class="language-yaml">names:
+  volume: 7
+  chorus: 93
+  slider1: 13
+  slider2: 14
+
+init:
+  messages:
+  - ctrl:1:volume:80
+
+messages:
+- ctrl:1:chorus:0
+
+rules:
+- {type: note}
+- {type: ctrl, num: slider1=volume}
+- {type: ctrl, num: slider2=chorus}
+
+patches:
+  EPiano:
+    1: test.sf2:000:004
+  Sax:
+    1: test.sf2:000:067
+    messages:
+    - ctrl:1:chorus:99</code></pre>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../lesson01_basic/" class="btn btn-neutral float-left" title="Basics"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../lesson03_rules/" class="btn btn-neutral float-right" title="Advanced MIDI Rules">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../lesson01_basic/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../lesson03_rules/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Basics - FluidPatcher</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../../assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Basics";
+        var mkdocs_page_input_path = "tutorial/lesson01_basic.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> FluidPatcher
+        </a>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Setup</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../install/">Installation</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../config/">Configuration</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Concepts</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/overview/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/soundfonts/">Soundfonts</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/banks/">Banks & Patches</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/midi/">MIDI Event Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/players/">Players & Sequencers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/ladspa/">Effects (LADSPA)</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bank Tutorials</span></p>
+              <ul class="current">
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Basics</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#root-level-rules">Root-Level Rules</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#patch-single">Patch: Single</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#patch-layered">Patch: Layered</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#patch-split">Patch: Split</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#complete-bank-file">Complete Bank File</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../lesson02_messages/">Messages</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../lesson03_rules/">Advanced MIDI Rules</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../lesson04_players/">Players in Practice</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../lesson05_effects/">Using Plugins</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../cookbook/">Cookbook</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">API Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/examples/">Examples</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/patcher/">FluidPatcher</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/bankfiles/">Banks</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/misc/">Config/Exceptions</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">FluidPatcher</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Bank Tutorials</li>
+      <li class="breadcrumb-item active">Basics</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher/edit/master/docs/tutorial/lesson01_basic.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="tutorial-basics">Tutorial: Basics<a class="headerlink" href="#tutorial-basics" title="Permanent link">&para;</a></h1>
+<p><strong>File:</strong> <code>data/banks/tutorial/lesson01_basic.yaml</code></p>
+<p>This lesson introduces the basic structure of a bank file: selecting
+soundfont presets, defining patches, and using simple MIDI rules for
+layering and keyboard splits.</p>
+<h2 id="root-level-rules">Root-Level Rules<a class="headerlink" href="#root-level-rules" title="Permanent link">&para;</a></h2>
+<p>MIDI rules determine how incoming MIDI messages create synth events.
+Rules defined at the root level apply to all patches unless overridden.</p>
+<p>The first rule catches all note messages and passes them through
+unchanged:</p>
+<pre class="highlight"><code class="language-yaml">rules:
+- {type: note}</code></pre>
+<p>Because no other parameters are specified, any note received on a given
+channel will generate sound using the preset assigned to that channel.</p>
+<p>The second rule applies to control change messages:</p>
+<pre class="highlight"><code class="language-yaml">- {type: ctrl, chan: 1-16=1-16}</code></pre>
+<p>For the <code>chan</code> parameter, mapping a range to a range creates events on
+<strong>every</strong> channel in the target range. For example, sending CC#7
+(Volume) on any channel will adjust the volume of all channels.</p>
+<h2 id="patch-single">Patch: Single<a class="headerlink" href="#patch-single" title="Permanent link">&para;</a></h2>
+<p>The simplest patch assigns a single preset to a MIDI channel:</p>
+<pre class="highlight"><code class="language-yaml">Single:
+  1: test.sf2:000:004</code></pre>
+<p>This selects program 4 (Electric Piano 1) from bank 0 of <code>test.sf2</code> on
+channel 1. If your MIDI controller sends notes on channel 1 (the usual
+default), this patch will immediately produce sound.</p>
+<h2 id="patch-layered">Patch: Layered<a class="headerlink" href="#patch-layered" title="Permanent link">&para;</a></h2>
+<p>The <code>Layered</code> patch assigns presets to two channels and adds a
+patch-level rule:</p>
+<pre class="highlight"><code class="language-yaml">Layered:
+  1: test.sf2:000:004
+  2: test.sf2:000:007
+  rules:
+  - {type: note, chan: 1=2}</code></pre>
+<p>The root-level rule already sends notes from channel 1 to channel 1.
+This additional rule sends the same notes to channel 2, creating a
+layered sound using both presets.</p>
+<p>Patch-level rules are added to the root rules when the patch is applied.</p>
+<h2 id="patch-split">Patch: Split<a class="headerlink" href="#patch-split" title="Permanent link">&para;</a></h2>
+<p>The <code>Split</code> patch divides the keyboard into two note ranges:</p>
+<pre class="highlight"><code class="language-yaml">Split:
+  2: test.sf2:000:004
+  3: test.sf2:000:033
+  rules:
+  - {type: note, chan: 1=2, num: F4-127}
+  - {type: note, chan: 1=3, num: E1-E4=E0-E3}</code></pre>
+<p>Notes above F4 are routed to channel 2 (Electric Piano), while lower
+notes are routed to channel 3 (Fingered Bass). Channel 1 is unused in
+this patch to avoid triggering both sounds via the root-level rule.</p>
+<p>The <code>num</code> parameter restricts which notes match a rule. In the second
+rule, <code>num</code> also remaps the note range. Note values are scaled
+proportionally, shifting all matching notes down by one octave.</p>
+<h2 id="complete-bank-file">Complete Bank File<a class="headerlink" href="#complete-bank-file" title="Permanent link">&para;</a></h2>
+<pre class="highlight"><code class="language-yaml">rules:
+- {type: note}
+- {type: ctrl, chan: 1-16=1-16}
+
+patches:
+  Single:
+    1: test.sf2:000:004
+
+  Layered:
+    1: test.sf2:000:004
+    2: test.sf2:000:007
+    rules:
+    - {type: note, chan: 1=2}
+
+  Split:
+    2: test.sf2:000:004
+    3: test.sf2:000:033
+    rules:
+    - {type: note, chan: 1=2, num: F4-127}
+    - {type: note, chan: 1=3, num: E1-E4=E0-E3}</code></pre>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../../concepts/ladspa/" class="btn btn-neutral float-left" title="Effects (LADSPA)"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../lesson02_messages/" class="btn btn-neutral float-right" title="Messages">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../../concepts/ladspa/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../lesson02_messages/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

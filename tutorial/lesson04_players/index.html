@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Players in Practice - FluidPatcher</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../../assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Players in Practice";
+        var mkdocs_page_input_path = "tutorial/lesson04_players.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> FluidPatcher
+        </a>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Setup</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../install/">Installation</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../config/">Configuration</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Concepts</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/overview/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/soundfonts/">Soundfonts</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/banks/">Banks & Patches</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/midi/">MIDI Event Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/players/">Players & Sequencers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../concepts/ladspa/">Effects (LADSPA)</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bank Tutorials</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../lesson01_basic/">Basics</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../lesson02_messages/">Messages</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../lesson03_rules/">Advanced MIDI Rules</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Players in Practice</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#root-level-presets">Root-Level Presets</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#sequences">Sequences</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#pattern-based-sequence-montuno">Pattern-Based Sequence: montuno</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#grid-style-sequence-disco">Grid-Style Sequence: disco</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#controlling-sequences">Controlling Sequences</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#arpeggios">Arpeggios</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#using-the-arpeggio">Using the Arpeggio</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#midi-loops">MIDI Loops</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#recording-and-playback">Recording and Playback</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#midi-file-playback">MIDI File Playback</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#controlling-playback">Controlling Playback</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#performance-design">Performance Design</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#complete-bank-file">Complete Bank File</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../lesson05_effects/">Using Plugins</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../cookbook/">Cookbook</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">API Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/examples/">Examples</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/patcher/">FluidPatcher</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/bankfiles/">Banks</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/misc/">Config/Exceptions</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">FluidPatcher</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Bank Tutorials</li>
+      <li class="breadcrumb-item active">Players in Practice</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher/edit/master/docs/tutorial/lesson04_players.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="tutorial-players-in-practice">Tutorial: Players in Practice<a class="headerlink" href="#tutorial-players-in-practice" title="Permanent link">&para;</a></h1>
+<p><strong>File:</strong> <code>data/banks/tutorial/lesson04_players.yaml</code></p>
+<p>This tutorial demonstrates <strong>all four player types</strong> supported by
+FluidPatcher:</p>
+<ul>
+<li><strong>Sequences</strong> – timed, repeating MIDI patterns</li>
+<li><strong>Arpeggios</strong> – patterns generated from held notes</li>
+<li><strong>MIDI Loops</strong> – live recording and overdubbing</li>
+<li><strong>MIDI Files</strong> – playback of <code>.mid</code> files</li>
+</ul>
+<p>Each player is defined at the <strong>root level</strong>, so it can continue running
+while patches are changed. All players are synchronized to the same
+tempo to make it easy to combine them.</p>
+<h2 id="root-level-presets">Root-Level Presets<a class="headerlink" href="#root-level-presets" title="Permanent link">&para;</a></h2>
+<p>The patches in this bank are used for choosing which player to control,
+rather than selecting sounds. The root-level presets in this bank apply
+to all patches, so they are always available to the root-level players.
+For clarity, presets are placed in the bank file near the players that
+use them.</p>
+<ul>
+<li>Channel 1 is set to E.Piano 1 near the root-level <code>note</code> rule, since
+  it is for live playing, arpeggios, and looping.</li>
+</ul>
+<pre class="highlight"><code class="language-yaml">1: test.sf2:000:004
+rules:
+- {type: note, chan: 1}</code></pre>
+<ul>
+<li>Channels 2 and 10 are used by the sequences for keys and drums.</li>
+</ul>
+<pre class="highlight"><code class="language-yaml">2:  test.sf2:000:005
+10: test.sf2:128:000</code></pre>
+<ul>
+<li>Channels 4 and 12 are used by the MIDI file player for bass and drums.</li>
+</ul>
+<pre class="highlight"><code class="language-yaml">4:  test.sf2:000:033
+12: test.sf2:128:000</code></pre>
+<h2 id="sequences">Sequences<a class="headerlink" href="#sequences" title="Permanent link">&para;</a></h2>
+<p>Sequences play predefined MIDI events on a clock.</p>
+<p>Two sequences are defined here: a melodic pattern (<code>montuno</code>) and a drum
+pattern (<code>disco</code>).</p>
+<h3 id="pattern-based-sequence-montuno">Pattern-Based Sequence: <code>montuno</code><a class="headerlink" href="#pattern-based-sequence-montuno" title="Permanent link">&para;</a></h3>
+<pre class="highlight"><code class="language-yaml">sequences:
+  montuno:
+    tdiv: 16
+    tempo: 110
+    events:
+    - - nt:2:A3:100, nt:2:C3:100, nt:2:E3:100, nt:2:A1:100
+    - - _, nt:2:C3:100, nt:2:E3:100, nt:2:A1:100
+    - - _, nt:2:C3:100, nt:2:E3:100, +
+    order: 1, 2, 2, 3</code></pre>
+<p>Key ideas demonstrated here:</p>
+<ul>
+<li>A sequence can contain <strong>multiple patterns</strong></li>
+<li>Each pattern can contain <strong>one or more tracks</strong></li>
+<li>The <code>order</code> list controls how patterns are played and repeated</li>
+<li><code>+</code> sustains the previous note</li>
+<li><code>nt</code> is an alias for <code>note</code></li>
+</ul>
+<p>This format is compact and good for algorithmic or harmonic material.</p>
+<h3 id="grid-style-sequence-disco">Grid-Style Sequence: <code>disco</code><a class="headerlink" href="#grid-style-sequence-disco" title="Permanent link">&para;</a></h3>
+<pre class="highlight"><code class="language-yaml">disco:
+  tdiv: 16
+  tempo: 110
+  events: |
+    nt:10:36:100  _             nt:10:42:100
+    _             _             nt:10:46:100
+    nt:10:36:100  nt:10:39:100  nt:10:42:100
+    _             _             nt:10:46:100</code></pre>
+<p>This alternate format treats <strong>columns as tracks</strong> and <strong>rows as steps</strong>.
+It’s especially readable for drum patterns and is visually similar to a
+step sequencer or tracker. Multiple patterns can be defined in the grid
+by separating them with blank lines.</p>
+<h3 id="controlling-sequences">Controlling Sequences<a class="headerlink" href="#controlling-sequences" title="Permanent link">&para;</a></h3>
+<p>The <em>Sequencer Control</em> patch starts and stops each sequence using a
+toggle button.</p>
+<pre class="highlight"><code class="language-yaml">Sequencer Control:
+  rules:
+  - {type: ctrl, num: button1, val: 0-127=0-1, play: montuno}
+  - {type: ctrl, num: button2, val: 0-127=0-1, play: disco}</code></pre>
+<p>The transformed value determines playback:</p>
+<ul>
+<li><code>0</code> → stop</li>
+<li><code>1</code> → play (at step 1 of the playback <code>order</code>)</li>
+</ul>
+<h2 id="arpeggios">Arpeggios<a class="headerlink" href="#arpeggios" title="Permanent link">&para;</a></h2>
+<p>Arpeggios generate notes from what you play, rather than from a fixed
+pattern.</p>
+<pre class="highlight"><code class="language-yaml">arpeggios:
+  fastpattern: {style: manual, tempo: 110, tdiv: 16}</code></pre>
+<p>This arpeggio:</p>
+<ul>
+<li>Plays notes in the <strong>order they were received</strong></li>
+<li>Advances quickly (16 steps per bar)</li>
+<li>Shares the same tempo as the sequences</li>
+<li>Is defined using the optional flow style for compactness</li>
+</ul>
+<h3 id="using-the-arpeggio">Using the Arpeggio<a class="headerlink" href="#using-the-arpeggio" title="Permanent link">&para;</a></h3>
+<pre class="highlight"><code class="language-yaml">Play Arpeggios:
+  rules:
+  - {type: note, chan: 1, arpeggio: fastpattern}</code></pre>
+<p>When the <em>Play Arpeggios</em> patch is applied, any notes played on channel 1
+are captured and replayed by the arpeggiator as long as they’re held.</p>
+<h2 id="midi-loops">MIDI Loops<a class="headerlink" href="#midi-loops" title="Permanent link">&para;</a></h2>
+<p>MIDI loops record what you play and repeat it continuously.</p>
+<pre class="highlight"><code class="language-yaml">midiloops:
+  loop1: {beats: 4, tempo: 110}</code></pre>
+<p>This creates a four-beat loop synchronized with the other players.</p>
+<h3 id="recording-and-playback">Recording and Playback<a class="headerlink" href="#recording-and-playback" title="Permanent link">&para;</a></h3>
+<pre class="highlight"><code class="language-yaml">Looper Control:
+  rules:
+  - {type: note, loop: loop1}
+  - {type: ctrl, num: button1, val: 0-127=0-1, play: loop1}
+  - {type: ctrl, num: pad1, val: 127=1, record: loop1}
+  - {type: ctrl, num: pad2, val: 127=0, record: loop1}
+  - {type: ctrl, num: pad3, val: 127=-1, record: loop1}</code></pre>
+<p>To start recording in the <em>Looper Control</em> patch, either:</p>
+<ul>
+<li>Press <code>pad1</code>. This primes recording, but doesn't begin until a note
+  is played.</li>
+<li>Activate <code>button1</code> to start playback, then <code>pad1</code>. This starts
+  recording events relative to when <code>button1</code> was pressed.</li>
+</ul>
+<p>Either method can be used to synchronize loops to the start of a measure
+when one of the other players is running.</p>
+<p>Pressing <code>pad1</code> again will start recording a new overdub layer.
+Pressing <code>pad2</code> will stop recording but playback will continue.
+Pressing <code>pad3</code> at any time will undo the most recent layer.</p>
+<h2 id="midi-file-playback">MIDI File Playback<a class="headerlink" href="#midi-file-playback" title="Permanent link">&para;</a></h2>
+<p>MIDI files are played using <code>midifiles</code>.</p>
+<pre class="highlight"><code class="language-yaml">midifiles:
+  funktrack:
+    file: funkjam2.mid
+    barlength: 1000
+    jumps: 9&gt;2
+    shift: 2
+    tempo: 110</code></pre>
+<p>Features demonstrated here:</p>
+<ul>
+<li>
+<p>Setting the <code>barlength</code> (length of a measure) in ticks. The file used
+  in this example uses 250 ticks per beat, so 1000 corresponds to a
+  measure of four beats.</p>
+</li>
+<li>
+<p>Looping between arbitrary bars - when playback reaches the end of
+  measure 9 it will loop back to the start of measure 2</p>
+</li>
+<li>
+<p>Shifting channels - The MIDI file has keys, drum, and bass tracks
+  on channels 1, 2, and 10. Shifting these channels by 2 avoids conflicts
+  with other players, and effectively silences the keys since there is
+  no preset assigned to channel 3.</p>
+</li>
+</ul>
+<h3 id="controlling-playback">Controlling Playback<a class="headerlink" href="#controlling-playback" title="Permanent link">&para;</a></h3>
+<pre class="highlight"><code class="language-yaml">patches:
+  Backing Tracks:
+    rules:
+    - {type: ctrl, num: button1, val: 127=-1, play: funktrack}
+    - {type: ctrl, num: button1, val: 0, play: funktrack}</code></pre>
+<p>The <em>Backing Tracks</em> patch enables simplistic playback control.
+A negative play value restarts playback from the last postion and <code>0</code>
+pauses it, so <code>button1</code> acts a toggling <em>play/pause</em> control.</p>
+<h2 id="performance-design">Performance Design<a class="headerlink" href="#performance-design" title="Permanent link">&para;</a></h2>
+<p>This bank is designed so you can:</p>
+<ul>
+<li>Start a drum and bass groove</li>
+<li>Layer arpeggiated chords</li>
+<li>Record live loops</li>
+<li>Bring in a backing track</li>
+</ul>
+<p>Switching patches effectively selects which player to control at a
+given moment. This demonstrates that bank files can be used not just
+for constructing sets of sounds, but also for creating
+<strong>varied performance modes</strong>.</p>
+<h2 id="complete-bank-file">Complete Bank File<a class="headerlink" href="#complete-bank-file" title="Permanent link">&para;</a></h2>
+<pre class="highlight"><code class="language-yaml">names:
+  button1: 53
+  button2: 54
+  pad1: 50
+
+1: test.sf2:000:004
+rules:
+- {type: note, chan: 1}
+
+sequences:
+  montuno:
+    tdiv: 16
+    tempo: 110
+    events:
+    - - nt:2:A3:100, nt:2:C4:100, nt:2:E4:100, nt:2:G#3:100
+    - - _, nt:2:C4:100, nt:2:E4:100, nt:2:G3:100
+    - - _, nt:2:C4:100, nt:2:G#3:100, +
+    order: 1, 2, 2, 3
+  disco:
+    tdiv: 8
+    tempo: 110
+    events: | # alternate form; columns=tracks
+      nt:10:36:100  _             nt:10:42:100 
+      _             _             nt:10:46:100 
+      nt:10:36:100  nt:10:39:100  nt:10:42:100 
+      _             _             nt:10:46:100 
+
+2: test.sf2:000:005
+10: test.sf2:128:000
+
+arpeggios:
+  fastpattern: {style: manual, tempo: 110, tdiv: 16}
+
+midiloops:
+  loop1: {beats: 4, tempo: 110}
+
+midifiles:
+  funktrack:
+    file: funkjam2.mid
+    barlength: 1000
+    jumps: 9&gt;2
+    shift: 2
+    tempo: 110
+
+4: test.sf2:000:033
+12: test.sf2:128:000
+
+patches:
+  Sequencer Control:
+    rules:
+    - {type: ctrl, num: button1, val: 0-127=0-1, play: montuno}
+    - {type: ctrl, num: button2, val: 127=1, play: disco}
+    - {type: ctrl, num: button2, val: 0, play: disco}
+  Play Arpeggios:    
+    rules:
+    - {type: note, chan: 1, arpeggio: fastpattern}
+  Looper Control:
+    rules:
+    - {type: note, loop: loop1}
+    - {type: ctrl, num: button1, val: 0-127=0-1, play: loop1}
+    - {type: ctrl, num: button2, val: 0-127=0-1, record: loop1}
+    - {type: ctrl, num: pad1, val: 127=-1, record: loop1}
+  Backing Tracks:
+    rules:
+    - {type: ctrl, num: button1, val: 127=-1, play: funktrack}
+    - {type: ctrl, num: button1, val: 0, play: funktrack}</code></pre>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../lesson03_rules/" class="btn btn-neutral float-left" title="Advanced MIDI Rules"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../lesson05_effects/" class="btn btn-neutral float-right" title="Using Plugins">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../lesson03_rules/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../lesson05_effects/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
