@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Players & Sequencers - FluidPatcher</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../../assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Players \u0026 Sequencers";
+        var mkdocs_page_input_path = "concepts/players.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> FluidPatcher
+        </a>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Setup</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../install/">Installation</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../config/">Configuration</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Concepts</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../overview/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../soundfonts/">Soundfonts</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../banks/">Banks & Patches</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../midi/">MIDI Event Processing</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Players & Sequencers</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#defining-players">Defining Players</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#common-rule-parameters">Common Rule Parameters</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#sequences">Sequences</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#bank-file-parameters">Bank File Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#rule-effects">Rule Effects</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#arpeggios">Arpeggios</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#bank-file-parameters_1">Bank File Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#rule-effects_1">Rule Effects</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#midiloops">MidiLoops</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#bank-file-parameters_2">Bank File Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#rule-effects_2">Rule Effects</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#midifiles">MidiFiles</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#bank-file-parameters_3">Bank File Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#rule-effects_3">Rule Effects</a>
+    </li>
+        </ul>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../ladspa/">Effects (LADSPA)</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bank Tutorials</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson01_basic/">Basics</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson02_messages/">Messages</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson03_rules/">Advanced MIDI Rules</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson04_players/">Players in Practice</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/lesson05_effects/">Using Plugins</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorial/cookbook/">Cookbook</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">API Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/examples/">Examples</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/patcher/">FluidPatcher</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/bankfiles/">Banks</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../api/misc/">Config/Exceptions</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">FluidPatcher</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Concepts</li>
+      <li class="breadcrumb-item active">Players & Sequencers</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher/edit/master/docs/concepts/players.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="players">Players<a class="headerlink" href="#players" title="Permanent link">&para;</a></h1>
+<p><strong>Players</strong> are components that generate MIDI events automatically,
+without requiring a live controller message for each event. They are
+built on top of FluidSynth’s sequencer and MIDI file playback
+facilities.</p>
+<p>Different player types serve different musical roles:</p>
+<ul>
+<li><strong>Sequences</strong> play predefined patterns of MIDI events.</li>
+<li><strong>Arpeggios</strong> replay currently held notes in a repeating pattern.</li>
+<li><strong>MidiLoops</strong> record incoming events and loop them.</li>
+<li><strong>MidiFiles</strong> play back standard <code>.mid</code> files.</li>
+</ul>
+<p>Players do not act on their own: they are started, stopped, or modified
+by <strong>rules</strong>.</p>
+<h2 id="defining-players">Defining Players<a class="headerlink" href="#defining-players" title="Permanent link">&para;</a></h2>
+<p>Players are defined as <strong>named entries</strong> under sections corresponding to
+each player type (<code>sequences</code>, <code>arpeggios</code>, <code>midiloops</code>, <code>midifiles</code>).
+They may appear at the root level and/or within a patch.</p>
+<ul>
+<li>Patch-level players override root-level players with the same name.</li>
+<li>When a patch is applied, all existing players are dismissed unless
+  they are defined at the root level.</li>
+<li>Player names should be unique within a bank to avoid ambiguity.</li>
+</ul>
+<h2 id="common-rule-parameters">Common Rule Parameters<a class="headerlink" href="#common-rule-parameters" title="Permanent link">&para;</a></h2>
+<p>These rule parameters allow MIDI messages to control players. The exact
+behavior depends on the player type, but the parameters themselves are
+shared.</p>
+<ul>
+<li>
+<p><code>play: &lt;player&gt;</code>
+  Starts, stops, or seeks within a player. The transformed message value
+  determines the action.</p>
+</li>
+<li>
+<p><code>tempo: &lt;player&gt;</code>
+  Sets the player tempo in beats per minute.</p>
+</li>
+<li>
+<p><code>tap: &lt;player&gt;</code>
+  Sets tempo based on the timing of the last three tap events.
+  The transformed value specifies how many beats the interval
+  represents.</p>
+</li>
+<li>
+<p><code>swing: &lt;player&gt;</code> (<code>sequences</code>, <code>arpeggios</code>)
+  Adjusts timing to create a swing feel.
+  Values range from <code>0.5</code> (no swing) to <code>0.99</code>.</p>
+</li>
+<li>
+<p><code>groove: &lt;player&gt;</code> (<code>sequences</code>, <code>arpeggios</code>)
+  Sets volume scaling for odd steps in the pattern.</p>
+</li>
+</ul>
+<h2 id="sequences">Sequences<a class="headerlink" href="#sequences" title="Permanent link">&para;</a></h2>
+<p>Sequences define looping musical patterns directly in the bank file.
+They are designed for constructing rhythms, basslines, and backing
+tracks in a compact, readable format.</p>
+<p>A sequence consists of:</p>
+<ul>
+<li><strong>Patterns</strong>, played one after another</li>
+<li>Each pattern containing one or more <strong>tracks</strong></li>
+<li>Each track being a list of MIDI events</li>
+</ul>
+<h3 id="bank-file-parameters">Bank File Parameters<a class="headerlink" href="#bank-file-parameters" title="Permanent link">&para;</a></h3>
+<dl>
+<dt><code>events</code> <em>(required)</em></dt>
+<dd>
+<p>The event data, expressed as:</p>
+<ul>
+<li>A nested list of patterns → tracks → events, or</li>
+<li>A simplified form (single pattern or single track), or</li>
+<li>A tracker-style text format:<ul>
+<li>Each line is a step</li>
+<li>Columns are tracks</li>
+<li>Blank lines separate patterns</li>
+</ul>
+</li>
+</ul>
+<p>Special symbols:</p>
+<ul>
+<li><code>+</code> - sustain previous note</li>
+<li><code>_</code> - rest (no event)</li>
+</ul>
+</dd>
+<dt><code>order</code></dt>
+<dd>
+<p>List specifying playback order of patterns (1-indexed)</p>
+<ul>
+<li><code>0</code> stops playback</li>
+<li>Negative values jump backward</li>
+<li>End of list loops to the beginning</li>
+<li>Defaults to looping the first pattern.</li>
+</ul>
+</dd>
+<dt><code>tempo</code></dt>
+<dd>Beats per minute (default: <code>120</code>)</dd>
+<dt><code>tdiv</code></dt>
+<dd>Step length as a division of a 4-beat measure
+  (default: <code>8</code>, i.e. eighth notes)</dd>
+<dt><code>swing</code></dt>
+<dd>Timing swing ratio (default: <code>0.5</code>)</dd>
+<dt><code>groove</code></dt>
+<dd>Volume emphasis pattern for steps, as a list or single value.
+  In the latter case, the value is the fractional scaling for
+  odd steps. (default: <code>1</code>)</dd>
+</dl>
+<h3 id="rule-effects">Rule Effects<a class="headerlink" href="#rule-effects" title="Permanent link">&para;</a></h3>
+<ul>
+<li>
+<p><code>play &lt;name&gt;</code></p>
+<ul>
+<li><code>&lt; 0</code> - restart current pattern</li>
+<li><code>0</code> - stop playback</li>
+<li><code>&gt; 0</code> - start at the specified position in <code>order</code> (1-indexed)
+  If already playing, the current pattern finishes first</li>
+</ul>
+</li>
+</ul>
+<h2 id="arpeggios">Arpeggios<a class="headerlink" href="#arpeggios" title="Permanent link">&para;</a></h2>
+<p>Arpeggios capture incoming note events and replay them repeatedly while
+the notes are held.</p>
+<h3 id="bank-file-parameters_1">Bank File Parameters<a class="headerlink" href="#bank-file-parameters_1" title="Permanent link">&para;</a></h3>
+<dl>
+<dt><code>style</code> <em>(required)</em></dt>
+<dd>
+<p>Playback pattern:</p>
+<ul>
+<li><code>up</code> - ascending</li>
+<li><code>down</code> - descending</li>
+<li><code>both</code> - up then down</li>
+<li><code>chord</code> - all notes together</li>
+<li><code>manual</code> - order notes were played</li>
+</ul>
+</dd>
+<dt><code>tempo</code>, <code>tdiv</code>, <code>swing</code>, <code>groove</code></dt>
+<dd>Same meaning as for <code>sequences</code></dd>
+</dl>
+<h3 id="rule-effects_1">Rule Effects<a class="headerlink" href="#rule-effects_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>arpeggio: &lt;name&gt;</code>
+  Notes matched by the rule are captured and played by the arpeggio.</li>
+</ul>
+<h2 id="midiloops">MidiLoops<a class="headerlink" href="#midiloops" title="Permanent link">&para;</a></h2>
+<p>MidiLoops record incoming MIDI events and replay them as a loop. Loops
+support unlimited overdub layers and unlimited undo. </p>
+<h3 id="bank-file-parameters_2">Bank File Parameters<a class="headerlink" href="#bank-file-parameters_2" title="Permanent link">&para;</a></h3>
+<dl>
+<dt><code>beats</code> <em>(required)</em></dt>
+<dd>Loop length in beats.
+  A value of <code>0</code> sets the length when the first loop closes.</dd>
+<dt><code>tempo</code></dt>
+<dd>Initial tempo in bpm (default: <code>120</code>)</dd>
+</dl>
+<h3 id="rule-effects_2">Rule Effects<a class="headerlink" href="#rule-effects_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>
+<p><code>loop: &lt;name&gt;</code>
+  Adds matched events to the current recording layer (if recording)</p>
+</li>
+<li>
+<p><code>play: &lt;name&gt;</code></p>
+<ul>
+<li><code>0</code> - stop playback and recording</li>
+<li>nonzero - start playback from the beginning of the loop</li>
+</ul>
+</li>
+<li>
+<p><code>record: &lt;name&gt;</code></p>
+<ul>
+<li><code>&gt; 0</code> - if playing, start recording a new layer; if not playing,
+  begin playing and recording when the next event is captured.</li>
+<li><code>0</code> - stop recording, close the current layer</li>
+<li><code>&lt; 0</code> - delete the last <em>n</em> layers</li>
+</ul>
+</li>
+</ul>
+<h2 id="midifiles">MidiFiles<a class="headerlink" href="#midifiles" title="Permanent link">&para;</a></h2>
+<p>MidiFiles create FluidSynth MIDI file players that play events from
+<code>.mid</code> files. Playback can loop, seek, and jump between musical
+sections.</p>
+<h3 id="bank-file-parameters_3">Bank File Parameters<a class="headerlink" href="#bank-file-parameters_3" title="Permanent link">&para;</a></h3>
+<dl>
+<dt><code>file</code> <em>(required)</em></dt>
+<dd>Path to the MIDI file.</dd>
+<dt><code>tempo</code></dt>
+<dd>Playback tempo in bpm.
+  If set, tempo messages in the file are ignored.</dd>
+<dt><code>barlength</code></dt>
+<dd>Number of ticks per full measure (default: <code>1</code>). The ticks per beat is
+  stored in the header of a MIDI file.</dd>
+<dt><code>jumps</code></dt>
+<dd>A list of jump points of the form <code>[from]&gt;[to]</code>. When playback reaches
+  the end of bar <code>from</code> (as determined by <code>barlength</code>), it jumps to the
+  start of bar <code>to</code>. A <code>to</code> value of <code>0</code> halts playback when the end of
+  bar <code>from</code> is reached.</dd>
+<dt><code>shift</code></dt>
+<dd>An integer value to shift the channel of all messages in the file up or
+  down, to avoid conflict with controllers.</dd>
+<dt><code>mask</code></dt>
+<dd>List of MIDI message types to ignore during playback.</dd>
+</dl>
+<h3 id="rule-effects_3">Rule Effects<a class="headerlink" href="#rule-effects_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li>
+<p><code>play &lt;name&gt;</code></p>
+<ul>
+<li><code>&lt; 0</code> - restart from beginning or last position</li>
+<li><code>0</code> - pause</li>
+<li><code>&gt; 0</code> - seek to the specified bar (fractional values allowed)
+  If currently playing, the seek occurs at the end of the current bar</li>
+</ul>
+</li>
+<li>
+<p><code>tempo &lt;name&gt;</code>
+  Set the tempo to the <code>val</code> of the resulting message, overriding file
+  tempo behavior as described above. Setting the tempo to <code>0</code> will
+  resume observance of file tempo changes.</p>
+</li>
+</ul>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../midi/" class="btn btn-neutral float-left" title="MIDI Event Processing"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../ladspa/" class="btn btn-neutral float-right" title="Effects (LADSPA)">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../midi/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../ladspa/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Configuration - FluidPatcher</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Configuration";
+        var mkdocs_page_input_path = "config.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> FluidPatcher
+        </a>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Setup</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../install/">Installation</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Configuration</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#location">Location</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#format">Format</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#fluidsynth-settings">FluidSynth Settings</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#resetting-configuration">Resetting Configuration</a>
+    </li>
+    </ul>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Concepts</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../concepts/overview/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../concepts/soundfonts/">Soundfonts</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../concepts/banks/">Banks & Patches</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../concepts/midi/">MIDI Event Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../concepts/players/">Players & Sequencers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../concepts/ladspa/">Effects (LADSPA)</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bank Tutorials</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../tutorial/lesson01_basic/">Basics</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../tutorial/lesson02_messages/">Messages</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../tutorial/lesson03_rules/">Advanced MIDI Rules</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../tutorial/lesson04_players/">Players in Practice</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../tutorial/lesson05_effects/">Using Plugins</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../tutorial/cookbook/">Cookbook</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">API Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../api/examples/">Examples</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../api/patcher/">FluidPatcher</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../api/bankfiles/">Banks</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../api/misc/">Config/Exceptions</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">FluidPatcher</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Setup</li>
+      <li class="breadcrumb-item active">Configuration</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher/edit/master/docs/config.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h1>
+<p>FluidPatcher keeps its global configuration in a YAML file, created
+automatically on first run.</p>
+<h2 id="location">Location<a class="headerlink" href="#location" title="Permanent link">&para;</a></h2>
+<p>By default, the config file is stored at:</p>
+<pre class="highlight"><code>~/.config/fluidpatcher/fluidpatcherconf.yaml</code></pre>
+<p>You can override this location by setting the <code>FLUIDPATCHER_CONFIG</code>
+environment variable:</p>
+<pre class="highlight"><code class="language-shell">export FLUIDPATCHER_CONFIG=/path/to/myconfig.yaml</code></pre>
+<p>If the file does not exist, fluidpatcher will:</p>
+<ol>
+<li>Create the directory</li>
+<li>Copy in a bundled default configuration</li>
+<li>Populate default folders if they’re missing</li>
+</ol>
+<p>FluidPatcher will work on most platforms without editing this file,
+but it's safe to do so.</p>
+<h2 id="format">Format<a class="headerlink" href="#format" title="Permanent link">&para;</a></h2>
+<p>At runtime, the configuration is loaded into a single mapping called
+<code>CONFIG</code>. Most values are paths and global settings rather than musical
+behavior.</p>
+<p>Key entries include:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>banks_path</code></td>
+<td>Directory containing your <code>.yaml</code> bank files</td>
+</tr>
+<tr>
+<td><code>sounds_path</code></td>
+<td>Where SoundFont (<code>.sf2</code>) files live</td>
+</tr>
+<tr>
+<td><code>midi_path</code></td>
+<td>Default location for MIDI files</td>
+</tr>
+<tr>
+<td><code>ladspa_path</code></td>
+<td>Where LADSPA plugins are searched for</td>
+</tr>
+<tr>
+<td><code>fluidsettings</code></td>
+<td>Raw FluidSynth settings passed through unchanged</td>
+</tr>
+</tbody>
+</table>
+<p>FluidPatcher will expand file names using these paths, allowing short
+filenames to be used in banks and enhancing portability. Absolute paths
+can be used to override the config paths when desired.</p>
+<p>If you omit <code>banks_path</code>, <code>sounds_path</code>, or <code>midi_path</code>, FluidPatcher
+fills in sensible defaults relative to the config file.</p>
+<h2 id="fluidsynth-settings">FluidSynth Settings<a class="headerlink" href="#fluidsynth-settings" title="Permanent link">&para;</a></h2>
+<p>The <code>fluidsynth</code> section contains key/value pairs for
+<a href="https://www.fluidsynth.org/api/fluidsettings.xml">FluidSynth settings</a>.
+FluidSynth will work with the default values on most platforms, but a
+few useful settings are:</p>
+<ul>
+<li><code>midi.autoconnect</code> -  If 1 (TRUE), automatically connects FluidSynth
+    to available MIDI input ports. alsa_seq, coremidi and jack are
+    currently the only drivers making use of this.</li>
+<li><code>player.reset-synth</code> - When playing a MIDI file and reaching the end
+    of a song, all playing notes will be silenced and the synth reset,
+    overriding settings in banks and patches. This is undesirable for
+    FluidPatcher and should be set to 0.</li>
+<li><code>synth.gain</code> - scales the output volume of the synth. This can be in
+    the range 0.0-10.0, but values above 1.0 will be clipped/distorted.</li>
+<li><code>synth.polyphony</code> - If too many voices are played at once (usually by
+    sustaining lots of notes), the CPU may terminate audio while it
+    catches up. This limits the number of active voices, canceling the
+    oldest notes.</li>
+<li><code>audio.driver</code>, <code>audio.&lt;driver&gt;.device</code> - Allows setting the audio
+    driver and device, if the default doesn't work</li>
+<li><code>audio.periods</code>, <code>audio.period-size</code> - These set the number and size
+    of the buffers used for sending digital audio. Lowering these values
+    decreases audio latency (the time between playing a note and hearing
+    the audio), but too low and the sound card won't be able to keep up,
+    producing stuttering/crackling audio.</li>
+</ul>
+<h2 id="resetting-configuration">Resetting Configuration<a class="headerlink" href="#resetting-configuration" title="Permanent link">&para;</a></h2>
+<p>Delete the config file and directories:</p>
+<pre class="highlight"><code class="language-bash">rm -rf ~/.config/fluidpatcher</code></pre>
+<p>Next run will regenerate defaults.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../install/" class="btn btn-neutral float-left" title="Installation"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../concepts/overview/" class="btn btn-neutral float-right" title="Overview">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/GeekFunkLabs/fluidpatcher" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../install/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../concepts/overview/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
