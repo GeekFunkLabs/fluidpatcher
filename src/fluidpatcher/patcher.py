@@ -121,7 +121,7 @@ class FluidPatcher:
             text = ""
             if files:
                 try:
-                    raw = (CONFIG["banks_path"] / files[-1]).read_text()
+                    raw = files[-1].read_text()
                 except FileNotFoundError as e:
                     raise BankValidationError(
                         f"No such file {files[-1]}"
@@ -129,7 +129,13 @@ class FluidPatcher:
             for line in raw.splitlines(keepends=True):
                 if "#include" in line:
                     i = line.index("#include")
-                    f = line[i + 9:].rstrip()
+                    name = line[i + 9:].rstrip()
+                    for f in (
+                        CONFIG["banks_path"] / name,
+                        files[-1] / name if files else name,
+                    ):
+                        if f.exists():
+                            break
                     if f not in files:
                         if line[:i].isspace():
                             line = read_bank(files + [f], indent=i)
@@ -138,7 +144,7 @@ class FluidPatcher:
                 text += " " * indent + line
             return text
         self.bank = Bank(read_bank(
-            [bankfile] if bankfile else [], raw
+            [CONFIG["banks_path"] / bankfile] if bankfile else [], raw
         ))
         self._synth.reset()
         for zone in self.bank:
