@@ -132,7 +132,7 @@ class FluidPatcher:
                     name = line[i + 9:].rstrip()
                     for f in (
                         CONFIG["banks_path"] / name,
-                        files[-1] / name if files else name,
+                        files[-1].parent / name if files else name,
                     ):
                         if f.exists():
                             break
