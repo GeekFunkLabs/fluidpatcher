@@ -189,7 +189,7 @@ sections.
   stored in the header of a MIDI file.
 
 `jumps`
-: A list of jump points of the form `[from]>[to]`. When playback reaches
+: A list of jump points of the form `<from>><to>`. When playback reaches
   the end of bar `from` (as determined by `barlength`), it jumps to the
   start of bar `to`. A `to` value of `0` halts playback when the end of
   bar `from` is reached.

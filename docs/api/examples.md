@@ -68,11 +68,10 @@ structures that can be created, edited, and destroyed entirely in Python.
 * Creates an initial patch in code
 * Defines a root-level MIDI rule so note events reach the synth
 * Presents a simple text UI to:
-
-  * Select patches
-  * Add new patches
-  * Change presets
-  * Delete patches
+    * Select patches
+    * Add new patches
+    * Change presets
+    * Delete patches
 
 This is especially useful if you’re building tools that generate or
 manipulate banks rather than authoring them by hand.

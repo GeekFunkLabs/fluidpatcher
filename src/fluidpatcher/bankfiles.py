@@ -35,48 +35,32 @@ for alts in [
     for a in alts:
         TYPE_ALIAS[a] = alts[0]
 
-scinote = re.compile(r"([+-]?)([A-G])([b#]?)(-?[0-9])")
+MIDI_NOTES = {}
+for octave in range(-1, 10):
+    for name, base in zip("CDEFGAB", (0, 2, 4, 5, 7, 9, 11)):
+        for acc, inc in (("", 0), ("#", 1), ("b", -1)):
+            midi = (octave + 1) * 12 + base + inc
+            if 0 <= midi <= 127:
+                MIDI_NOTES[f"{name}{acc}{octave}"] = midi
 
-def resolve(s, names={}):
-    """
-    Resolve a YAML scalar into a usable numeric value.
-
-    Resolution rules:
-      - Replace symbolic names using the ``names`` mapping
-      - Convert scientific pitch notation (e.g. ``C#4`` → MIDI note 61)
-      - Parse strings to integers or floats
-
-    Args:
-      s: String, integer, float, or name reference
-      names (dict): Optional mapping of symbolic names to values
-
-    Returns:
-      int | float
-
-    Raises:
-      BankValidationError: if ``s`` cannot be interpreted or resolved
-    """
-    if s in names:
+def _resolve(s, names=None):
+    if names is not None and s in names:
         s = names[s]
+    if s in MIDI_NOTES:
+        s = MIDI_NOTES[s]
     if isinstance(s, str):
-        if sci := scinote.match(s):
-            sci = sci.groups("")
-            sign = -1 if sci[0] == "-" else 1
-            note = "C D EF G A B".find(sci[1])
-            acc = ["b", "", "#"].index(sci[2]) - 1
-            octave = int(sci[3])
-            s = sign * ((octave + 1) * 12 + note + acc)
+        try:
+            s = float(s)
+        except (ValueError, TypeError):
+            raise BankValidationError(f"Unresolved name '{s}'")
         else:
-            try:
-                s = float(s)
-            except (ValueError, TypeError):
-                raise BankValidationError(f"Unresolved name '{s}'")
-            else:
-                if s.is_integer():
-                    s = int(s)
+            if s.is_integer():
+                s = int(s)
     return s
 
-def _walk(node, path=(), names={}):
+def _walk(node, path=None, names=None):
+    if path is None:
+        path = ()
     if node is None:
         raise BankValidationError(
             "Null value in bank", path
@@ -138,7 +122,7 @@ class BankSyntaxError(BankError):
             loc = f" at line {self.mark.line}, column {self.mark.column}"
         else:
             loc = ""
-        return self.msg + loc    
+        return self.msg + loc
 
 
 class BankValidationError(BankError):
@@ -150,9 +134,9 @@ class BankValidationError(BankError):
       msg (str): Reason for failure
       path (tuple): Hierarchical path to the failing node
     """
-    def __init__(self, msg, path=()):
+    def __init__(self, msg, path=None):
         self.msg = msg
-        self.path = path
+        self.path = () if path is None else path
 
     def __str__(self):
         if self.path:
@@ -162,7 +146,7 @@ class BankValidationError(BankError):
         return self.msg + loc
 
 
-class BankLoader(yaml.SafeLoader):
+class _BankLoader(yaml.SafeLoader):
     """
     YAML loader extended with:
       - Custom tags for bank object types
@@ -172,7 +156,7 @@ class BankLoader(yaml.SafeLoader):
     pass
 
 
-class BankDumper(yaml.SafeDumper):
+class _BankDumper(yaml.SafeDumper):
     """
     YAML dumper that emits FluidPatcher’s extended object syntax and
     preserves key order and structure wherever possible.
@@ -196,7 +180,7 @@ class Bank:
     """
     def __init__(self, text):
         try:
-            self.root = yaml.load(text, Loader=BankLoader)
+            self.root = yaml.load(text, Loader=_BankLoader)
         except yaml.YAMLError as e:
             raise BankSyntaxError.from_yamlexc(e)
         self.patch = self.root.setdefault("patches", {})
@@ -236,7 +220,7 @@ class Bank:
 
     def dump(self):
         bank = self.root | {"patches": self.patch}
-        return yaml.dump(bank, Dumper=BankDumper, sort_keys=False)
+        return yaml.dump(bank, Dumper=_BankDumper, sort_keys=False)
 
 
 class _Patch:
@@ -255,19 +239,92 @@ class _Patch:
         self._patch = patch
         self._root = root
         
-    def __getitem__(self, name):    
-        if isinstance(name, int):
-            return self._patch.get(name) or self._root.get(name)
+    def __getitem__(self, zone):
+        if isinstance(zone, int):
+            return self._patch.get(zone) or self._root.get(zone)
         elif name in ("rules", "messages"):
-            return self._root.get(name, []) + self._patch.get(name, [])
+            return self._root.get(zone, []) + self._patch.get(zone, [])
         else:
-            return self._root.get(name, {}) | self._patch.get(name, {})
+            return self._root.get(zone, {}) | self._patch.get(zone, {})
 
     def copy(self, **pars):
         return deepcopy(self._patch | pars)
 
 
-class SFPreset(yaml.YAMLObject):
+class _BankObject(yaml.YAMLObject):
+    """
+    Base class for tagged structured YAML objects inside a patch.
+
+    Provides:
+      - Storage for raw parameters as written in YAML (``_pars``)
+      - Automatic deep construction of nested data
+      - Validation via ``_validate``
+      - Common copy/duplication support
+
+    Subclasses define meaning, required keys, and placement
+    (e.g., rules, sequences, arpeggios, etc.).
+    """
+    required = ()
+    yaml_loader = _BankLoader
+    yaml_dumper = _BankDumper
+
+    def __init__(self, **pars):
+        self._source = deepcopy(pars)
+        self.__dict__.update(deepcopy(pars))
+        self._validate()
+
+    @classmethod
+    def from_yaml(cls, loader, node):
+        obj = cls.__new__(cls)
+        obj._source = loader.construct_mapping(node, deep=True)
+        obj.__dict__.update(deepcopy(obj._source))
+        return obj
+
+    @property
+    def current(self):
+        return {
+            k: v
+            for k, v in self.__dict__.items()
+            if not k.startswith("_")
+        }
+
+    def _validate(self, path=None, names=None):
+        if path is None:
+            path = ()
+        for par in self.required:
+            if par not in self.__dict__:
+                raise BankValidationError(
+                    f"{self.__class__.__name__} objects must have {par}"
+                )
+        for k, v in self.current.items():
+            _walk(v, path + (k,), names)
+        self._subvalidate(path, names)
+        self._validated = deepcopy(self.current)
+
+    def _subvalidate(self, path, names):
+        pass
+
+    def __repr__(self):
+        return str(self.current)
+
+    def copy(self, **pars):
+        return self.__class__(**self.current | pars)
+
+    @classmethod
+    def to_yaml(cls, dumper, data):
+        if data.current == data._validated:
+            return dumper.represent_mapping(
+                cls.yaml_tag, data._source,
+                flow_style=cls.yaml_flow_style
+            )
+        else:
+            return dumper.represent_mapping(
+                cls.yaml_tag, data.current,
+                flow_style=cls.yaml_flow_style
+            )
+
+
+class SFPreset(_BankObject):
     """
     SoundFont preset reference
 
@@ -277,10 +334,7 @@ class SFPreset(yaml.YAMLObject):
       prog (int): Program index
     """
     yaml_tag = "!sfpreset"
-    yaml_loader = BankLoader
-    yaml_dumper = BankDumper
     yaml_regex = re.compile(r"^(.+\.sf2):(\d+):(\d+)$", flags=re.I)
-    zone = None
 
     def __init__(self, file, bank, prog):
         self.file = file
@@ -299,7 +353,7 @@ class SFPreset(yaml.YAMLObject):
         return f"{self.file}:{self.bank:03d}:{self.prog:03d}"
 
 
-class MidiMessage(yaml.YAMLObject):
+class MidiMessage(_BankObject):
     """
     Description of a single MIDI message
 
@@ -309,145 +363,67 @@ class MidiMessage(yaml.YAMLObject):
       num (int): Note/controller number (where applicable)
       val (int): Value (velocity, CC value, pitch bend, etc.)
     """
+    required = "type", 
     yaml_tag = "!midimsg"
-    yaml_loader = BankLoader
-    yaml_dumper = BankDumper
     yaml_regex = re.compile(rf"^({'|'.join(TYPE_ALIAS)}):\S*$")
-    zone = "messages"
-    zone_type = list
 
     def __init__(self, **pars):
         self.__dict__.update(pars)
-        if "_text" not in pars:
-            match pars:
-                case {"type": "sysex", "val": data}:
-                    self._text = ":".join(["sysex"] + [str(b) for b in data])
-                case {"type": type, "chan": chan, "num": num, "val": val}:
-                    self._text = f"{type}:{chan}:{num}:{val}"
-                case {"type": type, "chan": chan, "val": val}:
-                    self._text = f"{type}:{chan}:{val}"
-                case {"type": type}:
-                    self._text = type
+        self._source = str(self)
         self._validate()
+
+    @property
+    def type(self):
+        return self.__dict__["type"]
+
+    @type.setter
+    def type(self, type):
+        if type not in TYPE_ALIAS:
+            raise BankValidationError(
+                f"MidiRule type {type!r} not recognized"
+            )
+        self.__dict__["type"] = TYPE_ALIAS[type]
 
     @classmethod
     def from_yaml(cls, loader, node):
-        text = loader.construct_scalar(node)
-        match [x for x in text.split(":") if x]:
+        obj = cls.__new__(cls)
+        obj._source = loader.construct_scalar(node)
+        match [x for x in obj._source.split(":") if x]:
             case ["sysex", *data]:
-                pars = dict(type="sysex", val=data)
+                pars = dict(type="sysex", val=[int(y, 0) for y in data])
             case [type, chan, num, val]:
                 pars = dict(type=type, chan=chan, num=num, val=val)
             case [type, chan, val]:
                 pars = dict(type=type, chan=chan, val=val)
             case [type]:
-                pars = dict(type=type, _text=text)
-        obj = cls.__new__(cls)
+                pars = dict(type=type)
         obj.__dict__.update(pars)
-        obj._pars = pars
-        obj._text = text
         return obj
-        
-    @classmethod
-    def to_yaml(cls, dumper, data):
-        return dumper.represent_scalar(cls.yaml_tag, str(data))
-            
-    def copy(self, **pars):
-        return MidiMessage(**self.__dict__ | pars)
 
-    def _validate(self, path=(), names={}):
-        if not hasattr(self, "type"):
-            raise BankValidationError("MidiMessage missing type")
-        self.type = TYPE_ALIAS[self.type]
+    def _subvalidate(self, path=None, names=None):
+        self.type = self.__dict__["type"]
         for par in "chan", "num", "val":
-            if hasattr(self, par):
-                setattr(self, par, resolve(getattr(self, par), names))
-
-    def __repr__(self):
-        return self._text
-
-
-class _FlowList(list, yaml.YAMLObject):
-    """
-    Inline comma-separated list of YAML-embedded objects
-
-    Compact list style with round-trip formatting
-    """
-    yaml_tag = "!flowlist"
-    yaml_loader = BankLoader
-    yaml_dumper = BankDumper
-    yaml_regex = re.compile(r".*?,")
-
-    @classmethod
-    def from_yaml(cls, loader, node):
-        text = loader.construct_scalar(node)
-        obj = cls([yaml.load(e, Loader=BankLoader) for e in text.split(",")])
-        obj._text = text
-        return obj
+            val = self.__dict__.get(par)
+            if val is not None:
+                self.__dict__[par] = _resolve(val, names)
 
     @classmethod
     def to_yaml(cls, dumper, data):
-        return dumper.represent_scalar(cls.yaml_tag, str(data))
+        if data.current == data._validated:
+            return dumper.represent_scalar(cls.yaml_tag, data._source)
+        else:
+            return dumper.represent_scalar(cls.yaml_tag, str(data))
 
     def __repr__(self):
-        return self._text
-
-
-class _BankObject(yaml.YAMLObject):
-    """
-    Base class for tagged structured YAML objects inside a patch.
-
-    Provides:
-      - Storage for raw parameters as written in YAML (``_pars``)
-      - Automatic deep construction of nested data
-      - Validation via ``_validate``
-      - Common copy/duplication support
-
-    Subclasses define meaning, required keys, and placement
-    (e.g., rules, sequences, arpeggios, etc.).
-    """
-    yaml_loader = BankLoader
-    yaml_dumper = BankDumper
-
-    def __init__(self, **pars):
-        self._init_pars(pars)
-        self._validate()
-
-    @classmethod
-    def from_yaml(cls, loader, node):
-        pars = loader.construct_mapping(node, deep=True)
-        obj = cls.__new__(cls)
-        obj._init_pars(pars)
-        return obj
-
-    @classmethod
-    def to_yaml(cls, dumper, data):
-        return dumper.represent_mapping(
-            cls.yaml_tag,
-            data,
-            flow_style=cls.yaml_flow_style
-        )
-
-    def _init_pars(self, pars):
-        self.__dict__.update(pars)
-        self._pars = pars
-
-    def copy(self, **pars):
-        for k, v in self.__dict__.items():
-            if k[0] != "_":
-                pars.setdefault(k, v)
-        return self.__class__(**pars)
-
-    def _validate(self, path=(), names={}):
-        for k, v in self.__dict__.items():
-            if k[0] != "_":
-                _walk(v, path + (k,), names)
-
-    def __repr__(self):
-        return str(self._pars)
-
-    def __iter__(self):
-        return iter([(k, v) for k, v in self._pars.items()])
+        match self.current:
+            case {"type": "sysex", "val": data}:
+                return ":".join(["sysex"] + [str(b) for b in data])
+            case {"type": type, "chan": chan, "num": num, "val": val}:
+                return f"{type}:{chan}:{num}:{val}"
+            case {"type": type, "chan": chan, "val": val}:
+                return f"{type}:{chan}:{val}"
+            case {"type": type}:
+                return type
 
 
 class MidiRule(_BankObject):
@@ -458,70 +434,86 @@ class MidiRule(_BankObject):
     Attributes:
       type (str): Matching message type
       totype (str): Resulting message type (default: ``self.type``)
-      chan (Route): Channel range/transform (optional)
-      num (Route): Parameter range/transform (optional)
-      val (Route): Value range/transform (optional)
+      chan (_Route): Channel range/transform (optional)
+      num (_Route): Parameter range/transform (optional)
+      val (_Route): Value range/transform (optional)
       **pars (dict): additional parameters for custom functionality
     """
-    ftroute = re.compile(r"^({0})?-?({0})?=?(-?{0})?-?(-?{0})?$".format(r"[\w\d\#\.]+"))
-    maroute = re.compile(r"^({0})-({0})\*(-?{0})([+-]{0})$".format(r"[\w\d\#\.]+"))
+    required = "type",
+    NN = r"[\w#.]+" # number or note name regex
+    re_range = re.compile(rf"({NN})-?({NN})?=?(-?{NN})?-?(-?{NN})?")
+    re_affine = re.compile(rf"({NN})-({NN})\*(-?{NN})([+-]{NN})")
     yaml_tag = "!midirule"
     yaml_flow_style = True
     zone = "rules"
     zone_type = list
 
-    def _validate(self, path=(), names={}):
-        super()._validate(path, names)
-        if not hasattr(self, "type"):
-            raise BankValidationError("MidiRule missing type")
-        if not hasattr(self, "totype"):
-            types = self.type.split("=")
-            for type in types:
-                if type not in TYPE_ALIAS:
-                    raise BankValidationError(
-                        f"MidiRule type '{type}' not recognized"
-                    )
-            self.type = TYPE_ALIAS[types[0]]
-            self.totype = TYPE_ALIAS[types[-1]]
+    def _route_property(par):
+        def getter(self):
+            return self.__dict__.get(par)
+        def setter(self, spec):
+            self._set_route(par, spec)
+        return property(getter, setter)
+
+    chan = _route_property("chan")
+    num = _route_property("num")
+    val = _route_property("val")
+
+    @property
+    def type(self):
+        return f"{self.__dict__['type']}={self.totype}"
+
+    @type.setter
+    def type(self, spec):
+        types = spec.split("=")
+        for type in types:
+            if type not in TYPE_ALIAS:
+                raise BankValidationError(
+                    f"MidiRule type {type!r} not recognized"
+                )
+        self.__dict__["type"] = TYPE_ALIAS[types[0]]
+        self.totype = TYPE_ALIAS[types[-1]]
+
+    def _set_route(self, par, spec, names=None):
+        if spec is None:
+            self.__dict__[par] = None
+            return
+        if m := self.re_range.fullmatch(str(spec)):
+            values = [_resolve(x, names) for x in m.groups()]
+            self.__dict__[par] = _Route(*values)
+        elif m := self.re_affine.fullmatch(str(spec)):
+            values = [_resolve(x, names) for x in m.groups()]
+            self.__dict__[par] = _Route.from_affine(*values)
+        else:
+            raise BankValidationError(
+                f"Invalid {par} route {spec!r}"
+            )
+
+    def _subvalidate(self, path=None, names=None):
+        self.type = self.__dict__["type"]
         for par in "chan", "num", "val":
-            spec = str(getattr(self, par, ""))
-            if (m := self.ftroute.match(spec)) and any(m.groups()):
-                min, max, tomin, tomax = [resolve(x, names) for x in m.groups()]
-                setattr(self, par, Route.from_ranges(min, max, tomin, tomax))
-            elif m := self.maroute.match(spec):
-                min, max, mul, add = [resolve(x, names) for x in m.groups()]
-                setattr(self, par, Route.from_affine(min, max, mul, add))
+            spec = self.__dict__.get(par)
+            self._set_route(par, spec, names)
         if hasattr(self, "lsb"):
-            self.lsb = resolve(self.lsb, names)
-
-    def __str__(self):
-        return ", ".join([f"{k}: {v}" for k, v in self._pars.items()])
+            self.lsb = _resolve(self.lsb, names)
 
 
-class Route:
+class _Route:
     """
     An object that expresses MIDI parameter ranges/transforms.
 
     Attributes:
       min (int|float): minimum value to match
       max (int|float): maximum value to match
-      mul (int|float): multiplier to apply to values
-      add (int|float): amount to add to values
       tomin (int|float): minimum of target range for values
       tomax (int|float): maximum of target range for values
+      mul (int|float): multiplier to apply to values
+      add (int|float): amount to add to values
     """
-    def __init__(self, min, max, mul, add):
-        self.min = min
-        self.max = max
-        self.mul = mul
-        self.add = add
-        self.tomin = min * mul + add
-        self.tomax = max * mul + add
 
-    @classmethod
-    def from_ranges(cls, min=None, max=None, tomin=None, tomax=None):
+    def __init__(self, min, max, tomin, tomax):
         """
-        Creates a Route based on from-to ranges
+        Creates a _Route based on from-to ranges
 
         Args:
           min (int|float): minimum value to match
@@ -537,17 +529,17 @@ class Route:
             tomin, tomax = min, max
         elif tomax is None:
             tomax = tomin
-        mul = 1 if min == max else (tomax - tomin) / (max - min)
-        add = tomin - min * mul
-        obj = cls(min, max, mul, add)
-        obj.tomin = tomin
-        obj.tomax = tomax
-        return obj
+        self.min = min
+        self.max = max
+        self.tomin = tomin
+        self.tomax = tomax
+        self.mul = 1 if min == max else (tomax - tomin) / (max - min)
+        self.add = tomin - min * self.mul
 
     @classmethod
     def from_affine(cls, min, max, mul, add):
         """
-        Creates a Route using an affine transform
+        Creates a _Route using an affine transform
 
         Args:
           min (int|float): minimum value to match
@@ -555,12 +547,18 @@ class Route:
           mul (int|float): multiplier to apply to values
           add (int|float): amount to add to values
         """
-        return cls(min, max, mul, add)
+        obj = cls(min, max, min * mul + add, max * mul + add)
+        obj.mul = mul
+        obj.add = add
+        return obj
+
+    def __repr__(self):
+        return f"{self.min}-{self.max}={self.tomin}-{self.tomax}"
 
     def __iter__(self):
         tovals = range(int(self.tomin), int(self.tomax) + 1)
         return iter(
-            Route.from_ranges(self.min, self.max, n, n) for n in tovals
+            _Route.from_ranges(self.min, self.max, n, n) for n in tovals
         )
 
 
@@ -576,24 +574,21 @@ class Sequence(_BankObject):
       swing (float): Timing swing ratio (default: ``0.5``)
       groove (int|list): Beat accent pattern (default: ``[1, 1]``)
     """
+    required = "events",
     yaml_tag = "!sequence"
     zone = "sequences"
     zone_type = dict
 
-    def _init_pars(self, pars):
-        super()._init_pars(pars)
-        if "\n" in getattr(self, "events", ""):
+    def _subvalidate(self, path=None, names=None):
+        if isinstance(self.events, str):
             events = []
             for p in self.events.strip().split("\n\n"):
-                s = [[yaml.load(e, Loader=BankLoader) for e in r.split()]
+                s = [[yaml.load(e, Loader=_BankLoader) for e in r.split()]
                      for r in p.splitlines()]
                 events.append([list(t) for t in zip(*s)])
+            for i, v in enumerate(events):
+                _walk(v, path + (i,), names)
             self.events = events
-
-    def _validate(self, path=(), names={}):
-        super()._validate(path, names)
-        if not hasattr(self, "events"):
-            raise BankValidationError("Sequence objects must have events")
 
 
 class Arpeggio(_BankObject):
@@ -607,17 +602,10 @@ class Arpeggio(_BankObject):
       swing (float): Timing swing ratio (default: ``0.5``)
       groove (int|list): Beat accent pattern (default: ``[1, 1]``)
     """
+    required = "style",
     yaml_tag = "!arpeggio"
     zone = "arpeggios"
     zone_type = dict
-
-    def _validate(self, path=(), names={}):
-        super()._validate(path, names)
-        if not hasattr(self, "style"):
-            raise BankValidationError("Arpeggio missing style")
-        if hasattr(self, "groove"):
-            if isinstance(self.groove, int):
-                self.groove = [self.groove, 1]
 
 
 class MidiLoop(_BankObject):
@@ -628,14 +616,10 @@ class MidiLoop(_BankObject):
       beats (int): Loop length in beats
       tempo (int): Beats per minute (default: ``120``)
     """
+    required = "beats",
     yaml_tag = "!midiloop"
     zone = "midiloops"
     zone_type = dict
-
-    def _validate(self, path=(), names={}):
-        super()._validate(path, names)
-        if not hasattr(self, "beats"):
-            raise BankValidationError("MidiLoop objects must have beats")
 
 
 class MidiFile(_BankObject):
@@ -646,26 +630,43 @@ class MidiFile(_BankObject):
       file (str): Path to a .mid file
       tempo (int): Beats per minute (default: ``120``)
       barlength (int): Ticks per musical measure (default: ``1``)
-      jumps (list[str]): List of bar jumps as [from]>[to] (default: ``[]``)
+      jumps (list[str]): List of bar jumps as <from>><to> (default: ``[]``)
       shift (int): Channel shift amount (default: ``0``)
       mask (list[str]): Ignored message types (default: ``[]``) 
     """
+    required = "file",
     yaml_tag = "!midifile"
     zone = "midifiles"
     zone_type = dict
 
-    def _validate(self, path=(), names={}):
-        super()._validate(path, names)
-        if not hasattr(self, "file"):
-            raise BankValidationError("MidiFile missing file")
-        if hasattr(self, "jumps"):
-            if isinstance(self.jumps, str):
-                self.jumps = [self.jumps]
-            self.jumps = [
-                [float(t) for t in s.split(">")] for s in self.jumps
-            ]
-        if hasattr(self, "mask"):
-            self.mask = [TYPE_ALIAS[t] for t in self.mask]
+    @property
+    def jumps(self):
+        return self.__dict__["jumps"]
+
+    @jumps.setter
+    def jumps(self, val):
+        self.__dict__["jumps"] = [
+            [float(bar) for bar in j.split(">")] for j in val
+        ]
+
+    @property
+    def mask(self):
+        return self.__dict__["mask"]
+
+    @mask.setter
+    def mask(self, val):
+        for type in val:
+            if type not in TYPE_ALIAS:
+                raise BankValidationError(
+                    f"MIDI message type {type!r} not recognized"
+                )
+        self.__dict__["mask"] = [TYPE_ALIAS[t] for t in val]
+
+    def _subvalidate(self, path=None, names=None):
+        if "jumps" in self.__dict__:
+            self.jumps = self.__dict__["jumps"]
+        if "mask" in self.__dict__:
+            self.mask = self.__dict__["mask"]
 
 class LadspaEffect(_BankObject):
     """
@@ -678,22 +679,26 @@ class LadspaEffect(_BankObject):
       vals (dict): Initial values for control ports (default: ``{}``)
       chan (list[int]): Input channel routing (default: ``[]``)
     """
+    required = "lib",
     yaml_tag = "!ladspafx"
     zone = "ladspafx"
     zone_type = dict
 
-    def _validate(self, path=(), names={}):
-        super()._validate(path, names)
-        if not hasattr(self, "lib"):
-            raise BankValidationError("LadspaEffect missing lib")
-        if hasattr(self, "chan"):
-            if not isinstance(self.chan, list):
-                self.chan = [self.chan]
-        if hasattr(self, "audio"):
-            if self.audio == "stereo":
-                self.audio = "Input L", "Input R", "Output L", "Output R"
-            elif self.audio == "mono":
-                self.audio = "Input", "Output"
+    @property
+    def audio(self):
+        return self.__dict__["audio"]
+
+    @audio.setter
+    def audio(self, val):
+        if val == "stereo":
+            val = "Input L", "Input R", "Output L", "Output R"
+        elif val == "mono":
+            val = "Input", "Output"
+        self.__dict__["audio"] = val
+
+    def _subvalidate(self, path=None, names=None):
+        if "audio" in self.__dict__:
+            self.audio = self.__dict__["audio"]
 
 
 class Counter(_BankObject):
@@ -705,36 +710,76 @@ class Counter(_BankObject):
       startval (float): Initial value for counter (default: ``self.min``)
       wrap (bool): wrap values if True, else clamp to range (default: ``False``)
     """
+    required = "min", "max"
     yaml_tag = "!counter"
     zone = "counters"
     zone_type = dict
 
-    def _validate(self, path=(), names={}):
-        super()._validate(path, names)
-        if not hasattr(self, "min"):
-            raise BankValidationError("Counter objects must have min")
-        if not hasattr(self, "max"):
-            raise BankValidationError("Counter objects must have max")
+    def _subvalidate(self, path=None, names=None):
         if not hasattr(self, "startval"):
             self.startval = self.min
         if not hasattr(self, "wrap"):
             self.wrap = False
 
-def str_presenter(dumper, data):
+
+# Make plain lists/dicts retain flow style
+class _BankList(list):
+    def __init__(self, *args, flow_style=None):
+        super().__init__(*args)
+        self._flow_style = flow_style
+
+    @staticmethod
+    def construct(loader, node):
+        data = _BankList(flow_style=node.flow_style)
+        yield data
+        data.extend(loader.construct_sequence(node))
+
+    @staticmethod
+    def represent(dumper, data):
+        return dumper.represent_sequence("tag:yaml.org,2002:seq",
+            data, flow_style=data._flow_style)
+
+
+class _BankDict(dict):
+    def __init__(self, *args, flow_style=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._flow_style = flow_style
+
+    @staticmethod
+    def construct(loader, node):
+        data = _BankDict(flow_style=node.flow_style)
+        yield data
+        data.update(loader.construct_mapping(node))
+
+    @staticmethod
+    def represent(dumper, data):
+        return dumper.represent_mapping("tag:yaml.org,2002:map",
+            data, flow_style=data._flow_style)
+
+
+_BankLoader.add_constructor("tag:yaml.org,2002:seq", _BankList.construct)
+_BankLoader.add_constructor("tag:yaml.org,2002:map", _BankDict.construct)
+_BankDumper.add_representer(_BankList, _BankList.represent)
+_BankDumper.add_representer(_BankDict, _BankDict.represent)
+
+# Make literal block style the default for string output
+def represent_str(dumper, data):
     if "\n" in data:
-        return dumper.represent_scalar("tag:yaml.org,2002:str", str(data), style="|")
+        return dumper.represent_scalar("tag:yaml.org,2002:str",
+            str(data), style="|")
     return dumper.represent_scalar("tag:yaml.org,2002:str", data)
 
-yaml.add_representer(str, str_presenter, Dumper=BankDumper)
+_BankDumper.add_representer(str, represent_str)
 
-for cls in (SFPreset, MidiMessage, _FlowList):
-    BankLoader.add_implicit_resolver(cls.yaml_tag, cls.yaml_regex, None)
-    BankDumper.add_implicit_resolver(cls.yaml_tag, cls.yaml_regex, None)
-
+# Register _BankObject resolvers
 for cls in _BankObject.__subclasses__():
-    path = ["patches", (dict, None), cls.zone, (cls.zone_type, None)]
-    BankLoader.add_path_resolver(cls.yaml_tag, path, dict)
-    BankDumper.add_path_resolver(cls.yaml_tag, path, dict)
-    BankLoader.add_path_resolver(cls.yaml_tag, path[2:], dict)
-    BankDumper.add_path_resolver(cls.yaml_tag, path[2:], dict)
+    if hasattr(cls, "yaml_regex"):
+        _BankLoader.add_implicit_resolver(cls.yaml_tag, cls.yaml_regex, None)
+        _BankDumper.add_implicit_resolver(cls.yaml_tag, cls.yaml_regex, None)
+    else:
+        path = ["patches", (dict, None), cls.zone, (cls.zone_type, None)]
+        _BankLoader.add_path_resolver(cls.yaml_tag, path, dict)
+        _BankDumper.add_path_resolver(cls.yaml_tag, path, dict)
+        _BankLoader.add_path_resolver(cls.yaml_tag, path[2:], dict)
+        _BankDumper.add_path_resolver(cls.yaml_tag, path[2:], dict)
 

@@ -21,7 +21,7 @@ class RouterEvent:
 class RouterRule:
 
     def __init__(self, rule):
-        self.__dict__.update(rule.__dict__)
+        self.__dict__.update(rule.current)
 
     def applies(self, event):
         if self.type != event.type:
@@ -108,7 +108,7 @@ class Router:
             self.fluid_router
             and rule.type == rule.totype
             and rule.type in ("note", "kpress", "ctrl", "prog", "cpress", "pbend")
-            and not set(rule.__dict__) - {"type", "totype", "chan", "num", "val", "_pars"}
+            and not set(rule.public) - {"type", "chan", "num", "val"}
            ):
             if hasattr(rule, "chan"):
                 for tochan in rule.chan:

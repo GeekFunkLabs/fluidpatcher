@@ -417,10 +417,10 @@ class LadspaEffect:
         self.ladspa = synth.ladspa
         lib = str(fx.lib).encode()
         plugin = getattr(fx, "plugin", "").encode() or None
-        chan = getattr(fx, "chan", [])
+        channels = getattr(fx, "channels", [])
         audio = getattr(fx, "audio", ("Input", "Output"))
         portvals = getattr(fx, "vals", {})
-        groups = set([(n - 1) % len(synth.port_mapping) for n in chan])
+        groups = set([(n - 1) % len(synth.port_mapping) for n in channels])
         aports = [port.encode() for port in audio]
         stereo = True if len(aports) == 4 else False
         self.fxunits = []

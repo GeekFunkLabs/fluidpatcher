@@ -63,13 +63,13 @@ patches:
       drums:
         tdiv: 16
         events:
-        - - note:10:36:100, _,_,_, note:10:36:100, _, _, _
-          - _, _, _, _, note:10:39:100, _, _, _
+        - - [note:10:36:100, _,_,_, note:10:36:100, _, _, _]
+          - [_, _, _, _, note:10:39:100, _, _, _]
           - [note:10:42:100, note:10:42:50, note:10:42:100, note:10:46:100]
       bass:
         tdiv: 16
         events:
-        - - nt:3:A1:100, +, +, nt:3:G2:100, _, _, nt:3:A2:100, _
+        - - [nt:3:A1:100, +, +, nt:3:G2:100, _, _, nt:3:A2:100, _]
     rules:
     - {type: cc, num: button1, val: 127=1, play: drums}
     - {type: cc, num: button1, val: 0, play: drums}
@@ -87,7 +87,7 @@ patches:
     10: test.sf2:128:000
     sequences:
       basicwave:
-        order: 1, 1, 2, 2, -4, 3, -1
+        order: [1, 1, 2, 2, -4, 3, -1]
         events: |
           nt:5:F#4:070 nt:6:D2:100  nt:10:36:100
           +            _            nt:10:42:100
@@ -130,14 +130,11 @@ patches:
     5: test.sf2:000:007
     6: test.sf2:000:067
     arpeggios:
-      mirror:
-        style: both
-      octaves:
-        style: up
-        tdiv: 16
+      mirror: {style: both}
+      octaves: {style: up, tdiv: 16}
       chords:
         style: chord
-        groove: 2,1,1,2,1,1,2,1
+        groove: [2,1,1,2, 1,1,2,1]
     rules:
     - {type: note, chan: 1=3, num: 0-59, arpeggio: mirror}
     - {type: note, chan: 1=5, num: 60-71*1-12, arpeggio: octaves}
@@ -164,9 +161,9 @@ patches:
     midifiles:
       funk:
         file: funkjam2.mid
-        barlength: 1000
-        jumps: 9>2, 17>2
         shift: 4
+        barlength: 1000
+        jumps: [9>2, 17>2]
     rules:
     - {type: cc, num: pad1, val: 1-127=2, play: funk}
     - {type: cc, num: pad2, val: 1-127=10, play: funk}
@@ -194,7 +191,6 @@ rules:
 - {type: note}
 - {type: cc}
 - {type: pbend}
-- {type: kpress, chan: =5}
 
 messages:
 - cc:4:portamento:0
@@ -206,7 +202,7 @@ ladspafx:
 
     lib: delay.so
     audio: mono
-    chan: 4
+    channels: [4]
     vals: {Delay: 0.3, Dry/Wet: 0.2}
   echo2: *echo
   echo3: *echo

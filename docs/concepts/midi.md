@@ -118,7 +118,7 @@ The parameters `chan`, `num`, and `val` support the following forms:
   For `chan`, matches a single channel and produces events on all target
   channels. For `num` and `val`, behaves like `<from>=<tomin>`.
 
-* `<min>-<max>*<mul>[+|-]<val>`
+* `<min>-<max>*<mul>{+|-}<val>`
   Matches a range, applies a multiplier, and adds an offset.
 
 If a parameter is omitted, it matches any incoming value and forwards
@@ -145,23 +145,23 @@ recognized by specific user programs.
 * `fluidsetting: <setting>`
   Sets a FluidSynth
   [setting](https://www.fluidsynth.org/api/fluidsettings.xml)
-  to the value of the routed message.
+  to the value of the emitted event.
 
 * `log: <power>`
   Applies a logarithmic
-  [function](https://www.desmos.com/calculator/gactb1ql9e) when 
-  to the message value. The rule must have a `val` parameter to set
+  [function](https://www.desmos.com/calculator/gactb1ql9e) 
+  to the event value. The rule must have a `val` parameter to set
   the ranges for the transform. The parameter specifies the power of 10
   to use (positive values only).
 
 * `lsb: <num>`
-  Sends the lower 7 bits of a 14-bit value to a second controller
-  specified by `num`. The upper 7 bits are sent to the primary target.
+  Splits a 14-bit value into 7-bit chunks. The upper chunk sets the
+  value of the primary emitted event, while the lower chunk is sent
+  in a second event specified by `num`.
 
-Rules are **inclusive** - A rule can have multiple extended parameters,
-all of which will trigger actions. Also, the resulting MIDI event is
-still sent to the synth in most cases - rules with extended behavior
-do not *absorb* the event.
+Rules are **inclusive** - A message will generate events for *every*
+rule that matches, and a rule can have multiple extended parameters,
+all of which will trigger actions. Rules do not *absorb* the message.
 
 ## Counters
 
@@ -186,6 +186,7 @@ root-level counters retain their state across patches.
 ### Rule Effects
 
 * `counter: <counter name>`
-  Increments the counter by an amount equal to the resulting event's
-  `val` parameter.
+  Increments the counter by an amount equal to the result of the rule's
+  `val` routing, and sets the event's `val` to the new value of the
+  *counter*.
 
