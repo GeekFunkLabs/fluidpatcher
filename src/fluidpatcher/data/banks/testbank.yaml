@@ -46,8 +46,6 @@ patches:
     - {type: pbend=cc, chan: 1=4, num: brightness, val: 0-8192=127-0}
     - {type: cc, chan: 1=4, num: slider2=5, lsb: 37, val: 0-127=0-6000, log: 2}
     - {type: cc, num: slider1, val: 0-127=0-1, fx: echo1>Delay}
-    - {type: cc, num: slider1, val: 0-127=0-1, fx: echo2>Delay}
-    - {type: cc, num: slider1, val: 0-127=0-1, fx: echo3>Delay}
     messages:
     - cc:4:portamento:127
     - cc:4:legato:127
@@ -141,13 +139,13 @@ patches:
     - {type: note, chan: 1=5, num: 60-71, arpeggio: octaves}
     - {type: note, chan: 1=5, num: 60-71*1+12, arpeggio: octaves}
     - {type: note, chan: 1=6, num: 72-127*1-12, arpeggio: chords}
-    - {type: cc, num: slider1, val: 0-127=0.5-0.99, swing: test}
+    - {type: cc, num: slider1, val: 0-127=0.5-0.99, swing: mirror}
     - {type: cc, num: slider1, val: 0-127=0.5-0.99, swing: octaves}
     - {type: cc, num: slider1, val: 0-127=0.5-0.99, swing: chords}
-    - {type: cc, num: slider2, val: 0-127=0.2-4, groove: test}
+    - {type: cc, num: slider2, val: 0-127=0.2-4, groove: mirror}
     - {type: cc, num: slider2, val: 0-127=0.2-4, groove: octaves}
     - {type: cc, num: slider2, val: 0-127=0.2-4, groove: chords}
-    - {type: cc, num: slider3, val: 0-127=60-240, tempo: test}
+    - {type: cc, num: slider3, val: 0-127=60-240, tempo: mirror}
     - {type: cc, num: slider3, val: 0-127=60-240, tempo: octaves}
     - {type: cc, num: slider3, val: 0-127=60-240, tempo: chords}
 

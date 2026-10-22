@@ -47,7 +47,7 @@ else:
 # parse config
 for key, val in list(CONFIG.items()):
     if key.endswith("_path") and val is not None:
-        CONFIG[key] = Path(val)
+        CONFIG[key] = Path(val).expanduser()
 CONFIG.setdefault(
     "ladspa_path",
     Path(os.getenv("LADSPA_PATH", "/usr/lib/ladspa"))

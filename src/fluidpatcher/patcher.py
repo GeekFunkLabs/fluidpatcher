@@ -149,9 +149,9 @@ class FluidPatcher:
         self._synth.reset()
         for zone in self.bank:
             for midi in zone.get("midifiles", {}).values():
-                midi.file = CONFIG["midi_path"] / midi.file
+                midi._file = CONFIG["midi_path"] / midi.file
             for fx in zone.get("ladspafx", {}).values():
-                fx.lib = CONFIG["ladspa_path"] / fx.lib
+                fx._lib = CONFIG["ladspa_path"] / fx.lib
         init = self.bank.root.get("init", {})
         for name, val in (SYNTH_DEFAULTS | init.get("fluidsettings", {})).items():
             self._synth[name] = val

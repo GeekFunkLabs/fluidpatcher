@@ -340,7 +340,7 @@ class MidiFile:
 
     def __init__(self, synth, mfile):
         self.fplayer = FS.new_fluid_player(synth.fsynth)
-        FS.fluid_player_add(self.fplayer, str(mfile.file).encode())
+        FS.fluid_player_add(self.fplayer, str(mfile._file).encode())
         self.jumps = getattr(mfile, "jumps", [])
         self.barlength = getattr(mfile, "barlength", 1)
         if hasattr(mfile, "tempo"):
@@ -415,7 +415,7 @@ class LadspaEffect:
     
     def __init__(self, synth, name, fx):
         self.ladspa = synth.ladspa
-        lib = str(fx.lib).encode()
+        lib = str(fx._lib).encode()
         plugin = getattr(fx, "plugin", "").encode() or None
         channels = getattr(fx, "channels", [])
         audio = getattr(fx, "audio", ("Input", "Output"))

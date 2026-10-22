@@ -65,7 +65,7 @@ def _walk(node, path=None, names=None):
         raise BankValidationError(
             "Null value in bank", path
         )
-    if hasattr(node, "_validate"):
+    if isinstance(node, _BankObject):
         try:
             node._validate(path, names)
         except BankValidationError as e:
@@ -185,7 +185,7 @@ class Bank:
             raise BankSyntaxError.from_yamlexc(e)
         self.patch = self.root.setdefault("patches", {})
         names = self.root.get("names", {})
-        _walk(self.root, path=(), names=names)
+        _walk(self.root, names=names)
 
     @property
     def patches(self):
@@ -288,6 +288,10 @@ class _BankObject(yaml.YAMLObject):
             if not k.startswith("_")
         }
 
+    @property
+    def validated(self):
+        return getattr(self, "_validated", False)
+
     def _validate(self, path=None, names=None):
         if path is None:
             path = ()
@@ -307,21 +311,20 @@ class _BankObject(yaml.YAMLObject):
     def __repr__(self):
         return str(self.current)
 
+    def __eq__(self, other):
+        return self.current == other.current
+
     def copy(self, **pars):
         return self.__class__(**self.current | pars)
 
     @classmethod
     def to_yaml(cls, dumper, data):
-        if data.current == data._validated:
-            return dumper.represent_mapping(
-                cls.yaml_tag, data._source,
-                flow_style=cls.yaml_flow_style
-            )
+        if data.validated and data.current != data.validated:
+            return dumper.represent_mapping(cls.yaml_tag,
+                data.current, flow_style=cls.yaml_flow_style)
         else:
-            return dumper.represent_mapping(
-                cls.yaml_tag, data.current,
-                flow_style=cls.yaml_flow_style
-            )
+            return dumper.represent_mapping(cls.yaml_tag,
+                data._source, flow_style=cls.yaml_flow_style)
 
 
 class SFPreset(_BankObject):
@@ -363,7 +366,7 @@ class MidiMessage(_BankObject):
       num (int): Note/controller number (where applicable)
       val (int): Value (velocity, CC value, pitch bend, etc.)
     """
-    required = "type", 
+    required = "type",
     yaml_tag = "!midimsg"
     yaml_regex = re.compile(rf"^({'|'.join(TYPE_ALIAS)}):\S*$")
 
@@ -409,10 +412,10 @@ class MidiMessage(_BankObject):
 
     @classmethod
     def to_yaml(cls, dumper, data):
-        if data.current == data._validated:
-            return dumper.represent_scalar(cls.yaml_tag, data._source)
-        else:
+        if data.validated and data.current != data.validated:
             return dumper.represent_scalar(cls.yaml_tag, str(data))
+        else:
+            return dumper.represent_scalar(cls.yaml_tag, data._source)
 
     def __repr__(self):
         match self.current:
@@ -476,7 +479,7 @@ class MidiRule(_BankObject):
 
     def _set_route(self, par, spec, names=None):
         if spec is None:
-            self.__dict__[par] = None
+            self.__dict__.pop(par, None)
             return
         if m := self.re_range.fullmatch(str(spec)):
             values = [_resolve(x, names) for x in m.groups()]
@@ -496,6 +499,20 @@ class MidiRule(_BankObject):
             self._set_route(par, spec, names)
         if hasattr(self, "lsb"):
             self.lsb = _resolve(self.lsb, names)
+
+    @classmethod
+    def to_yaml(cls, dumper, data):
+        if data.validated and data.current != data.validated:
+            return dumper.represent_mapping(
+                cls.yaml_tag,
+                data.current | {
+                    par: str(spec) for par, spec in data.current.items()
+                    if par in ("chan", "num", "val")
+                },
+                flow_style=cls.yaml_flow_style)
+        else:
+            return dumper.represent_mapping(cls.yaml_tag,
+                data._source, flow_style=cls.yaml_flow_style)
 
 
 class _Route:
@@ -533,8 +550,17 @@ class _Route:
         self.max = max
         self.tomin = tomin
         self.tomax = tomax
-        self.mul = 1 if min == max else (tomax - tomin) / (max - min)
-        self.add = tomin - min * self.mul
+
+    @property
+    def mul(self):
+        if self.min == self.max:
+            return 1
+        else:
+            return (self.tomax - self.tomin) / (self.max - self.min)
+
+    @property
+    def add(self):
+        return self.tomin - self.min * self.mul
 
     @classmethod
     def from_affine(cls, min, max, mul, add):
@@ -548,12 +574,25 @@ class _Route:
           add (int|float): amount to add to values
         """
         obj = cls(min, max, min * mul + add, max * mul + add)
-        obj.mul = mul
-        obj.add = add
         return obj
 
     def __repr__(self):
-        return f"{self.min}-{self.max}={self.tomin}-{self.tomax}"
+        spec = f"{self.min}"
+        if self.max != self.min: spec += f"-{self.max}"
+        tospec = f"{self.tomin}"
+        if self.tomax != self.tomin: tospec += f"-{self.tomax}"
+        if tospec != spec: spec += f"={tospec}"
+        return spec
+
+    def __eq__(self, other):
+        if not isinstance(other, _Route):
+            return NotImplemented
+        return (
+            self.min == other.min
+            and self.max == other.max
+            and self.tomin == other.tomin
+            and self.tomax == other.tomax
+        )
 
     def __iter__(self):
         tovals = range(int(self.tomin), int(self.tomax) + 1)
@@ -579,16 +618,40 @@ class Sequence(_BankObject):
     zone = "sequences"
     zone_type = dict
 
-    def _subvalidate(self, path=None, names=None):
-        if isinstance(self.events, str):
+    @classmethod
+    def from_yaml(cls, loader, node):
+        obj = cls.__new__(cls)
+        obj._source = loader.construct_mapping(node, deep=True)
+        obj.__dict__.update(deepcopy(obj._source))
+        if isinstance(obj.events, str):
             events = []
-            for p in self.events.strip().split("\n\n"):
+            for p in obj.events.strip().split("\n\n"):
                 s = [[yaml.load(e, Loader=_BankLoader) for e in r.split()]
                      for r in p.splitlines()]
                 events.append([list(t) for t in zip(*s)])
-            for i, v in enumerate(events):
-                _walk(v, path + (i,), names)
-            self.events = events
+            obj.__dict__["events"] = events
+        return obj
+
+    @classmethod
+    def to_yaml(cls, dumper, data):
+        if data.validated and data.current != data.validated:
+            if data.events == data.validated["events"]:
+                return dumper.represent_mapping(cls.yaml_tag,
+                    data.current, flow_style=cls.yaml_flow_style)
+            patterns = []
+            for tracks in data.events:
+                patterns.append("\n".join(
+                    "  ".join(f"{str(e):>18}" for e in row)
+                    for row in zip(*tracks)
+                ))
+            return dumper.represent_mapping(
+                cls.yaml_tag,
+                data.current | {"events": "\n\n".join(patterns)},
+                flow_style=cls.yaml_flow_style
+            )
+        else:
+            return dumper.represent_mapping(cls.yaml_tag,
+                data._source, flow_style=cls.yaml_flow_style)
 
 
 class Arpeggio(_BankObject):
