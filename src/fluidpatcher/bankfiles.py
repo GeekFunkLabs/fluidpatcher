@@ -58,6 +58,20 @@ def _resolve(s, names=None):
                 s = int(s)
     return s
 
+def _resolved_property(par):
+    def getter(obj):
+        return obj.__dict__.get(par)
+    def setter(obj, val):
+        obj.__dict__[par] = _resolve(val)
+    return property(getter, setter)
+
+def _int_property(par):
+    def getter(obj):
+        return obj.__dict__.get(par)
+    def setter(obj, val):
+        obj.__dict__[par] = int(val)
+    return property(getter, setter)
+
 def _walk(node, path=None, names=None):
     if path is None:
         path = ()
@@ -161,7 +175,33 @@ class _BankDumper(yaml.SafeDumper):
     YAML dumper that emits FluidPatcher’s extended object syntax and
     preserves key order and structure wherever possible.
     """
-    pass
+    def _is_bankscalar(self, event):
+        if not isinstance(event, yaml.events.ScalarEvent):
+            return False
+        for cls in _BankObject.__subclasses__():
+            if (
+                hasattr(cls, "yaml_regex")
+                and event.tag == cls.yaml_tag
+                and cls.yaml_regex.fullmatch(event.value)
+            ):
+                return True
+        return False
+
+    def choose_scalar_style(self):
+        if (
+            self.flow_level
+            and not self.simple_key_context
+            and not self.event.style
+            and self._is_bankscalar(self.event)
+        ):
+            return ""
+        return super().choose_scalar_style()
+
+    def process_tag(self):
+        if self.flow_level and self._is_bankscalar(self.event):
+            self.prepared_tag = None
+            return
+        super().process_tag()
 
 
 class Bank:
@@ -308,8 +348,11 @@ class _BankObject(yaml.YAMLObject):
     def _subvalidate(self, path, names):
         pass
 
-    def __repr__(self):
+    def __str__(self):
         return str(self.current)
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {str(self)}>"
 
     def __eq__(self, other):
         return self.current == other.current
@@ -336,23 +379,34 @@ class SFPreset(_BankObject):
       bank (int): SoundFont bank index
       prog (int): Program index
     """
+    required = ("file", "bank", "prog")
     yaml_tag = "!sfpreset"
     yaml_regex = re.compile(r"^(.+\.sf2):(\d+):(\d+)$", flags=re.I)
+    bank = _int_property("bank")
+    prog = _int_property("prog")
 
     def __init__(self, file, bank, prog):
         self.file = file
-        self.bank = int(bank)
-        self.prog = int(prog)
+        self.bank = bank
+        self.prog = prog
+        self._source = str(self)
+        self._validate()    
 
     @classmethod
     def from_yaml(cls, loader, node):
-        return cls(*loader.construct_scalar(node).split(":"))
+        obj = cls.__new__(cls)
+        obj._source = loader.construct_scalar(node)
+        obj.file, obj.bank, obj.prog = obj._source.split(":")
+        return obj
 
     @classmethod
     def to_yaml(cls, dumper, data):
-        return dumper.represent_scalar(cls.yaml_tag, str(data))
+        if data.validated and data.current != data.validated:
+            return dumper.represent_scalar(cls.yaml_tag, str(data))
+        else:
+            return dumper.represent_scalar(cls.yaml_tag, data._source)
 
-    def __repr__(self):
+    def __str__(self):
         return f"{self.file}:{self.bank:03d}:{self.prog:03d}"
 
 
@@ -369,6 +423,9 @@ class MidiMessage(_BankObject):
     required = "type",
     yaml_tag = "!midimsg"
     yaml_regex = re.compile(rf"^({'|'.join(TYPE_ALIAS)}):\S*$")
+    chan = _int_property("chan")
+    num = _resolved_property("num")
+    val = _int_property("val")
 
     def __init__(self, **pars):
         self.__dict__.update(pars)
@@ -383,7 +440,7 @@ class MidiMessage(_BankObject):
     def type(self, type):
         if type not in TYPE_ALIAS:
             raise BankValidationError(
-                f"MidiRule type {type!r} not recognized"
+                f"{self.__class__.__name__} type {type!r} not recognized"
             )
         self.__dict__["type"] = TYPE_ALIAS[type]
 
@@ -417,7 +474,7 @@ class MidiMessage(_BankObject):
         else:
             return dumper.represent_scalar(cls.yaml_tag, data._source)
 
-    def __repr__(self):
+    def __str__(self):
         match self.current:
             case {"type": "sysex", "val": data}:
                 return ":".join(["sysex"] + [str(b) for b in data])
@@ -442,6 +499,13 @@ class MidiRule(_BankObject):
       val (_Route): Value range/transform (optional)
       **pars (dict): additional parameters for custom functionality
     """
+    def _route_property(par):
+        def getter(self):
+            return self.__dict__.get(par)
+        def setter(self, spec):
+            self._set_route(par, spec)
+        return property(getter, setter)
+
     required = "type",
     NN = r"[\w#.]+" # number or note name regex
     re_range = re.compile(rf"({NN})-?({NN})?=?(-?{NN})?-?(-?{NN})?")
@@ -450,14 +514,6 @@ class MidiRule(_BankObject):
     yaml_flow_style = True
     zone = "rules"
     zone_type = list
-
-    def _route_property(par):
-        def getter(self):
-            return self.__dict__.get(par)
-        def setter(self, spec):
-            self._set_route(par, spec)
-        return property(getter, setter)
-
     chan = _route_property("chan")
     num = _route_property("num")
     val = _route_property("val")
@@ -472,7 +528,7 @@ class MidiRule(_BankObject):
         for type in types:
             if type not in TYPE_ALIAS:
                 raise BankValidationError(
-                    f"MidiRule type {type!r} not recognized"
+                    f"{self.__class__.__name__} type {type!r} not recognized"
                 )
         self.__dict__["type"] = TYPE_ALIAS[types[0]]
         self.totype = TYPE_ALIAS[types[-1]]
@@ -528,6 +584,11 @@ class _Route:
       add (int|float): amount to add to values
     """
 
+    min = _resolved_property("min")
+    max = _resolved_property("max")
+    tomin = _resolved_property("tomin")
+    tomax = _resolved_property("tomax")
+
     def __init__(self, min, max, tomin, tomax):
         """
         Creates a _Route based on from-to ranges
@@ -558,9 +619,19 @@ class _Route:
         else:
             return (self.tomax - self.tomin) / (self.max - self.min)
 
+    @mul.setter
+    def mul(self, val):
+        self.tomin = self.min * _resolve(val) + self.add
+        self.tomax = self.max * _resolve(val) + self.add
+
     @property
     def add(self):
         return self.tomin - self.min * self.mul
+
+    @add.setter
+    def add(self, val):
+        self.tomin = self.min * self.mul + _resolve(val)
+        self.tomax = self.max * self.mul + _resolve(val)
 
     @classmethod
     def from_affine(cls, min, max, mul, add):
@@ -834,7 +905,7 @@ def represent_str(dumper, data):
 
 _BankDumper.add_representer(str, represent_str)
 
-# Register _BankObject resolvers
+# Register resolvers
 for cls in _BankObject.__subclasses__():
     if hasattr(cls, "yaml_regex"):
         _BankLoader.add_implicit_resolver(cls.yaml_tag, cls.yaml_regex, None)
