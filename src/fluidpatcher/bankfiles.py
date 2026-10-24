@@ -307,6 +307,7 @@ class _BankObject(yaml.YAMLObject):
     required = ()
     yaml_loader = _BankLoader
     yaml_dumper = _BankDumper
+    _flow_style = None
 
     def __init__(self, **pars):
         self._source = deepcopy(pars)
@@ -318,6 +319,7 @@ class _BankObject(yaml.YAMLObject):
         obj = cls.__new__(cls)
         obj._source = loader.construct_mapping(node, deep=True)
         obj.__dict__.update(deepcopy(obj._source))
+        obj._flow_style = node.flow_style
         return obj
 
     @property
@@ -363,11 +365,14 @@ class _BankObject(yaml.YAMLObject):
     @classmethod
     def to_yaml(cls, dumper, data):
         if data.validated and data.current != data.validated:
-            return dumper.represent_mapping(cls.yaml_tag,
-                data.current, flow_style=cls.yaml_flow_style)
+            rep = data.current
         else:
-            return dumper.represent_mapping(cls.yaml_tag,
-                data._source, flow_style=cls.yaml_flow_style)
+            rep = data._source
+        return dumper.represent_mapping(
+            cls.yaml_tag,
+            rep,
+            flow_style=data._flow_style
+        )
 
 
 class SFPreset(_BankObject):
@@ -511,7 +516,7 @@ class MidiRule(_BankObject):
     re_range = re.compile(rf"({NN})-?({NN})?=?(-?{NN})?-?(-?{NN})?")
     re_affine = re.compile(rf"({NN})-({NN})\*(-?{NN})([+-]{NN})")
     yaml_tag = "!midirule"
-    yaml_flow_style = True
+    _flow_style = True
     zone = "rules"
     zone_type = list
     chan = _route_property("chan")
@@ -559,16 +564,15 @@ class MidiRule(_BankObject):
     @classmethod
     def to_yaml(cls, dumper, data):
         if data.validated and data.current != data.validated:
-            return dumper.represent_mapping(
-                cls.yaml_tag,
-                data.current | {
-                    par: str(spec) for par, spec in data.current.items()
-                    if par in ("chan", "num", "val")
-                },
-                flow_style=cls.yaml_flow_style)
+            rep = data.current | {
+                par: str(spec) for par, spec in data.current.items()
+                if par in ("chan", "num", "val")
+            }
         else:
-            return dumper.represent_mapping(cls.yaml_tag,
-                data._source, flow_style=cls.yaml_flow_style)
+            rep = data._source
+        return dumper.represent_mapping(
+            cls.yaml_tag, rep, flow_style = data._flow_style
+        )
 
 
 class _Route:
@@ -701,28 +705,27 @@ class Sequence(_BankObject):
                      for r in p.splitlines()]
                 events.append([list(t) for t in zip(*s)])
             obj.__dict__["events"] = events
+        obj._flow_style = node.flow_style
         return obj
 
     @classmethod
     def to_yaml(cls, dumper, data):
         if data.validated and data.current != data.validated:
             if data.events == data.validated["events"]:
-                return dumper.represent_mapping(cls.yaml_tag,
-                    data.current, flow_style=cls.yaml_flow_style)
-            patterns = []
-            for tracks in data.events:
-                patterns.append("\n".join(
-                    "  ".join(f"{str(e):>18}" for e in row)
-                    for row in zip(*tracks)
-                ))
-            return dumper.represent_mapping(
-                cls.yaml_tag,
-                data.current | {"events": "\n\n".join(patterns)},
-                flow_style=cls.yaml_flow_style
-            )
+                rep = data.current
+            else:
+                patterns = []
+                for tracks in data.events:
+                    patterns.append("\n".join(
+                        "  ".join(f"{str(e):>18}" for e in row)
+                        for row in zip(*tracks)
+                    ))
+                rep = data.current | {"events": "\n\n".join(patterns)}
         else:
-            return dumper.represent_mapping(cls.yaml_tag,
-                data._source, flow_style=cls.yaml_flow_style)
+            rep = data._source
+        return dumper.represent_mapping(
+            cls.yaml_tag, rep, flow_style=data._flow_style
+        )
 
 
 class Arpeggio(_BankObject):
