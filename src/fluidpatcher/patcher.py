@@ -11,13 +11,10 @@ engine and Bank files. It handles:
 """
 
 from contextlib import contextmanager
-from pathlib import Path
 
-from yaml import safe_load, safe_dump
-
-from .bankfiles import Bank, SFPreset, MidiMessage
+from .bankfiles import Bank, SFPreset, MidiMessage, LadspaEffect
 from .bankfiles import BankValidationError
-from .config import CONFIG, PATCHCORD
+from .config import CONFIG, PATCHCORD_LIB
 from .pfluidsynth import Synth, PLAYER_TYPES
 from .router import Router
 
@@ -106,46 +103,19 @@ class FluidPatcher:
             self._sfonts[sf].file = sf
         return self._sfonts[sf]
 
-    def load_bank(self, bankfile="", raw=""):
+    def load_bank(self, bankfile=None, raw=None):
         """
         Load a bank from a YAML file or raw text.
 
         Args:
           bankfile (str|Path):
             Filename relative to CONFIG["banks_path"], or absolute.
-
           raw (str):
             YAML text to load directly, bypassing disk I/O.
         """
-        def read_bank(files, raw="", indent=0):
-            text = ""
-            if files:
-                try:
-                    raw = files[-1].read_text()
-                except FileNotFoundError as e:
-                    raise BankValidationError(
-                        f"No such file {files[-1]}"
-                    )
-            for line in raw.splitlines(keepends=True):
-                if "#include" in line:
-                    i = line.index("#include")
-                    name = line[i + 9:].rstrip()
-                    for f in (
-                        CONFIG["banks_path"] / name,
-                        files[-1].parent / name if files else name,
-                    ):
-                        if f.exists():
-                            break
-                    if f not in files:
-                        if line[:i].isspace():
-                            line = read_bank(files + [f], indent=i)
-                        else:
-                            line = line[:i] + read_bank(files + [f])
-                text += " " * indent + line
-            return text
-        self.bank = Bank(read_bank(
-            [CONFIG["banks_path"] / bankfile] if bankfile else [], raw
-        ))
+        if bankfile is None and raw is None:
+            raise ValueError("No source provided for Bank")
+        self.bank = Bank(raw, bankfile)
         self._synth.reset()
         for zone in self.bank:
             for midi in zone.get("midifiles", {}).values():
@@ -207,7 +177,9 @@ class FluidPatcher:
                 if name not in self._synth.players[ptype]:
                     self._synth.player_add(ptype, name, player)
         # ladspa effects
-        wanted = self.bank[patch]["ladspafx"] | PATCHCORD
+        wanted = self.bank[patch]["ladspafx"]
+        if PATCHCORD_LIB is not None:
+            wanted |= {"_patchcord": LadspaEffect(lib=PATCHCORD_LIB)}
         if set(wanted) != set(self._synth.ladspafx):
             self._synth.fxchain_clear()
             for name, fx in wanted.items():
