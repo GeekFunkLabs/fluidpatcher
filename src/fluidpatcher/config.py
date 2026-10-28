@@ -20,8 +20,6 @@ import shutil
 
 import yaml
 
-from .bankfiles import LadspaEffect
-
 
 DEFAULT_CFG = """\
 fluidsettings:
@@ -61,17 +59,17 @@ for item in "banks", "sounds", "midi":
     if not CONFIG[key].exists():
         shutil.copytree(res.files("fluidpatcher.data") / item, CONFIG[key])
 
-# initialize patchcord for multi-channel LADSPA mixing
+# locate patchcord lib for multi-channel LADSPA mixing
 system = platform.system().lower()
 arch = platform.machine()
 prebuilt_path = res.files("fluidpatcher._ladspa") / f"prebuilt/{system}-{arch}/patchcord.so"
 patchcord = res.files("fluidpatcher._ladspa") / "patchcord.so"
 
 if patchcord.exists():
-    PATCHCORD = {"_patchcord": LadspaEffect(lib=patchcord)}
+    PATCHCORD_LIB = patchcord
 elif prebuilt_path.exists():
-    PATCHCORD = {"_patchcord": LadspaEffect(lib=prebuilt_path)}
+    PATCHCORD_LIB = prebuilt_path
 else:
-    PATCHCORD = {}
+    PATCHCORD_LIB = None
     CONFIG["fluidsettings"]["synth.audio-groups"] = 1
 
