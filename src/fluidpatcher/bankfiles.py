@@ -13,9 +13,12 @@ describing patches, MIDI routing, sequencing, and effects.
 """
 
 from copy import deepcopy
+from pathlib import Path
 import re
 
 import yaml
+
+from .config import CONFIG
 
 
 TYPE_ALIAS = {}
@@ -94,6 +97,17 @@ def _walk(node, path=None, names=None):
         for i, v in enumerate(node):
             _walk(v, path + (i,), names)
 
+def _load_yaml(text, path=None):
+    print(f"{path}:\n{text}\n\n")
+    loader = _BankLoader(text)
+    loader.source_path = (
+        Path(path).resolve() if path is not None else None
+    )
+    try:
+        return loader.get_single_data()
+    finally:
+        loader.dispose()
+
 
 class BankError(Exception):
     """Base class for all bank parsing and validation errors."""
@@ -160,50 +174,6 @@ class BankValidationError(BankError):
         return self.msg + loc
 
 
-class _BankLoader(yaml.SafeLoader):
-    """
-    YAML loader extended with:
-      - Custom tags for bank object types
-      - Path and implicit resolvers
-      - Construction helpers used by Bank()
-    """
-    pass
-
-
-class _BankDumper(yaml.SafeDumper):
-    """
-    YAML dumper that emits FluidPatcher’s extended object syntax and
-    preserves key order and structure wherever possible.
-    """
-    def _is_bankscalar(self, event):
-        if not isinstance(event, yaml.events.ScalarEvent):
-            return False
-        for cls in _BankObject.__subclasses__():
-            if (
-                hasattr(cls, "yaml_regex")
-                and event.tag == cls.yaml_tag
-                and cls.yaml_regex.fullmatch(event.value)
-            ):
-                return True
-        return False
-
-    def choose_scalar_style(self):
-        if (
-            self.flow_level
-            and not self.simple_key_context
-            and not self.event.style
-            and self._is_bankscalar(self.event)
-        ):
-            return ""
-        return super().choose_scalar_style()
-
-    def process_tag(self):
-        if self.flow_level and self._is_bankscalar(self.event):
-            self.prepared_tag = None
-            return
-        super().process_tag()
-
-
 class Bank:
     """
     Parsed representation of a FluidPatcher bank YAML document.
@@ -218,9 +188,13 @@ class Bank:
       soundfonts (list[SFPreset]):
         Dynamic list of soundfont files required by patches.
     """
-    def __init__(self, text):
+    def __init__(self, text, path=None):
+        if path is not None:
+            path = CONFIG["banks_path"] / Path(path).expanduser()
+        if text is None:
+            text = path.read_text()
         try:
-            self.root = yaml.load(text, Loader=_BankLoader)
+            self.root = _load_yaml(text, path=path)
         except yaml.YAMLError as e:
             raise BankSyntaxError.from_yamlexc(e)
         self.patch = self.root.setdefault("patches", {})
@@ -289,6 +263,50 @@ class _Patch:
 
     def copy(self, **pars):
         return deepcopy(self._patch | pars)
+
+
+class _BankLoader(yaml.SafeLoader):
+    """
+    YAML loader extended with:
+      - Custom tags for bank object types
+      - Path and implicit resolvers
+      - Construction helpers used by Bank()
+    """
+    pass
+
+
+class _BankDumper(yaml.SafeDumper):
+    """
+    YAML dumper that emits FluidPatcher’s extended object syntax and
+    preserves key order and structure wherever possible.
+    """
+    def _is_bankscalar(self, event):
+        if not isinstance(event, yaml.events.ScalarEvent):
+            return False
+        for cls in _BankObject.__subclasses__():
+            if (
+                hasattr(cls, "yaml_regex")
+                and event.tag == cls.yaml_tag
+                and cls.yaml_regex.fullmatch(event.value)
+            ):
+                return True
+        return False
+
+    def choose_scalar_style(self):
+        if (
+            self.flow_level
+            and not self.simple_key_context
+            and not self.event.style
+            and self._is_bankscalar(self.event)
+        ):
+            return ""
+        return super().choose_scalar_style()
+
+    def process_tag(self):
+        if self.flow_level and self._is_bankscalar(self.event):
+            self.prepared_tag = None
+            return
+        super().process_tag()
 
 
 class _BankObject(yaml.YAMLObject):
@@ -861,15 +879,12 @@ class Counter(_BankObject):
 
 # Make plain lists/dicts retain flow style
 class _BankList(list):
-    def __init__(self, *args, flow_style=None):
-        super().__init__(*args)
-        self._flow_style = flow_style
-
     @staticmethod
     def construct(loader, node):
-        data = _BankList(flow_style=node.flow_style)
+        data = _BankList()
         yield data
         data.extend(loader.construct_sequence(node))
+        data._flow_style = node.flow_style
 
     @staticmethod
     def represent(dumper, data):
@@ -878,15 +893,12 @@ class _BankList(list):
 
 
 class _BankDict(dict):
-    def __init__(self, *args, flow_style=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._flow_style = flow_style
-
     @staticmethod
     def construct(loader, node):
-        data = _BankDict(flow_style=node.flow_style)
+        data = _BankDict()
         yield data
         data.update(loader.construct_mapping(node))
+        data._flow_style = node.flow_style
 
     @staticmethod
     def represent(dumper, data):
@@ -894,26 +906,83 @@ class _BankDict(dict):
             data, flow_style=data._flow_style)
 
 
-_BankLoader.add_constructor("tag:yaml.org,2002:seq", _BankList.construct)
-_BankLoader.add_constructor("tag:yaml.org,2002:map", _BankDict.construct)
-_BankDumper.add_representer(_BankList, _BankList.represent)
-_BankDumper.add_representer(_BankDict, _BankDict.represent)
+class _IncludedList(_BankList):
+    pass
+
+
+class _IncludedDict(_BankDict):
+    pass
+
+
+def _construct_include(loader, node):
+    filename = loader.construct_scalar(node)
+    paths = [Path(filename).expanduser()]
+    if not paths[0].is_absolute():
+        paths = [CONFIG["banks_path"] / filename]
+        if loader.source_path is not None:
+            paths.append(loader.source_path.parent / filename)
+    for path in paths:
+        if path.is_file():
+            data = _load_yaml(path.read_text(), path=path)
+            if isinstance(data, list):
+                obj = _IncludedList()
+                yield obj
+                obj.extend(data)
+            elif isinstance(data, dict):
+                obj = _IncludedDict()
+                yield obj
+                obj.update(data)
+            obj._original = deepcopy(data)
+            obj._flow_style = data._flow_style
+            obj._source = filename
+            break
+    else:
+        raise FileNotFoundError(
+            f"Include file {obj._source} not found. Searched:",
+            *(f"\n  {p}" for p in paths)
+        )
+
+def _represent_include(dumper, data):
+    if data != data._original:
+        if isinstance(data, _IncludedList):
+            return dumper.represent_sequence(
+                "tag:yaml.org,2002:seq",
+                data, flow_style=data._flow_style,
+            )
+        elif isinstance(data, _IncludedDict):
+            return dumper.represent_mapping(
+                "tag:yaml.org,2002:map",
+                data, flow_style=data._flow_style,
+            )
+        else:
+            raise TypeError("Unable to represent {type(data)}")
+    else:
+        return dumper.represent_scalar("!include", data._source)
 
 # Make literal block style the default for string output
-def represent_str(dumper, data):
+def _represent_str(dumper, data):
     if "\n" in data:
         return dumper.represent_scalar("tag:yaml.org,2002:str",
             str(data), style="|")
     return dumper.represent_scalar("tag:yaml.org,2002:str", data)
 
-_BankDumper.add_representer(str, represent_str)
+_BankLoader.add_constructor("tag:yaml.org,2002:seq", _BankList.construct)
+_BankLoader.add_constructor("tag:yaml.org,2002:map", _BankDict.construct)
+_BankDumper.add_representer(_BankList, _BankList.represent)
+_BankDumper.add_representer(_BankDict, _BankDict.represent)
+
+_BankLoader.add_constructor("!include", _construct_include)
+_BankDumper.add_representer(_IncludedList, _represent_include)
+_BankDumper.add_representer(_IncludedDict, _represent_include)
+
+_BankDumper.add_representer(str, _represent_str)
 
 # Register resolvers
 for cls in _BankObject.__subclasses__():
     if hasattr(cls, "yaml_regex"):
         _BankLoader.add_implicit_resolver(cls.yaml_tag, cls.yaml_regex, None)
         _BankDumper.add_implicit_resolver(cls.yaml_tag, cls.yaml_regex, None)
-    else:
+    elif hasattr(cls, "zone"):
         path = ["patches", (dict, None), cls.zone, (cls.zone_type, None)]
         _BankLoader.add_path_resolver(cls.yaml_tag, path, dict)
         _BankDumper.add_path_resolver(cls.yaml_tag, path, dict)
